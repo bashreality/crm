@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ReplyComposer from './ReplyComposer';
 
-const EmailModal = ({ email, onClose }) => {
+const EmailModal = ({ email, onClose, onEmailUpdated }) => {
+  const [showReplyComposer, setShowReplyComposer] = useState(false);
+
   if (!email) return null;
 
   const formatDate = (dateString) => {
@@ -135,23 +138,35 @@ const EmailModal = ({ email, onClose }) => {
           justifyContent: 'flex-end',
           gap: '1rem'
         }}>
-          <button 
+          <button
             className="btn btn-secondary"
             onClick={onClose}
           >
             Zamknij
           </button>
-          <button 
+          <button
             className="btn btn-primary"
-            onClick={() => {
-              // Tutaj możesz dodać akcję odpowiedzi
-              alert('Funkcja odpowiedzi wkrótce!');
-            }}
+            onClick={() => setShowReplyComposer(true)}
           >
             📧 Odpowiedz
           </button>
         </div>
       </div>
+
+      {/* Reply Composer Modal */}
+      {showReplyComposer && (
+        <ReplyComposer
+          email={email}
+          onClose={() => setShowReplyComposer(false)}
+          onSent={() => {
+            setShowReplyComposer(false);
+            // Odśwież listę emaili jeśli callback jest dostępny
+            if (onEmailUpdated) {
+              onEmailUpdated();
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

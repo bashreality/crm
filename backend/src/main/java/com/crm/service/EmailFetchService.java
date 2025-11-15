@@ -26,13 +26,13 @@ public class EmailFetchService {
     private final AIClassificationService aiClassificationService;
     private final ContactAutoCreationService contactAutoCreationService;
 
-    @Value("${spring.mail.host}")
+    @Value("${email.imap.host}")
     private String mailHost;
 
-    @Value("${spring.mail.username}")
+    @Value("${email.imap.username}")
     private String mailUsername;
 
-    @Value("${spring.mail.password}")
+    @Value("${email.imap.password}")
     private String mailPassword;
 
     @Value("${email.fetch.folder:INBOX}")
