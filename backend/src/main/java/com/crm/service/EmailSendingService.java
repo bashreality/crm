@@ -62,11 +62,12 @@ public class EmailSendingService {
             sentEmail.setRecipient(toEmail);
             sentEmail.setSubject(subject);
             sentEmail.setContent(body);
-            sentEmail.setReceivedDate(LocalDateTime.now());
+            sentEmail.setReceivedAt(LocalDateTime.now());
             sentEmail.setMessageId(message.getMessageID());
             sentEmail.setInReplyTo(inReplyTo);
             sentEmail.setReferences(references);
-            sentEmail.setSentiment("neutral"); // Wysłane emaile domyślnie neutral
+            sentEmail.setCompany("Unknown"); // Domyślnie Unknown dla wysłanych
+            sentEmail.setStatus("neutral"); // Wysłane emaile domyślnie neutral
 
             Email saved = emailRepository.save(sentEmail);
             log.info("Reply sent successfully, saved with ID: {}", saved.getId());

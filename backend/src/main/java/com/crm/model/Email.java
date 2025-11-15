@@ -19,10 +19,19 @@ public class Email {
     
     @Column(nullable = false)
     private String sender;
-    
+
+    @Column
+    private String recipient; // Odbiorca (dla wysłanych emaili)
+
     @Column(unique = true)
     private String messageId; // Unikalny identyfikator wiadomości
-    
+
+    @Column
+    private String inReplyTo; // Message-ID wiadomości, na którą odpowiadamy
+
+    @Column(columnDefinition = "TEXT")
+    private String references; // Nagłówek References dla wątków
+
     @Column(nullable = false)
     private String company;
     

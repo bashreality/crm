@@ -146,13 +146,16 @@ public class EmailController {
                         .body(Map.of("error", "Subject and body are required"));
             }
 
+            // Budujemy nagłówek References dla wątku
+            String references = buildReferences(originalEmail);
+
             // Wysyłamy odpowiedź
             Long sentEmailId = emailSendingService.sendReply(
                     originalEmail.getSender(),
                     subject,
                     body,
                     originalEmail.getMessageId(),
-                    originalEmail.getReferences()
+                    references
             );
 
             // Opcjonalnie: aktualizuj status oryginalnego emaila
@@ -174,5 +177,24 @@ public class EmailController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Internal server error"));
         }
+    }
+
+    /**
+     * Buduje nagłówek References dla wątku email
+     */
+    private String buildReferences(Email originalEmail) {
+        String messageId = originalEmail.getMessageId();
+        String existingReferences = originalEmail.getReferences();
+
+        if (messageId == null) {
+            return existingReferences;
+        }
+
+        if (existingReferences == null || existingReferences.isEmpty()) {
+            return messageId;
+        }
+
+        // Dodaj messageId do istniejących references
+        return existingReferences + " " + messageId;
     }
 }
