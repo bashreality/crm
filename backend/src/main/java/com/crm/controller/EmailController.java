@@ -2,20 +2,29 @@ package com.crm.controller;
 
 import com.crm.model.Email;
 import com.crm.service.EmailService;
+import com.crm.service.EmailSendingService;
+import com.crm.service.AIReplyService;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/emails")
 @RequiredArgsConstructor
+@Slf4j
 public class EmailController {
-    
+
     private final EmailService emailService;
+    private final EmailSendingService emailSendingService;
+    private final AIReplyService aiReplyService;
     
     @GetMapping
     public ResponseEntity<List<Email>> getAllEmails(
@@ -89,5 +98,81 @@ public class EmailController {
     public ResponseEntity<Void> deleteEmail(@PathVariable Long id) {
         emailService.deleteEmail(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Generuje AI sugestię odpowiedzi na email
+     */
+    @PostMapping("/{id}/suggest-reply")
+    public ResponseEntity<Map<String, String>> suggestReply(@PathVariable Long id) {
+        try {
+            Email originalEmail = emailService.getEmailById(id)
+                    .orElseThrow(() -> new RuntimeException("Email not found"));
+
+            String suggestion = aiReplyService.generateReplySuggestion(
+                    originalEmail.getSubject(),
+                    originalEmail.getContent(),
+                    originalEmail.getSender()
+            );
+
+            Map<String, String> response = new HashMap<>();
+            response.put("suggestion", suggestion);
+            response.put("subject", "Re: " + originalEmail.getSubject());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error generating reply suggestion for email {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to generate reply suggestion"));
+        }
+    }
+
+    /**
+     * Wysyła odpowiedź na email
+     */
+    @PostMapping("/{id}/reply")
+    public ResponseEntity<Map<String, Object>> sendReply(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> replyData) {
+        try {
+            Email originalEmail = emailService.getEmailById(id)
+                    .orElseThrow(() -> new RuntimeException("Email not found"));
+
+            String subject = replyData.get("subject");
+            String body = replyData.get("body");
+
+            if (subject == null || body == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Subject and body are required"));
+            }
+
+            // Wysyłamy odpowiedź
+            Long sentEmailId = emailSendingService.sendReply(
+                    originalEmail.getSender(),
+                    subject,
+                    body,
+                    originalEmail.getMessageId(),
+                    originalEmail.getReferences()
+            );
+
+            // Opcjonalnie: aktualizuj status oryginalnego emaila
+            originalEmail.setStatus("replied");
+            emailService.updateEmail(id, originalEmail);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("sentEmailId", sentEmailId);
+            response.put("message", "Reply sent successfully");
+
+            return ResponseEntity.ok(response);
+        } catch (MessagingException e) {
+            log.error("Failed to send reply for email {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to send email: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error sending reply for email {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal server error"));
+        }
     }
 }

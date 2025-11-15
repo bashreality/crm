@@ -23,14 +23,20 @@ const Header = () => {
           >
             Kontakty
           </Link>
-          <Link 
-            to="/campaigns" 
+          <Link
+            to="/campaigns"
             className={`nav-item ${isActive('/campaigns') ? 'active' : ''}`}
           >
             Kampanie
           </Link>
-          <Link 
-            to="/analytics" 
+          <Link
+            to="/sequences"
+            className={`nav-item ${isActive('/sequences') ? 'active' : ''}`}
+          >
+            Sekwencje
+          </Link>
+          <Link
+            to="/analytics"
             className={`nav-item ${isActive('/analytics') ? 'active' : ''}`}
           >
             Analityka

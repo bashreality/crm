@@ -59,4 +59,31 @@ export const woodpeckerApi = {
   getMailboxes: () => api.get('/woodpecker/mailboxes'),
 };
 
+// Sequences API
+export const sequencesApi = {
+  getAll: () => api.get('/sequences'),
+  getActive: () => api.get('/sequences/active'),
+  getById: (id) => api.get(`/sequences/${id}`),
+  create: (data) => api.post('/sequences', data),
+  update: (id, data) => api.put(`/sequences/${id}`, data),
+  delete: (id) => api.delete(`/sequences/${id}`),
+
+  // Steps
+  getSteps: (sequenceId) => api.get(`/sequences/${sequenceId}/steps`),
+  addStep: (sequenceId, data) => api.post(`/sequences/${sequenceId}/steps`, data),
+  updateStep: (stepId, data) => api.put(`/sequences/steps/${stepId}`, data),
+  deleteStep: (stepId) => api.delete(`/sequences/steps/${stepId}`),
+
+  // Executions
+  startSequence: (sequenceId, contactId) => api.post(`/sequences/${sequenceId}/start`, { contactId }),
+  pauseExecution: (executionId) => api.post(`/sequences/executions/${executionId}/pause`),
+  resumeExecution: (executionId) => api.post(`/sequences/executions/${executionId}/resume`),
+  getExecutions: (sequenceId) => api.get(`/sequences/${sequenceId}/executions`),
+  getScheduledEmails: (executionId) => api.get(`/sequences/executions/${executionId}/scheduled-emails`),
+
+  // Scheduled emails
+  cancelScheduledEmail: (scheduledEmailId) => api.post(`/sequences/scheduled-emails/${scheduledEmailId}/cancel`),
+  sendNow: (scheduledEmailId) => api.post(`/sequences/scheduled-emails/${scheduledEmailId}/send-now`),
+};
+
 export default api;

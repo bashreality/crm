@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
 import Campaigns from './pages/Campaigns';
 import Analytics from './pages/Analytics';
+import Sequences from './pages/Sequences';
 import './App.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/sequences" element={<Sequences />} />
         </Routes>
       </div>
     </Router>
