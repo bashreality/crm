@@ -17,11 +17,17 @@ const Header = () => {
           >
             Dashboard
           </Link>
-          <Link 
-            to="/contacts" 
+          <Link
+            to="/contacts"
             className={`nav-item ${isActive('/contacts') ? 'active' : ''}`}
           >
             Kontakty
+          </Link>
+          <Link
+            to="/pipeline"
+            className={`nav-item ${isActive('/pipeline') ? 'active' : ''}`}
+          >
+            Pipeline
           </Link>
           <Link
             to="/campaigns"
@@ -34,6 +40,12 @@ const Header = () => {
             className={`nav-item ${isActive('/sequences') ? 'active' : ''}`}
           >
             Sekwencje
+          </Link>
+          <Link
+            to="/tasks"
+            className={`nav-item ${isActive('/tasks') ? 'active' : ''}`}
+          >
+            Zadania
           </Link>
           <Link
             to="/analytics"

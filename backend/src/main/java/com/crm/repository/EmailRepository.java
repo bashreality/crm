@@ -18,4 +18,6 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     
     @Query("SELECT DISTINCT e.company FROM Email e WHERE e.company IS NOT NULL AND e.company != '' AND e.company != 'Unknown' ORDER BY e.company")
     List<String> findDistinctCompanies();
+
+    Long countByStatus(String status);
 }
