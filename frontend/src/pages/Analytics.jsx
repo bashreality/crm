@@ -91,42 +91,6 @@ const Analytics = () => {
         </div>
       </div>
 
-      {/* Deal Statistics */}
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <div className="card-header">
-          <h2 className="card-title">Pipeline i Deale</h2>
-        </div>
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-number" style={{ color: '#007AFF' }}>{stats.deals.open}</div>
-            <div className="stat-label">Aktywne Deale</div>
-            <div style={{ fontSize: '14px', color: '#34C759', marginTop: '5px', fontWeight: '600' }}>
-              {stats.deals.openValue?.toLocaleString()} PLN
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number" style={{ color: '#34C759' }}>{stats.deals.won}</div>
-            <div className="stat-label">Wygrane Deale</div>
-            <div style={{ fontSize: '14px', color: '#34C759', marginTop: '5px', fontWeight: '600' }}>
-              {stats.deals.wonValue?.toLocaleString()} PLN
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number" style={{ color: '#FF3B30' }}>{stats.deals.lost}</div>
-            <div className="stat-label">Przegrane Deale</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-number" style={{ color: '#5856D6' }}>
-              {stats.deals.winRate?.toFixed(1)}%
-            </div>
-            <div className="stat-label">Win Rate</div>
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-              Wskaźnik wygranych dealów
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
         {/* Contact Statistics */}
         <div className="card">
@@ -192,7 +156,7 @@ const Analytics = () => {
       <div className="card" style={{ marginTop: '20px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
         <div style={{ padding: '30px', color: 'white', textAlign: 'center' }}>
           <h2 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>Podsumowanie</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '20px' }}>
             <div>
               <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{stats.totalContacts}</div>
               <div style={{ fontSize: '14px', opacity: 0.9 }}>Kontaktów</div>
@@ -200,10 +164,6 @@ const Analytics = () => {
             <div>
               <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{stats.emails.total}</div>
               <div style={{ fontSize: '14px', opacity: 0.9 }}>Emaili</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{stats.deals.open}</div>
-              <div style={{ fontSize: '14px', opacity: 0.9 }}>Aktywnych Dealów</div>
             </div>
             <div>
               <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{stats.campaigns.active}</div>

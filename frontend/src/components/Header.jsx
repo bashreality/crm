@@ -24,12 +24,6 @@ const Header = () => {
             Kontakty
           </Link>
           <Link
-            to="/pipeline"
-            className={`nav-item ${isActive('/pipeline') ? 'active' : ''}`}
-          >
-            Pipeline
-          </Link>
-          <Link
             to="/campaigns"
             className={`nav-item ${isActive('/campaigns') ? 'active' : ''}`}
           >
