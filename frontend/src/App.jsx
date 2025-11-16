@@ -6,6 +6,8 @@ import Contacts from './pages/Contacts';
 import Campaigns from './pages/Campaigns';
 import Analytics from './pages/Analytics';
 import Sequences from './pages/Sequences';
+import Pipeline from './pages/Pipeline';
+import Tasks from './pages/Tasks';
 import './App.css';
 
 function App() {
@@ -21,6 +23,8 @@ function App() {
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/sequences" element={<Sequences />} />
+          <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/tasks" element={<Tasks />} />
         </Routes>
       </div>
     </Router>
