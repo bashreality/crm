@@ -37,11 +37,6 @@ public class TaskController {
         return taskRepository.findByContactIdOrderByDueDateAsc(contactId);
     }
 
-    @GetMapping("/deal/{dealId}")
-    public List<Task> getTasksByDeal(@PathVariable Long dealId) {
-        return taskRepository.findByDealIdOrderByDueDateAsc(dealId);
-    }
-
     @PostMapping
     public Task createTask(@RequestBody Task task) {
         return taskRepository.save(task);
@@ -75,7 +70,6 @@ public class TaskController {
                     activity.setTitle("Task completed: " + task.getTitle());
                     activity.setDescription("Task of type: " + task.getType());
                     activity.setContact(task.getContact());
-                    activity.setDeal(task.getDeal());
                     activityRepository.save(activity);
 
                     return ResponseEntity.ok(completedTask);

@@ -8,6 +8,5 @@ import java.util.List;
 @Repository
 public interface ActivityRepository extends JpaRepository<Activity, Long> {
     List<Activity> findByContactIdOrderByCreatedAtDesc(Long contactId);
-    List<Activity> findByDealIdOrderByCreatedAtDesc(Long dealId);
     List<Activity> findTop50ByOrderByCreatedAtDesc(); // Recent activities
 }
