@@ -26,11 +26,6 @@ public class NoteController {
         return noteRepository.findByContactIdOrderByCreatedAtDesc(contactId);
     }
 
-    @GetMapping("/deal/{dealId}")
-    public List<Note> getNotesByDeal(@PathVariable Long dealId) {
-        return noteRepository.findByDealIdOrderByCreatedAtDesc(dealId);
-    }
-
     @PostMapping
     public Note createNote(@RequestBody Note note) {
         Note savedNote = noteRepository.save(note);
@@ -41,7 +36,6 @@ public class NoteController {
         activity.setTitle("Note added");
         activity.setDescription(note.getContent().substring(0, Math.min(100, note.getContent().length())) + "...");
         activity.setContact(note.getContact());
-        activity.setDeal(note.getDeal());
         activityRepository.save(activity);
 
         return savedNote;

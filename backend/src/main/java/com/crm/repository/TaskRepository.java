@@ -10,7 +10,6 @@ import java.util.List;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByContactIdOrderByDueDateAsc(Long contactId);
-    List<Task> findByDealIdOrderByDueDateAsc(Long dealId);
     List<Task> findByCompletedFalseOrderByDueDateAsc();
 
     @Query("SELECT COUNT(t) FROM Task t WHERE t.completed = false")
