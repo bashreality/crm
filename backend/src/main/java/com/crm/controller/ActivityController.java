@@ -31,11 +31,6 @@ public class ActivityController {
         return activityRepository.findByContactIdOrderByCreatedAtDesc(contactId);
     }
 
-    @GetMapping("/deal/{dealId}")
-    public List<Activity> getActivitiesByDeal(@PathVariable Long dealId) {
-        return activityRepository.findByDealIdOrderByCreatedAtDesc(dealId);
-    }
-
     @PostMapping
     public Activity createActivity(@RequestBody Activity activity) {
         return activityRepository.save(activity);
