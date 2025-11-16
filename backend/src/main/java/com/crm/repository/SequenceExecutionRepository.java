@@ -11,4 +11,10 @@ public interface SequenceExecutionRepository extends JpaRepository<SequenceExecu
     List<SequenceExecution> findBySequenceId(Long sequenceId);
     List<SequenceExecution> findByContactId(Long contactId);
     List<SequenceExecution> findByRecipientEmail(String email);
+
+    long countBySequenceId(Long sequenceId);
+
+    long countBySequenceIdAndStatus(Long sequenceId, String status);
+
+    long countByStatus(String status);
 }

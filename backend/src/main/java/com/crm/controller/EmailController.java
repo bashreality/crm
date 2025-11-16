@@ -184,7 +184,7 @@ public class EmailController {
      */
     private String buildReferences(Email originalEmail) {
         String messageId = originalEmail.getMessageId();
-        String existingReferences = originalEmail.getReferences();
+        String existingReferences = originalEmail.getReferencesHeader();
 
         if (messageId == null) {
             return existingReferences;

@@ -64,6 +64,7 @@ export const sequencesApi = {
   getAll: () => api.get('/sequences'),
   getActive: () => api.get('/sequences/active'),
   getById: (id) => api.get(`/sequences/${id}`),
+  getDashboard: () => api.get('/sequences/dashboard'),
   create: (data) => api.post('/sequences', data),
   update: (id, data) => api.put(`/sequences/${id}`, data),
   delete: (id) => api.delete(`/sequences/${id}`),
@@ -84,6 +85,17 @@ export const sequencesApi = {
   // Scheduled emails
   cancelScheduledEmail: (scheduledEmailId) => api.post(`/sequences/scheduled-emails/${scheduledEmailId}/cancel`),
   sendNow: (scheduledEmailId) => api.post(`/sequences/scheduled-emails/${scheduledEmailId}/send-now`),
+};
+
+// Tasks API
+export const tasksApi = {
+  getAll: (params) => api.get('/tasks', { params }),
+  getPending: () => api.get('/tasks/pending'),
+  getByContact: (contactId) => api.get(`/tasks/contact/${contactId}`),
+  create: (data) => api.post('/tasks', data),
+  update: (id, data) => api.put(`/tasks/${id}`, data),
+  complete: (id) => api.put(`/tasks/${id}/complete`),
+  delete: (id) => api.delete(`/tasks/${id}`),
 };
 
 export default api;

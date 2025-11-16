@@ -15,4 +15,17 @@ public interface ScheduledEmailRepository extends JpaRepository<ScheduledEmail, 
     List<ScheduledEmail> findPendingEmailsDueBy(LocalDateTime now);
 
     List<ScheduledEmail> findByExecutionId(Long executionId);
+
+    ScheduledEmail findFirstByExecutionSequenceIdAndStatusOrderByScheduledForAsc(Long sequenceId, String status);
+
+    @Query("SELECT COUNT(s) FROM ScheduledEmail s WHERE s.execution.sequence.id = :sequenceId")
+    long countBySequenceId(Long sequenceId);
+
+    @Query("SELECT COUNT(s) FROM ScheduledEmail s WHERE s.execution.sequence.id = :sequenceId AND s.status = :status")
+    long countBySequenceIdAndStatus(Long sequenceId, String status);
+
+    @Query("SELECT COUNT(s) FROM ScheduledEmail s WHERE s.execution.sequence.id = :sequenceId AND s.scheduledFor BETWEEN :start AND :end")
+    long countScheduledForSequenceBetween(Long sequenceId, LocalDateTime start, LocalDateTime end);
+
+    long countByStatus(String status);
 }

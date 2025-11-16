@@ -8,4 +8,6 @@ import java.util.List;
 @Repository
 public interface SequenceStepRepository extends JpaRepository<SequenceStep, Long> {
     List<SequenceStep> findBySequenceIdOrderByStepOrderAsc(Long sequenceId);
+
+    long countBySequenceId(Long sequenceId);
 }

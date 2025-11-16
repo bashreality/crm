@@ -65,21 +65,32 @@ const ReplyComposer = ({ email, onClose, onSent }) => {
 
   if (!email) return null;
 
+  const handleOverlayClick = (event) => {
+    event.stopPropagation();
+    if (!isLoading) {
+      onClose();
+    }
+  };
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1001,
-      padding: '2rem',
-      backdropFilter: 'blur(4px)'
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1001,
+        padding: '2rem',
+        backdropFilter: 'blur(4px)'
+      }}
+      onClick={handleOverlayClick}
+      role="presentation"
+    >
       <div style={{
         backgroundColor: 'white',
         borderRadius: '20px',
@@ -90,7 +101,9 @@ const ReplyComposer = ({ email, onClose, onSent }) => {
         flexDirection: 'column',
         boxShadow: '0 25px 80px rgba(0, 0, 0, 0.4)',
         overflow: 'hidden'
-      }}>
+      }}
+      onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div style={{
           padding: '1.5rem 2rem',

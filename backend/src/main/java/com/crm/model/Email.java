@@ -29,8 +29,8 @@ public class Email {
     @Column
     private String inReplyTo; // Message-ID wiadomości, na którą odpowiadamy
 
-    @Column(columnDefinition = "TEXT")
-    private String references; // Nagłówek References dla wątków
+    @Column(name = "references_header", columnDefinition = "TEXT")
+    private String referencesHeader; // Nagłówek References dla wątków
 
     @Column(nullable = false)
     private String company;

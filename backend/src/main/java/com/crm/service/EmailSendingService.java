@@ -65,7 +65,7 @@ public class EmailSendingService {
             sentEmail.setReceivedAt(LocalDateTime.now());
             sentEmail.setMessageId(message.getMessageID());
             sentEmail.setInReplyTo(inReplyTo);
-            sentEmail.setReferences(references);
+            sentEmail.setReferencesHeader(references);
             sentEmail.setCompany("Unknown"); // Domyślnie Unknown dla wysłanych
             sentEmail.setStatus("neutral"); // Wysłane emaile domyślnie neutral
 

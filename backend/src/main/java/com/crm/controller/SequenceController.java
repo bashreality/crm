@@ -1,6 +1,8 @@
 package com.crm.controller;
 
-import com.crm.model.*;
+import com.crm.dto.sequence.*;
+import com.crm.model.SequenceExecution;
+import com.crm.model.ScheduledEmail;
 import com.crm.service.SequenceService;
 import com.crm.service.ScheduledEmailService;
 import jakarta.mail.MessagingException;
@@ -26,34 +28,40 @@ public class SequenceController {
     // ============ Sequence Management ============
 
     @GetMapping
-    public ResponseEntity<List<EmailSequence>> getAllSequences() {
+    public ResponseEntity<List<SequenceSummaryDto>> getAllSequences() {
         return ResponseEntity.ok(sequenceService.getAllSequences());
     }
 
     @GetMapping("/active")
-    public ResponseEntity<List<EmailSequence>> getActiveSequences() {
+    public ResponseEntity<List<SequenceSummaryDto>> getActiveSequences() {
         return ResponseEntity.ok(sequenceService.getActiveSequences());
     }
 
+    @GetMapping("/dashboard")
+    public ResponseEntity<SequenceDashboardDto> getDashboard() {
+        return ResponseEntity.ok(sequenceService.getDashboard());
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<EmailSequence> getSequence(@PathVariable Long id) {
-        return sequenceService.getSequenceById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<SequenceDetailsDto> getSequence(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(sequenceService.getSequenceDetails(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping
-    public ResponseEntity<EmailSequence> createSequence(@RequestBody EmailSequence sequence) {
-        EmailSequence created = sequenceService.createSequence(sequence);
+    public ResponseEntity<SequenceDetailsDto> createSequence(@RequestBody SequenceRequestDto request) {
+        SequenceDetailsDto created = sequenceService.createSequence(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EmailSequence> updateSequence(
-            @PathVariable Long id,
-            @RequestBody EmailSequence sequence) {
+    public ResponseEntity<SequenceDetailsDto> updateSequence(@PathVariable Long id,
+                                                             @RequestBody SequenceRequestDto request) {
         try {
-            EmailSequence updated = sequenceService.updateSequence(id, sequence);
+            SequenceDetailsDto updated = sequenceService.updateSequence(id, request);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -69,16 +77,15 @@ public class SequenceController {
     // ============ Step Management ============
 
     @GetMapping("/{sequenceId}/steps")
-    public ResponseEntity<List<SequenceStep>> getSteps(@PathVariable Long sequenceId) {
+    public ResponseEntity<List<SequenceStepDto>> getSteps(@PathVariable Long sequenceId) {
         return ResponseEntity.ok(sequenceService.getStepsForSequence(sequenceId));
     }
 
     @PostMapping("/{sequenceId}/steps")
-    public ResponseEntity<SequenceStep> addStep(
-            @PathVariable Long sequenceId,
-            @RequestBody SequenceStep step) {
+    public ResponseEntity<SequenceStepDto> addStep(@PathVariable Long sequenceId,
+                                                   @RequestBody SequenceStepRequestDto request) {
         try {
-            SequenceStep created = sequenceService.addStep(sequenceId, step);
+            SequenceStepDto created = sequenceService.addStep(sequenceId, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -86,11 +93,10 @@ public class SequenceController {
     }
 
     @PutMapping("/steps/{stepId}")
-    public ResponseEntity<SequenceStep> updateStep(
-            @PathVariable Long stepId,
-            @RequestBody SequenceStep step) {
+    public ResponseEntity<SequenceStepDto> updateStep(@PathVariable Long stepId,
+                                                      @RequestBody SequenceStepRequestDto request) {
         try {
-            SequenceStep updated = sequenceService.updateStep(stepId, step);
+            SequenceStepDto updated = sequenceService.updateStep(stepId, request);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
@@ -106,14 +112,12 @@ public class SequenceController {
     // ============ Execution Management ============
 
     @PostMapping("/{sequenceId}/start")
-    public ResponseEntity<Map<String, Object>> startSequence(
-            @PathVariable Long sequenceId,
-            @RequestBody Map<String, Long> request) {
+    public ResponseEntity<Map<String, Object>> startSequence(@PathVariable Long sequenceId,
+                                                             @RequestBody Map<String, Long> request) {
         try {
             Long contactId = request.get("contactId");
             if (contactId == null) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "contactId is required"));
+                return ResponseEntity.badRequest().body(Map.of("error", "contactId is required"));
             }
 
             SequenceExecution execution = sequenceService.startSequenceForContact(sequenceId, contactId);
@@ -126,16 +130,14 @@ public class SequenceController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             log.error("Error starting sequence {}", sequenceId, e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         }
     }
 
     @PostMapping("/executions/{executionId}/pause")
     public ResponseEntity<SequenceExecution> pauseExecution(@PathVariable Long executionId) {
         try {
-            SequenceExecution paused = sequenceService.pauseExecution(executionId);
-            return ResponseEntity.ok(paused);
+            return ResponseEntity.ok(sequenceService.pauseExecution(executionId));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -144,8 +146,7 @@ public class SequenceController {
     @PostMapping("/executions/{executionId}/resume")
     public ResponseEntity<SequenceExecution> resumeExecution(@PathVariable Long executionId) {
         try {
-            SequenceExecution resumed = sequenceService.resumeExecution(executionId);
-            return ResponseEntity.ok(resumed);
+            return ResponseEntity.ok(sequenceService.resumeExecution(executionId));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
