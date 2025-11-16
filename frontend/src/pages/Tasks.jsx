@@ -7,7 +7,6 @@ const API_URL = 'http://localhost:8080/api';
 function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [contacts, setContacts] = useState([]);
-  const [deals, setDeals] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState('all'); // all, pending, overdue, completed
 
@@ -16,7 +15,6 @@ function Tasks() {
     description: '',
     type: 'todo',
     contactId: '',
-    dealId: '',
     dueDate: '',
     priority: 3
   });
@@ -24,7 +22,6 @@ function Tasks() {
   useEffect(() => {
     loadTasks();
     loadContacts();
-    loadDeals();
   }, []);
 
   const loadTasks = async () => {
@@ -45,15 +42,6 @@ function Tasks() {
     }
   };
 
-  const loadDeals = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/deals`);
-      setDeals(response.data.filter(d => d.status === 'open'));
-    } catch (error) {
-      console.error('Error loading deals:', error);
-    }
-  };
-
   const handleCreateTask = async (e) => {
     e.preventDefault();
 
@@ -62,7 +50,6 @@ function Tasks() {
       description: newTask.description,
       type: newTask.type,
       contact: newTask.contactId ? contacts.find(c => c.id === parseInt(newTask.contactId)) : null,
-      deal: newTask.dealId ? deals.find(d => d.id === parseInt(newTask.dealId)) : null,
       dueDate: newTask.dueDate || null,
       priority: parseInt(newTask.priority),
       completed: false
@@ -76,7 +63,6 @@ function Tasks() {
         description: '',
         type: 'todo',
         contactId: '',
-        dealId: '',
         dueDate: '',
         priority: 3
       });
@@ -238,11 +224,6 @@ function Tasks() {
                         👤 {task.contact.name}
                       </span>
                     )}
-                    {task.deal && (
-                      <span className="meta-item">
-                        💼 {task.deal.title}
-                      </span>
-                    )}
                     {task.dueDate && (
                       <span className={`meta-item ${isOverdue(task) ? 'overdue-text' : ''}`}>
                         📅 {new Date(task.dueDate).toLocaleString('pl-PL')}
@@ -306,36 +287,19 @@ function Tasks() {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Kontakt</label>
-                  <select
-                    value={newTask.contactId}
-                    onChange={(e) => setNewTask({...newTask, contactId: e.target.value})}
-                  >
-                    <option value="">Brak</option>
-                    {contacts.map(contact => (
-                      <option key={contact.id} value={contact.id}>
-                        {contact.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Deal</label>
-                  <select
-                    value={newTask.dealId}
-                    onChange={(e) => setNewTask({...newTask, dealId: e.target.value})}
-                  >
-                    <option value="">Brak</option>
-                    {deals.map(deal => (
-                      <option key={deal.id} value={deal.id}>
-                        {deal.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="form-group">
+                <label>Kontakt</label>
+                <select
+                  value={newTask.contactId}
+                  onChange={(e) => setNewTask({...newTask, contactId: e.target.value})}
+                >
+                  <option value="">Brak</option>
+                  {contacts.map(contact => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-row">

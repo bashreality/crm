@@ -32,13 +32,10 @@ public class Contact {
     
     @Column(nullable = false)
     private Integer emailCount = 0;
-    
+
     @Column(nullable = false)
     private Integer meetingCount = 0;
-    
-    @Column(name = "deal_count", nullable = false)
-    private Integer dealCount = 0;
-    
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
     

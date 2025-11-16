@@ -196,9 +196,8 @@ public class ContactAutoCreationService {
                 newContact.setPosition(position);
                 newContact.setEmailCount(1);
                 newContact.setMeetingCount(0);
-                newContact.setDealCount(0);
-                
-                log.debug("Attempting to save new contact: email={}, name={}, company={}", 
+
+                log.debug("Attempting to save new contact: email={}, name={}, company={}",
                     newContact.getEmail(), newContact.getName(), newContact.getCompany());
                 
                 try {

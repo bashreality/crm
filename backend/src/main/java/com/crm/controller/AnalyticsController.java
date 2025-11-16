@@ -20,9 +20,6 @@ public class AnalyticsController {
     private ContactRepository contactRepository;
 
     @Autowired
-    private DealRepository dealRepository;
-
-    @Autowired
     private TaskRepository taskRepository;
 
     @Autowired
@@ -54,28 +51,6 @@ public class AnalyticsController {
         Long totalContacts = contactRepository.count();
         stats.put("totalContacts", totalContacts);
 
-        // Deal stats
-        Long openDeals = dealRepository.countOpenDeals();
-        Long wonDeals = dealRepository.countWonDeals();
-        Long lostDeals = dealRepository.countLostDeals();
-        Double openDealsValue = dealRepository.sumOpenDealsValue();
-        Double wonDealsValue = dealRepository.sumWonDealsValue();
-
-        Map<String, Object> dealStats = new HashMap<>();
-        dealStats.put("open", openDeals != null ? openDeals : 0);
-        dealStats.put("won", wonDeals != null ? wonDeals : 0);
-        dealStats.put("lost", lostDeals != null ? lostDeals : 0);
-        dealStats.put("openValue", openDealsValue != null ? openDealsValue : 0.0);
-        dealStats.put("wonValue", wonDealsValue != null ? wonDealsValue : 0.0);
-
-        Long totalClosedDeals = (wonDeals != null ? wonDeals : 0) + (lostDeals != null ? lostDeals : 0);
-        if (totalClosedDeals > 0) {
-            dealStats.put("winRate", ((wonDeals != null ? wonDeals : 0) * 100.0) / totalClosedDeals);
-        } else {
-            dealStats.put("winRate", 0.0);
-        }
-        stats.put("deals", dealStats);
-
         // Task stats
         Long pendingTasks = taskRepository.countPendingTasks();
         Long overdueTasks = taskRepository.countOverdueTasks(LocalDateTime.now());
@@ -105,13 +80,5 @@ public class AnalyticsController {
         trend.put("neutral", emailRepository.countByStatus("neutral"));
         trend.put("negative", emailRepository.countByStatus("negative"));
         return trend;
-    }
-
-    @GetMapping("/pipeline-value")
-    public Map<String, Object> getPipelineValue() {
-        Map<String, Object> pipelineValue = new HashMap<>();
-        pipelineValue.put("open", dealRepository.sumOpenDealsValue());
-        pipelineValue.put("won", dealRepository.sumWonDealsValue());
-        return pipelineValue;
     }
 }

@@ -24,10 +24,6 @@ public class Note {
     @JoinColumn(name = "contact_id")
     private Contact contact;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "deal_id")
-    private Deal deal;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

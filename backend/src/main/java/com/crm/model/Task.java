@@ -30,10 +30,6 @@ public class Task {
     @JoinColumn(name = "contact_id")
     private Contact contact;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "deal_id")
-    private Deal deal;
-
     @Column(name = "due_date")
     private LocalDateTime dueDate;
 

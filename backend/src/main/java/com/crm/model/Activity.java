@@ -18,7 +18,7 @@ public class Activity {
     private Long id;
 
     @Column(nullable = false, length = 50)
-    private String type; // email_sent, email_received, deal_created, deal_moved, deal_won, deal_lost, note_added, task_completed, etc.
+    private String type; // email_sent, email_received, note_added, task_completed, etc.
 
     @Column(nullable = false)
     private String title;
@@ -29,10 +29,6 @@ public class Activity {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "contact_id")
     private Contact contact;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "deal_id")
-    private Deal deal;
 
     @Column(name = "email_id")
     private Long emailId;

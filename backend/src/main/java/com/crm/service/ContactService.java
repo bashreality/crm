@@ -34,9 +34,6 @@ public class ContactService {
         if (contact.getMeetingCount() == null) {
             contact.setMeetingCount(0);
         }
-        if (contact.getDealCount() == null) {
-            contact.setDealCount(0);
-        }
         return contactRepository.save(contact);
     }
     
@@ -50,8 +47,7 @@ public class ContactService {
         contact.setPhone(contactDetails.getPhone());
         contact.setEmailCount(contactDetails.getEmailCount());
         contact.setMeetingCount(contactDetails.getMeetingCount());
-        contact.setDealCount(contactDetails.getDealCount() != null ? contactDetails.getDealCount() : 0);
-        
+
         return contactRepository.save(contact);
     }
     
