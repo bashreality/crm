@@ -5,15 +5,15 @@ import com.crm.service.EmailService;
 import com.crm.service.EmailSendingService;
 import com.crm.service.AIReplyService;
 import jakarta.mail.MessagingException;
+import java.util.Map;
+import java.util.HashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -30,38 +30,39 @@ public class EmailController {
     public ResponseEntity<List<Email>> getAllEmails(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String company,
-            @RequestParam(required = false) String status) {
-        
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long accountId) {
+
         List<Email> emails;
-        
-        // Obsługa kombinacji filtrów
-        if (search != null && !search.isEmpty()) {
-            // Jeśli jest search, użyj search i zastosuj dodatkowe filtry manualnie
-            emails = emailService.searchEmails(search);
-            if (company != null && !company.isEmpty()) {
-                emails = emails.stream()
-                    .filter(e -> e.getCompany().toLowerCase().contains(company.toLowerCase()))
-                    .collect(Collectors.toList());
-            }
-            if (status != null && !status.isEmpty()) {
-                emails = emails.stream()
-                    .filter(e -> e.getStatus().equals(status))
-                    .collect(Collectors.toList());
-            }
-        } else if (company != null && !company.isEmpty() && status != null && !status.isEmpty()) {
-            // Oba filtry: company i status
-            emails = emailService.getEmailsByCompanyAndStatus(company, status);
-        } else if (company != null && !company.isEmpty()) {
-            // Tylko company
-            emails = emailService.getEmailsByCompany(company);
-        } else if (status != null && !status.isEmpty()) {
-            // Tylko status
-            emails = emailService.getEmailsByStatus(status);
+
+        // Pobierz wszystkie lub filtruj po koncie
+        if (accountId != null) {
+            emails = emailService.getEmailsByAccountId(accountId);
         } else {
-            // Brak filtrów
             emails = emailService.getAllEmails();
         }
-        
+
+        // Zastosuj dodatkowe filtry
+        if (search != null && !search.isEmpty()) {
+            String searchLower = search.toLowerCase();
+            emails = emails.stream()
+                .filter(e -> e.getSender().toLowerCase().contains(searchLower) ||
+                            e.getSubject().toLowerCase().contains(searchLower))
+                .collect(Collectors.toList());
+        }
+
+        if (company != null && !company.isEmpty()) {
+            emails = emails.stream()
+                .filter(e -> e.getCompany().toLowerCase().contains(company.toLowerCase()))
+                .collect(Collectors.toList());
+        }
+
+        if (status != null && !status.isEmpty()) {
+            emails = emails.stream()
+                .filter(e -> e.getStatus().equals(status))
+                .collect(Collectors.toList());
+        }
+
         return ResponseEntity.ok(emails);
     }
     
@@ -98,6 +99,21 @@ public class EmailController {
     public ResponseEntity<Void> deleteEmail(@PathVariable Long id) {
         emailService.deleteEmail(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Ponowna klasyfikacja wszystkich maili z użyciem aktualnej logiki AI.
+     */
+    @PostMapping("/reclassify")
+    public ResponseEntity<Map<String, Integer>> reclassifyAllEmails() {
+        try {
+            Map<String, Integer> stats = emailService.reclassifyAllEmails();
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            log.error("Failed to reclassify emails", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", 0));
+        }
     }
 
     /**

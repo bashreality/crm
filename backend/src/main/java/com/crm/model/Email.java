@@ -1,5 +1,6 @@
 package com.crm.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,16 +13,21 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Email {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(nullable = false)
     private String sender;
 
     @Column
     private String recipient; // Odbiorca (dla wysłanych emaili)
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "account_id")
+    @JsonIgnoreProperties({"password", "imapHost", "imapPort", "imapProtocol", "smtpHost", "smtpPort", "createdAt", "updatedAt", "lastFetchAt", "emailCount"})
+    private EmailAccount account; // Konto email, z którego pochodzi wiadomość
 
     @Column(unique = true)
     private String messageId; // Unikalny identyfikator wiadomości

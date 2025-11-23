@@ -81,4 +81,27 @@ public class AnalyticsController {
         trend.put("negative", emailRepository.countByStatus("negative"));
         return trend;
     }
+
+    @GetMapping("/account/{accountId}")
+    public Map<String, Object> getAccountStats(@PathVariable Long accountId) {
+        Map<String, Object> stats = new HashMap<>();
+
+        Long totalEmails = emailRepository.countByAccountId(accountId);
+        Long positiveEmails = emailRepository.countByAccountIdAndStatus(accountId, "positive");
+        Long neutralEmails = emailRepository.countByAccountIdAndStatus(accountId, "neutral");
+        Long negativeEmails = emailRepository.countByAccountIdAndStatus(accountId, "negative");
+
+        stats.put("total", totalEmails);
+        stats.put("positive", positiveEmails);
+        stats.put("neutral", neutralEmails);
+        stats.put("negative", negativeEmails);
+
+        if (totalEmails > 0) {
+            stats.put("positiveRate", (positiveEmails * 100.0) / totalEmails);
+            stats.put("neutralRate", (neutralEmails * 100.0) / totalEmails);
+            stats.put("negativeRate", (negativeEmails * 100.0) / totalEmails);
+        }
+
+        return stats;
+    }
 }

@@ -1,93 +1,121 @@
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
+import '../styles/Settings.css';
 
 const Settings = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{"username": "admin"}');
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [status, setStatus] = useState({ type: '', message: '' });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus({ type: '', message: '' });
+
+    if (newPassword !== confirmPassword) {
+      setStatus({ type: 'error', message: 'Nowe hasło i potwierdzenie muszą być takie same.' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post('/api/auth/change-password', {
+        username: user.username,
+        currentPassword,
+        newPassword,
+        confirmPassword
+      });
+
+      setStatus({ type: 'success', message: response.data.message || 'Hasło zostało zmienione.' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      const message = error.response?.data?.message || 'Nie udało się zmienić hasła.';
+      setStatus({ type: 'error', message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container">
-      <div className="page-header">
-        <h1 className="page-title">Ustawienia systemu</h1>
-        <p className="page-subtitle">Konfiguracja CRM i parametrów użytkownika</p>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">Ustawienia email</h2>
+      <div className="settings-header">
+        <div>
+          <h1 className="page-title">Ustawienia konta</h1>
+          <p className="page-subtitle">
+            Zmień domyślne hasło administratora, aby zabezpieczyć dostęp do systemu.
+          </p>
         </div>
-        <div style={{ padding: '1.5rem' }}>
-          <div className="filter-group">
-            <label>Serwer SMTP</label>
-            <input type="text" className="filter-input" placeholder="smtp.gmail.com" defaultValue="smtp.company.com" />
-          </div>
-          <div className="filter-group">
-            <label>Port</label>
-            <input type="text" className="filter-input" placeholder="587" defaultValue="587" />
-          </div>
-          <div className="filter-group">
-            <label>Email nadawcy</label>
-            <input type="email" className="filter-input" placeholder="crm@company.com" defaultValue="crm@twoja-firma.pl" />
-          </div>
-          <div className="filter-group">
-            <label>Nazwa nadawcy</label>
-            <input type="text" className="filter-input" placeholder="CRM System" defaultValue="Twoja Firma CRM" />
-          </div>
-          <button className="btn btn-primary">Zapisz ustawienia</button>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '2rem' }}>
-        <div className="card-header">
-          <h2 className="card-title">Automatyzacja</h2>
-        </div>
-        <div style={{ padding: '1.5rem' }}>
-          <div className="filter-group">
-            <label>
-              <input type="checkbox" defaultChecked style={{ marginRight: '0.5rem' }} />
-              Automatyczna klasyfikacja emaili
-            </label>
-          </div>
-          <div className="filter-group">
-            <label>
-              <input type="checkbox" defaultChecked style={{ marginRight: '0.5rem' }} />
-              Powiadomienia o nowych leadach
-            </label>
-          </div>
-          <div className="filter-group">
-            <label>
-              <input type="checkbox" style={{ marginRight: '0.5rem' }} />
-              Auto-odpowiadanie
-            </label>
-          </div>
-          <div className="filter-group">
-            <label>
-              <input type="checkbox" defaultChecked style={{ marginRight: '0.5rem' }} />
-              Backup codziennych danych
-            </label>
-          </div>
-          <button className="btn btn-primary">Zapisz ustawienia</button>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '2rem' }}>
-        <div className="card-header">
-          <h2 className="card-title">Informacje systemu</h2>
-        </div>
-        <div style={{ padding: '1.5rem', fontSize: '0.9rem' }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <div style={{ color: '#666' }}>Wersja:</div>
-            <div style={{ fontWeight: 600 }}>CRM v1.0.0</div>
-          </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <div style={{ color: '#666' }}>Backend:</div>
-            <div style={{ fontWeight: 600 }}>Spring Boot 3.2.0</div>
-          </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <div style={{ color: '#666' }}>Frontend:</div>
-            <div style={{ fontWeight: 600 }}>React 18.2.0</div>
-          </div>
+        <div className="settings-hint">
+          <span className="hint-dot" />
           <div>
-            <div style={{ color: '#666' }}>Baza danych:</div>
-            <div style={{ fontWeight: 600 }}>PostgreSQL 15</div>
+            <strong>Uwaga bezpieczeństwa</strong>
+            <p>Domyślne hasło to „admin123”. Zmień je po pierwszym logowaniu.</p>
           </div>
         </div>
+      </div>
+
+      <div className="settings-card">
+        <h2>Zmiana hasła</h2>
+        <form className="password-form" onSubmit={handleSubmit}>
+          <div className="form-row">
+            <label htmlFor="currentPassword">Aktualne hasło</label>
+            <input
+              id="currentPassword"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Obecne hasło"
+              required
+              disabled={loading}
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="newPassword">Nowe hasło</label>
+            <input
+              id="newPassword"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Min. 8 znaków"
+              required
+              disabled={loading}
+              minLength={8}
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="confirmPassword">Potwierdź nowe hasło</label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Powtórz nowe hasło"
+              required
+              disabled={loading}
+              minLength={8}
+            />
+          </div>
+
+          {status.message && (
+            <div className={`status-message ${status.type}`}>
+              {status.message}
+            </div>
+          )}
+
+          <div className="actions">
+            <button type="submit" className="primary-btn" disabled={loading}>
+              {loading ? 'Zapisywanie...' : 'Zapisz nowe hasło'}
+            </button>
+            <p className="hint">
+              Hasło powinno mieć min. 8 znaków oraz zawierać litery i cyfry.
+            </p>
+          </div>
+        </form>
       </div>
     </div>
   );

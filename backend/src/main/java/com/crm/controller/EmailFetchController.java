@@ -2,57 +2,52 @@ package com.crm.controller;
 
 import com.crm.service.EmailFetchService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/email-fetch")
 @RequiredArgsConstructor
+@Slf4j
 public class EmailFetchController {
-    
+
     private final EmailFetchService emailFetchService;
-    
+
     /**
-     * Ręczne pobieranie maili
-     * POST http://localhost:8080/api/email-fetch/fetch
+     * Ręczne uruchomienie pobierania maili ze wszystkich aktywnych kont.
+     * Działa asynchronicznie aby uniknąć timeoutu.
      */
     @PostMapping("/fetch")
     public ResponseEntity<Map<String, Object>> fetchEmails() {
+        log.info("Manual email fetch triggered via API");
+
+        Map<String, Object> response = new HashMap<>();
+
         try {
-            int newEmails = emailFetchService.fetchEmailsManually();
-            
-            Map<String, Object> response = new HashMap<>();
+            // Uruchom pobieranie asynchronicznie
+            CompletableFuture.runAsync(() -> {
+                try {
+                    emailFetchService.fetchEmailsManually();
+                } catch (Exception e) {
+                    log.error("Error during manual email fetch", e);
+                }
+            });
+
             response.put("success", true);
-            response.put("message", "Email fetch completed");
-            response.put("newEmails", newEmails);
-            
+            response.put("message", "Pobieranie maili zostało uruchomione w tle");
+            response.put("newEmails", 0); // Zachowaj kompatybilność z frontendem
+
             return ResponseEntity.ok(response);
-            
         } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
+            log.error("Failed to start email fetch", e);
             response.put("success", false);
-            response.put("message", "Error: " + e.getMessage());
-            response.put("newEmails", 0);
-            
+            response.put("message", "Błąd podczas uruchamiania pobierania: " + e.getMessage());
             return ResponseEntity.status(500).body(response);
         }
-    }
-    
-    /**
-     * Status połączenia z serwerem email
-     * GET http://localhost:8080/api/email-fetch/status
-     */
-    @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getStatus() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("emailServer", "mail.q-prospect.pl");
-        response.put("emailAccount", "crm@qprospect.pl");
-        response.put("autoFetchEnabled", true);
-        response.put("fetchInterval", "5 minutes");
-        
-        return ResponseEntity.ok(response);
     }
 }

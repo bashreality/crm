@@ -5,8 +5,11 @@ import com.crm.repository.EmailRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +17,7 @@ import java.util.Optional;
 public class EmailService {
     
     private final EmailRepository emailRepository;
+    private final AIClassificationService aiClassificationService;
     
     public List<Email> getAllEmails() {
         return emailRepository.findAll();
@@ -63,5 +67,38 @@ public class EmailService {
     
     public List<String> getUniqueCompanies() {
         return emailRepository.findDistinctCompanies();
+    }
+
+    public List<Email> getEmailsByAccountId(Long accountId) {
+        return emailRepository.findByAccountId(accountId);
+    }
+
+    /**
+     * Ponownie klasyfikuje wszystkie zapisane maile z użyciem aktualnej logiki AI/fallback.
+     * Zwraca statystyki przebiegu.
+     */
+    public Map<String, Integer> reclassifyAllEmails() {
+        List<Email> emails = emailRepository.findAll();
+        int processed = 0;
+        int updated = 0;
+
+        for (Email email : emails) {
+            processed++;
+            String subject = email.getSubject() != null ? email.getSubject() : "";
+            String content = email.getContent() != null ? email.getContent() : "";
+            String newStatus = aiClassificationService.classifyEmail(subject, content);
+
+            if (newStatus != null && !newStatus.equals(email.getStatus())) {
+                email.setStatus(newStatus);
+                updated++;
+            }
+        }
+
+        emailRepository.saveAll(emails);
+
+        Map<String, Integer> stats = new HashMap<>();
+        stats.put("processed", processed);
+        stats.put("updated", updated);
+        return stats;
     }
 }

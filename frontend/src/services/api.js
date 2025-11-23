@@ -98,4 +98,21 @@ export const tasksApi = {
   delete: (id) => api.delete(`/tasks/${id}`),
 };
 
+// Email Accounts API
+export const emailAccountsApi = {
+  getAll: () => api.get('/email-accounts'),
+  getEnabled: () => api.get('/email-accounts/enabled'),
+  getById: (id) => api.get(`/email-accounts/${id}`),
+  create: (data) => api.post('/email-accounts', data),
+  update: (id, data) => api.put(`/email-accounts/${id}`, data),
+  delete: (id) => api.delete(`/email-accounts/${id}`),
+};
+
+// Analytics API
+export const analyticsApi = {
+  getDashboard: () => api.get('/analytics/dashboard'),
+  getAccountStats: (accountId) => api.get(`/analytics/account/${accountId}`),
+  getEmailSentimentTrend: () => api.get('/analytics/email-sentiment-trend'),
+};
+
 export default api;

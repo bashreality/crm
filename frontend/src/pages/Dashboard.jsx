@@ -1,32 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { emailsApi } from '../services/api';
+import { emailsApi, emailAccountsApi, analyticsApi } from '../services/api';
 import EmailModal from '../components/EmailModal';
 
 const Dashboard = () => {
   const [emails, setEmails] = useState([]);
-  const [allEmails, setAllEmails] = useState([]); // Wszystkie maile dla statystyk
   const [companies, setCompanies] = useState([]); // Lista firm z kontaktów
+  const [emailAccounts, setEmailAccounts] = useState([]); // Lista kont email
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState(null); // Email do wyświetlenia w modalu
+  const [selectedAccount, setSelectedAccount] = useState('all'); // Wybrane konto email ('all' = wszystkie)
+  const [statsState, setStatsState] = useState(null); // Statystyki dla bieżącego widoku (konto/all)
   const [filters, setFilters] = useState({
     search: '',
     company: '',
-    status: ''
+    status: '',
+    accountId: ''
   });
 
   useEffect(() => {
     fetchEmails();
-    fetchAllEmailsForStats();
+    fetchGlobalStats();
     fetchCompanies();
+    fetchEmailAccounts();
   }, []);
 
-  const fetchAllEmailsForStats = async () => {
+  useEffect(() => {
+    // Odśwież statystyki gdy zmieni się wybrane konto
+    if (selectedAccount === 'all') {
+      fetchGlobalStats();
+    } else {
+      fetchAccountStats(selectedAccount);
+    }
+  }, [selectedAccount]);
+
+  const fetchGlobalStats = async () => {
     try {
-      const response = await emailsApi.getAll();
-      setAllEmails(response.data);
+      const response = await analyticsApi.getDashboard();
+      setStatsState(response.data.emails);
     } catch (error) {
-      console.error('Error fetching all emails:', error);
+      console.error('Error fetching global stats:', error);
     }
   };
 
@@ -39,11 +52,47 @@ const Dashboard = () => {
     }
   };
 
+  const fetchEmailAccounts = async () => {
+    try {
+      const response = await emailAccountsApi.getAll();
+      setEmailAccounts(response.data);
+    } catch (error) {
+      console.error('Error fetching email accounts:', error);
+    }
+  };
+
+  const fetchAccountStats = async (accountId) => {
+    try {
+      const response = await analyticsApi.getAccountStats(accountId);
+      setStatsState(response.data);
+    } catch (error) {
+      console.error('Error fetching account stats:', error);
+    }
+  };
+
   const fetchEmails = async (filterParams = {}) => {
     try {
       setLoading(true);
       const response = await emailsApi.getAll(filterParams);
-      setEmails(response.data);
+      const sorted = [...response.data].sort(
+        (a, b) => new Date(b.receivedAt) - new Date(a.receivedAt)
+      );
+      setEmails(sorted);
+      // Jeśli filtrujemy konkretne konto, policz statystyki na podstawie zwróconej listy
+      const hasAccountFilter =
+        (filterParams.accountId && filterParams.accountId !== 'all') ||
+        (filters.accountId && filters.accountId !== '');
+      if (hasAccountFilter) {
+        const positive = sorted.filter(e => e.status === 'positive').length;
+        const neutral = sorted.filter(e => e.status === 'neutral').length;
+        const negative = sorted.filter(e => e.status === 'negative').length;
+        setStatsState({
+          positive,
+          neutral,
+          negative,
+          total: sorted.length
+        });
+      }
     } catch (error) {
       console.error('Error fetching emails:', error);
     } finally {
@@ -55,12 +104,32 @@ const Dashboard = () => {
     const { name, value } = e.target;
     const newFilters = { ...filters, [name]: value };
     setFilters(newFilters);
-    
+
     const params = {};
     if (newFilters.search) params.search = newFilters.search;
     if (newFilters.company) params.company = newFilters.company;
     if (newFilters.status) params.status = newFilters.status;
-    
+    if (newFilters.accountId) params.accountId = newFilters.accountId;
+
+    fetchEmails(params);
+  };
+
+  const handleAccountChange = (e) => {
+    const accountId = e.target.value;
+    setSelectedAccount(accountId);
+
+    const newFilters = {
+      ...filters,
+      accountId: accountId === 'all' ? '' : accountId
+    };
+    setFilters(newFilters);
+
+    const params = {};
+    if (newFilters.search) params.search = newFilters.search;
+    if (newFilters.company) params.company = newFilters.company;
+    if (newFilters.status) params.status = newFilters.status;
+    if (newFilters.accountId) params.accountId = newFilters.accountId;
+
     fetchEmails(params);
   };
 
@@ -106,16 +175,21 @@ const Dashboard = () => {
   };
 
   const stats = {
-    positive: allEmails.filter(e => e.status === 'positive').length,
-    neutral: allEmails.filter(e => e.status === 'neutral').length,
-    negative: allEmails.filter(e => e.status === 'negative').length,
-    total: allEmails.length
+    positive: statsState?.positive || 0,
+    neutral: statsState?.neutral || 0,
+    negative: statsState?.negative || 0,
+    total: statsState?.total || 0
   };
 
   const handleStatClick = (status) => {
     const newFilters = { ...filters, status };
     setFilters(newFilters);
-    fetchEmails({ status });
+    const params = {};
+    if (newFilters.search) params.search = newFilters.search;
+    if (newFilters.company) params.company = newFilters.company;
+    if (newFilters.status) params.status = newFilters.status;
+    if (newFilters.accountId) params.accountId = newFilters.accountId;
+    fetchEmails(params);
   };
 
   const handleExportToExcel = () => {
@@ -204,7 +278,25 @@ const Dashboard = () => {
       <div className="main-layout">
         <aside className="sidebar">
           <h3>Filtry</h3>
-          
+
+          <div className="filter-group">
+            <label htmlFor="account">Konto Email</label>
+            <select
+              id="account"
+              name="account"
+              className="filter-input"
+              value={selectedAccount}
+              onChange={handleAccountChange}
+            >
+              <option value="all">🌐 Wszystkie konta ({emailAccounts.length})</option>
+              {emailAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  📧 {account.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="filter-group">
             <label htmlFor="search">Szukaj</label>
             <input
@@ -251,8 +343,8 @@ const Dashboard = () => {
               <option value="negative">Negatywne</option>
             </select>
             {filters.status && (
-              <button 
-                className="btn btn-secondary" 
+              <button
+                className="btn btn-secondary"
                 style={{ marginTop: '0.5rem', width: '100%', fontSize: '0.85rem' }}
                 onClick={() => {
                   setFilters({ ...filters, status: '' });

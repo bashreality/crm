@@ -1,6 +1,7 @@
 package com.crm.service;
 
 import com.crm.model.Email;
+import com.crm.model.EmailAccount;
 import com.crm.repository.EmailRepository;
 import jakarta.mail.*;
 import jakarta.mail.internet.MimeMultipart;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Properties;
 
 @Service
@@ -25,15 +27,7 @@ public class EmailFetchService {
     private final EmailRepository emailRepository;
     private final AIClassificationService aiClassificationService;
     private final ContactAutoCreationService contactAutoCreationService;
-
-    @Value("${email.imap.host}")
-    private String mailHost;
-
-    @Value("${email.imap.username}")
-    private String mailUsername;
-
-    @Value("${email.imap.password}")
-    private String mailPassword;
+    private final EmailAccountService emailAccountService;
 
     @Value("${email.fetch.folder:INBOX}")
     private String folderName;
@@ -42,7 +36,7 @@ public class EmailFetchService {
     private boolean fetchEnabled;
 
     /**
-     * Automatyczne pobieranie maili co 5 minut
+     * Automatyczne pobieranie maili co 5 minut ze wszystkich aktywnych kont
      */
     @Scheduled(fixedDelayString = "${email.fetch.interval:300000}")
     public void fetchEmails() {
@@ -51,106 +45,119 @@ public class EmailFetchService {
             return;
         }
 
-        log.info("Starting email fetch from {}", mailUsername);
-        
-        try {
-            Store store = connectToMailServer();
-            Folder inbox = store.getFolder(folderName);
-            inbox.open(Folder.READ_ONLY);
+        List<EmailAccount> accounts = emailAccountService.getEnabledAccounts();
+        log.info("Starting email fetch from {} enabled accounts", accounts.size());
 
-            Message[] messages = inbox.getMessages();
-            log.info("Found {} messages in inbox", messages.length);
+        int totalNewEmails = 0;
+        for (EmailAccount account : accounts) {
+            try {
+                int newEmails = fetchEmailsForAccount(account, 50);
+                totalNewEmails += newEmails;
 
-            int newEmails = 0;
-            int limit = Math.min(messages.length, 50); // Limit do 50 najnowszych
-
-            // Przetwarzaj od najnowszych
-            for (int i = messages.length - 1; i >= messages.length - limit && i >= 0; i--) {
-                Message message = messages[i];
-                
-                try {
-                    String messageId = getMessageId(message);
-                    
-                    // Sprawdź czy email już istnieje
-                    if (emailRepository.findByMessageId(messageId).isEmpty()) {
-                        processAndSaveEmail(message, messageId);
-                        newEmails++;
-                    }
-                } catch (Exception e) {
-                    log.error("Error processing message: {}", e.getMessage(), e);
+                // Update last fetch time
+                emailAccountService.updateLastFetchTime(account.getId(), LocalDateTime.now());
+                if (newEmails > 0) {
+                    emailAccountService.incrementEmailCount(account.getId(), newEmails);
                 }
+            } catch (Exception e) {
+                log.error("Error fetching emails from {}: {}", account.getEmailAddress(), e.getMessage(), e);
             }
-
-            inbox.close(false);
-            store.close();
-
-            log.info("Email fetch completed. New emails: {}", newEmails);
-
-        } catch (Exception e) {
-            log.error("Error fetching emails: {}", e.getMessage(), e);
         }
+
+        log.info("Email fetch completed. Total new emails: {}", totalNewEmails);
     }
 
     /**
-     * Ręczne pobieranie maili (wywołanie przez API)
+     * Ręczne pobieranie maili (wywołanie przez API) ze wszystkich aktywnych kont
      */
     public int fetchEmailsManually() {
         log.info("Manual email fetch triggered");
-        
-        try {
-            Store store = connectToMailServer();
-            Folder inbox = store.getFolder(folderName);
-            inbox.open(Folder.READ_ONLY);
 
-            Message[] messages = inbox.getMessages();
-            int newEmails = 0;
+        List<EmailAccount> accounts = emailAccountService.getEnabledAccounts();
+        int totalNewEmails = 0;
 
-            for (Message message : messages) {
-                try {
-                    String messageId = getMessageId(message);
-                    
-                    if (emailRepository.findByMessageId(messageId).isEmpty()) {
-                        processAndSaveEmail(message, messageId);
-                        newEmails++;
-                    }
-                } catch (Exception e) {
-                    log.error("Error processing message: {}", e.getMessage(), e);
+        for (EmailAccount account : accounts) {
+            try {
+                int newEmails = fetchEmailsForAccount(account, 0); // 0 = fetch all
+                totalNewEmails += newEmails;
+
+                emailAccountService.updateLastFetchTime(account.getId(), LocalDateTime.now());
+                if (newEmails > 0) {
+                    emailAccountService.incrementEmailCount(account.getId(), newEmails);
                 }
+            } catch (Exception e) {
+                log.error("Error fetching emails from {}: {}", account.getEmailAddress(), e.getMessage(), e);
             }
-
-            inbox.close(false);
-            store.close();
-
-            log.info("Manual fetch completed. New emails: {}", newEmails);
-            return newEmails;
-
-        } catch (Exception e) {
-            log.error("Error in manual fetch: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to fetch emails: " + e.getMessage());
         }
+
+        log.info("Manual fetch completed. Total new emails: {}", totalNewEmails);
+        return totalNewEmails;
     }
 
-    private Store connectToMailServer() throws MessagingException {
+    /**
+     * Pobierz maile z konkretnego konta
+     */
+    private int fetchEmailsForAccount(EmailAccount account, int limit) throws MessagingException, IOException {
+        log.info("Fetching emails from {}", account.getEmailAddress());
+
+        Store store = connectToMailServer(account);
+        Folder inbox = store.getFolder(folderName);
+        inbox.open(Folder.READ_ONLY);
+
+        Message[] messages = inbox.getMessages();
+        log.info("Found {} messages in inbox for {}", messages.length, account.getEmailAddress());
+
+        int newEmails = 0;
+        int messagesToProcess = limit > 0 ? Math.min(messages.length, limit) : messages.length;
+
+        // Przetwarzaj od najnowszych
+        for (int i = messages.length - 1; i >= messages.length - messagesToProcess && i >= 0; i--) {
+            Message message = messages[i];
+
+            try {
+                String messageId = getMessageId(message);
+
+                // Sprawdź czy email już istnieje
+                if (emailRepository.findByMessageId(messageId).isEmpty()) {
+                    processAndSaveEmail(message, messageId, account);
+                    newEmails++;
+                }
+            } catch (Exception e) {
+                log.error("Error processing message from {}: {}", account.getEmailAddress(), e.getMessage(), e);
+            }
+        }
+
+        inbox.close(false);
+        store.close();
+
+        log.info("Fetched {} new emails from {}", newEmails, account.getEmailAddress());
+        return newEmails;
+    }
+
+    private Store connectToMailServer(EmailAccount account) throws MessagingException {
         Properties props = new Properties();
-        props.put("mail.store.protocol", "imaps");
-        props.put("mail.imaps.host", mailHost);
-        props.put("mail.imaps.port", "993");
-        props.put("mail.imaps.ssl.enable", "true");
-        props.put("mail.imaps.ssl.trust", "*");
+        props.put("mail.store.protocol", account.getImapProtocol());
+        props.put("mail." + account.getImapProtocol() + ".host", account.getImapHost());
+        props.put("mail." + account.getImapProtocol() + ".port", account.getImapPort().toString());
+
+        if ("imaps".equals(account.getImapProtocol())) {
+            props.put("mail.imaps.ssl.enable", "true");
+            props.put("mail.imaps.ssl.trust", "*");
+        }
 
         Session session = Session.getInstance(props);
-        Store store = session.getStore("imaps");
-        store.connect(mailHost, mailUsername, mailPassword);
-        
-        log.info("Connected to mail server: {}", mailHost);
+        Store store = session.getStore(account.getImapProtocol());
+        store.connect(account.getImapHost(), account.getEmailAddress(), account.getPassword());
+
+        log.info("Connected to mail server: {} for account {}", account.getImapHost(), account.getEmailAddress());
         return store;
     }
 
-    private void processAndSaveEmail(Message message, String messageId) throws MessagingException, IOException {
+    private void processAndSaveEmail(Message message, String messageId, EmailAccount account) throws MessagingException, IOException {
         String from = getFrom(message);
         String subject = decodeSubject(message.getSubject());
         String content = getTextFromMessage(message);
-        LocalDateTime receivedDate = message.getReceivedDate() != null 
+        LocalDateTime receivedDate = message.getReceivedDate() != null
             ? LocalDateTime.ofInstant(message.getReceivedDate().toInstant(), ZoneId.systemDefault())
             : LocalDateTime.now();
 
@@ -161,6 +168,8 @@ public class EmailFetchService {
         Email email = new Email();
         email.setMessageId(messageId);
         email.setSender(from);
+        email.setAccount(account);
+        email.setRecipient(account.getEmailAddress()); // Ustawienie odbiorcy
         email.setCompany(extractCompany(from));
         email.setSubject(subject);
         email.setPreview(truncate(content, 500)); // Zwiększony limit z 200 do 500 znaków
@@ -169,14 +178,14 @@ public class EmailFetchService {
         email.setReceivedAt(receivedDate);
 
         Email savedEmail = emailRepository.save(email);
-        log.info("Saved email from {} with status: {}", from, status);
-        
+        log.info("Saved email from {} to {} with status: {}", from, account.getEmailAddress(), status);
+
         // Automatycznie utwórz/zaktualizuj kontakt
         try {
             contactAutoCreationService.createOrUpdateContactFromEmail(savedEmail);
             log.debug("Contact creation/update completed for email ID: {}", savedEmail.getId());
         } catch (Exception e) {
-            log.error("Failed to create/update contact for email ID {} (sender: {}): {}", 
+            log.error("Failed to create/update contact for email ID {} (sender: {}): {}",
                 savedEmail.getId(), from, e.getMessage(), e);
             // Nie rzucamy wyjątku dalej, żeby nie przerywać procesu zapisywania emaila
         }
