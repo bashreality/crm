@@ -37,6 +37,9 @@ public class Contact {
     private Integer meetingCount = 0;
 
     @Column(nullable = false)
+    private Integer dealCount = 0;
+
+    @Column(nullable = false)
     private LocalDateTime createdAt;
     
     @Column(nullable = false)
