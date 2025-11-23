@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { emailsApi, emailAccountsApi, analyticsApi } from '../services/api';
+import { emailsApi, emailAccountsApi, analyticsApi, tasksApi, contactsApi } from '../services/api';
 import EmailModal from '../components/EmailModal';
 
 const Dashboard = () => {
@@ -9,6 +9,15 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState(null); // Email do wyświetlenia w modalu
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskFormData, setTaskFormData] = useState({
+    title: '',
+    description: '',
+    dueDate: '',
+    contactId: null,
+    relatedEmailId: null
+  });
+  const [contacts, setContacts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('all'); // Wybrane konto email ('all' = wszystkie)
   const [statsState, setStatsState] = useState(null); // Statystyki dla bieżącego widoku (konto/all)
   const [filters, setFilters] = useState({
@@ -17,11 +26,19 @@ const Dashboard = () => {
     status: '',
     accountId: ''
   });
+  const [showReplyModal, setShowReplyModal] = useState(false);
+  const [replyFormData, setReplyFormData] = useState({
+    subject: '',
+    body: '',
+    emailId: null
+  });
+  const [loadingAISuggestion, setLoadingAISuggestion] = useState(false);
 
   useEffect(() => {
     fetchEmails();
     fetchCompanies();
     fetchEmailAccounts();
+    fetchContacts();
     // Załaduj statystyki dla domyślnego widoku (wszystkie skrzynki)
     fetchGlobalStats();
   }, []);
@@ -59,6 +76,15 @@ const Dashboard = () => {
       setEmailAccounts(response.data);
     } catch (error) {
       console.error('Error fetching email accounts:', error);
+    }
+  };
+
+  const fetchContacts = async () => {
+    try {
+      const response = await contactsApi.getAll();
+      setContacts(response.data);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
     }
   };
 
@@ -233,7 +259,7 @@ const Dashboard = () => {
 
   const handleDeleteEmail = async (emailId, e) => {
     e.stopPropagation(); // Zatrzymaj propagację kliknięcia, aby nie otwierał modala
-    
+
     if (!window.confirm('Czy na pewno chcesz usunąć ten email?')) {
       return;
     }
@@ -242,7 +268,6 @@ const Dashboard = () => {
       await emailsApi.delete(emailId);
       // Usuń email z listy lokalnie
       setEmails(emails.filter(email => email.id !== emailId));
-      setAllEmails(allEmails.filter(email => email.id !== emailId));
       alert('Email został usunięty');
     } catch (error) {
       console.error('Error deleting email:', error);
@@ -250,15 +275,272 @@ const Dashboard = () => {
     }
   };
 
+  const handleCreateTask = (email, e) => {
+    e.stopPropagation(); // Zatrzymaj propagację, aby nie otworzyć modala emaila
+
+    // Znajdź kontakt na podstawie emaila nadawcy
+    const emailAddress = email.sender.match(/<(.+)>/)?.[1] || email.sender;
+    const contact = contacts.find(c => c.email === emailAddress);
+
+    setTaskFormData({
+      title: `Zadanie: ${email.subject}`,
+      description: `Email od: ${email.sender}\n\n${email.preview}`,
+      dueDate: '',
+      contactId: contact?.id || null,
+      relatedEmailId: email.id
+    });
+    setShowTaskModal(true);
+  };
+
+  const handleTaskFormChange = (e) => {
+    const { name, value } = e.target;
+    setTaskFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleTaskSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!taskFormData.title || !taskFormData.dueDate) {
+      alert('Wypełnij tytuł i datę wykonania');
+      return;
+    }
+
+    try {
+      const payload = {
+        title: taskFormData.title.trim(),
+        description: taskFormData.description?.trim() || null,
+        type: 'email',
+        dueDate: taskFormData.dueDate ? `${taskFormData.dueDate}:00` : null,
+        priority: 2, // Medium priority
+        completed: false,
+        contact: taskFormData.contactId
+          ? { id: Number(taskFormData.contactId) }
+          : null,
+      };
+
+      await tasksApi.create(payload);
+      alert('✅ Zadanie zostało utworzone!');
+      setShowTaskModal(false);
+      setTaskFormData({
+        title: '',
+        description: '',
+        dueDate: '',
+        contactId: null,
+        relatedEmailId: null
+      });
+    } catch (error) {
+      console.error('Error creating task:', error);
+      alert('❌ Błąd podczas tworzenia zadania');
+    }
+  };
+
+  const handleReply = (email, e) => {
+    e.stopPropagation(); // Zatrzymaj propagację, aby nie otworzyć modala emaila
+
+    setReplyFormData({
+      subject: `Re: ${email.subject}`,
+      body: '',
+      emailId: email.id
+    });
+    setShowReplyModal(true);
+  };
+
+  const handleReplyFormChange = (e) => {
+    const { name, value } = e.target;
+    setReplyFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleGetAISuggestion = async () => {
+    if (!replyFormData.emailId) return;
+
+    setLoadingAISuggestion(true);
+    try {
+      const response = await emailsApi.suggestReply(replyFormData.emailId);
+      setReplyFormData(prev => ({
+        ...prev,
+        subject: response.data.subject,
+        body: response.data.suggestion
+      }));
+      alert('✅ Sugestia AI została załadowana!');
+    } catch (error) {
+      console.error('Error getting AI suggestion:', error);
+      alert('❌ Błąd podczas pobierania sugestii AI');
+    } finally {
+      setLoadingAISuggestion(false);
+    }
+  };
+
+  const handleSendReply = async (e) => {
+    e.preventDefault();
+
+    if (!replyFormData.subject || !replyFormData.body) {
+      alert('Wypełnij temat i treść odpowiedzi');
+      return;
+    }
+
+    try {
+      await emailsApi.sendReply(replyFormData.emailId, {
+        subject: replyFormData.subject.trim(),
+        body: replyFormData.body.trim()
+      });
+      alert('✅ Odpowiedź została wysłana!');
+      setShowReplyModal(false);
+      setReplyFormData({
+        subject: '',
+        body: '',
+        emailId: null
+      });
+      // Odśwież listę emaili aby pokazać status "replied"
+      fetchEmails();
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      alert('❌ Błąd podczas wysyłania odpowiedzi');
+    }
+  };
+
   return (
     <div className="container">
       {selectedEmail && (
-        <EmailModal 
-          email={selectedEmail} 
-          onClose={() => setSelectedEmail(null)} 
+        <EmailModal
+          email={selectedEmail}
+          onClose={() => setSelectedEmail(null)}
         />
       )}
-      
+
+      {showTaskModal && (
+        <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Utwórz nowe zadanie</h2>
+              <button className="modal-close" onClick={() => setShowTaskModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleTaskSubmit} className="modal-body">
+              <div className="form-group">
+                <label htmlFor="taskTitle">Tytuł zadania *</label>
+                <input
+                  type="text"
+                  id="taskTitle"
+                  name="title"
+                  className="form-control"
+                  value={taskFormData.title}
+                  onChange={handleTaskFormChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="taskDescription">Opis</label>
+                <textarea
+                  id="taskDescription"
+                  name="description"
+                  className="form-control"
+                  rows="4"
+                  value={taskFormData.description}
+                  onChange={handleTaskFormChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="taskDueDate">Data i godzina wykonania *</label>
+                <input
+                  type="datetime-local"
+                  id="taskDueDate"
+                  name="dueDate"
+                  className="form-control"
+                  value={taskFormData.dueDate}
+                  onChange={handleTaskFormChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="taskContact">Przypisz do kontaktu</label>
+                <select
+                  id="taskContact"
+                  name="contactId"
+                  className="form-control"
+                  value={taskFormData.contactId || ''}
+                  onChange={handleTaskFormChange}
+                >
+                  <option value="">Wybierz kontakt (opcjonalnie)</option>
+                  {contacts.map(contact => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.name} ({contact.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="modal-footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowTaskModal(false)}>
+                  Anuluj
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Utwórz zadanie
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showReplyModal && (
+        <div className="modal-overlay" onClick={() => setShowReplyModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h2>Odpowiedz na email</h2>
+              <button className="modal-close" onClick={() => setShowReplyModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleSendReply} className="modal-body">
+              <div className="form-group">
+                <label htmlFor="replySubject">Temat *</label>
+                <input
+                  type="text"
+                  id="replySubject"
+                  name="subject"
+                  className="form-control"
+                  value={replyFormData.subject}
+                  onChange={handleReplyFormChange}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="replyBody">Treść odpowiedzi *</label>
+                <textarea
+                  id="replyBody"
+                  name="body"
+                  className="form-control"
+                  rows="10"
+                  value={replyFormData.body}
+                  onChange={handleReplyFormChange}
+                  required
+                />
+              </div>
+
+              <div className="modal-footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleGetAISuggestion}
+                  disabled={loadingAISuggestion}
+                >
+                  {loadingAISuggestion ? '⏳ Ładowanie...' : '🤖 Sugestia AI'}
+                </button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowReplyModal(false)}>
+                    Anuluj
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Wyślij odpowiedź
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -438,12 +720,39 @@ const Dashboard = () => {
                         <span className="email-sender">{email.sender}</span>
                         <span className="email-company">{email.company}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span className="email-time">{formatDate(email.receivedAt)}</span>
+                        <button
+                          className="btn btn-primary"
+                          onClick={(e) => handleCreateTask(email, e)}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.85rem',
+                            minWidth: 'auto'
+                          }}
+                          title="Utwórz zadanie"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="btn"
+                          onClick={(e) => handleReply(email, e)}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.85rem',
+                            minWidth: 'auto',
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none'
+                          }}
+                          title="Odpowiedz"
+                        >
+                          ↩️
+                        </button>
                         <button
                           className="btn btn-danger"
                           onClick={(e) => handleDeleteEmail(email.id, e)}
-                          style={{ 
+                          style={{
                             padding: '0.25rem 0.5rem',
                             fontSize: '0.85rem',
                             minWidth: 'auto'

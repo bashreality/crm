@@ -53,19 +53,21 @@ public class AIReplyService {
             requestBody.put("messages", List.of(
                     Map.of(
                             "role", "system",
-                            "content", "Jesteś profesjonalnym asystentem CRM pomagającym w tworzeniu odpowiedzi na emaile biznesowe. " +
-                                    "Generujesz profesjonalne, zwięzłe i pomocne odpowiedzi na emaile. " +
+                            "content", "Jesteś doświadczonym asystentem biznesowym specjalizującym się w odpowiedziach na emaile. " +
+                                    "Twoje zadanie to generowanie KONTEKSTOWYCH odpowiedzi - MUSISZ przeczytać i zrozumieć treść każdego emaila. " +
+                                    "KAŻDA odpowiedź musi być UNIKALNA i odnosić się do KONKRETNEJ treści emaila. " +
+                                    "NIGDY nie używaj szablonowych odpowiedzi - zawsze dostosuj się do kontekstu. " +
                                     "Odpowiadaj w tym samym języku co email oryginalny. " +
-                                    "Używaj formalnego tonu dla biznesu, ale przyjaznego dla klientów. " +
-                                    "NIE dodawaj tematu email - tylko treść odpowiedzi."
+                                    "Ton: profesjonalny ale ciepły i przyjazny. " +
+                                    "Format: TYLKO treść odpowiedzi bez tematu, nagłówków i stopek."
                     ),
                     Map.of(
                             "role", "user",
                             "content", prompt
                     )
             ));
-            requestBody.put("temperature", 0.7);
-            requestBody.put("max_tokens", 500);
+            requestBody.put("temperature", 0.8);
+            requestBody.put("max_tokens", 800);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
@@ -105,20 +107,33 @@ public class AIReplyService {
     private String buildReplyPrompt(String subject, String body, String senderEmail) {
         // Czyść i skróć treść emaila jeśli za długa
         String cleanBody = body != null ? body.replaceAll("<[^>]*>", "").trim() : "";
-        if (cleanBody.length() > 1000) {
-            cleanBody = cleanBody.substring(0, 1000) + "...";
+        if (cleanBody.length() > 2000) {
+            cleanBody = cleanBody.substring(0, 2000) + "...";
         }
 
         return String.format(
-                "Wygeneruj profesjonalną odpowiedź na poniższy email:\n\n" +
+                "Przeanalizuj poniższy email i wygeneruj odpowiednią, kontekstową odpowiedź:\n\n" +
+                        "=== EMAIL PRZYCHODZĄCY ===\n" +
                         "Od: %s\n" +
                         "Temat: %s\n\n" +
-                        "Treść:\n%s\n\n" +
-                        "Wygeneruj TYLKO treść odpowiedzi (bez tematu, bez 'Od:', bez 'Do:'). " +
-                        "Jeśli email jest po polsku - odpowiedz po polsku. Jeśli po angielsku - po angielsku.",
+                        "Treść emaila:\n%s\n\n" +
+                        "=== INSTRUKCJE ===\n" +
+                        "1. Przeczytaj dokładnie treść emaila i zrozum kontekst\n" +
+                        "2. Odpowiedz w tym samym języku co email oryginalny\n" +
+                        "3. DOSTOSUJ odpowiedź do KONKRETNEJ treści tego emaila:\n" +
+                        "   - Jeśli to pytanie - odpowiedz na to pytanie\n" +
+                        "   - Jeśli to prośba - odnieś się do tej prośby\n" +
+                        "   - Jeśli to oferta - skomentuj tę ofertę\n" +
+                        "   - Jeśli to odmowa - zaakceptuj i podziękuj\n" +
+                        "   - Jeśli to zainteresowanie - wyraź entuzjazm i zaproponuj kolejne kroki\n" +
+                        "4. Użyj profesjonalnego ale przyjaznego tonu\n" +
+                        "5. Wygeneruj TYLKO treść odpowiedzi (bez tematu, bez 'Od:', bez 'Do:', bez pozdrowień końcowych)\n" +
+                        "6. Odpowiedź powinna być zwięzła (2-4 zdania) i konkretna\n" +
+                        "7. WAŻNE: Odnieś się do KONKRETNYCH elementów z treści emaila!\n\n" +
+                        "Wygeneruj odpowiedź:",
                 senderEmail,
                 subject != null ? subject : "(brak tematu)",
-                cleanBody
+                cleanBody.isEmpty() ? "(email bez treści - możliwe że był to tylko attachment)" : cleanBody
         );
     }
 

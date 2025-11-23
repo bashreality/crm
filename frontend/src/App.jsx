@@ -7,6 +7,7 @@ import Campaigns from './pages/Campaigns';
 import Analytics from './pages/Analytics';
 import Sequences from './pages/Sequences';
 import Tasks from './pages/Tasks';
+import CalendarTask from './pages/Calendar';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
 import './App.css';
@@ -43,6 +44,7 @@ function App() {
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/sequences" element={<Sequences />} />
                     <Route path="/tasks" element={<Tasks />} />
+                    <Route path="/calendar" element={<CalendarTask />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </>

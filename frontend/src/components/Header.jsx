@@ -55,6 +55,12 @@ const Header = () => {
             Zadania
           </Link>
           <Link
+            to="/calendar"
+            className={`nav-item ${isActive('/calendar') ? 'active' : ''}`}
+          >
+            Kalendarz
+          </Link>
+          <Link
             to="/analytics"
             className={`nav-item ${isActive('/analytics') ? 'active' : ''}`}
           >

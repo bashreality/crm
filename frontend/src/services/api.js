@@ -19,6 +19,8 @@ export const emailsApi = {
   delete: (id) => api.delete(`/emails/${id}`),
   getCompanies: () => api.get('/emails/companies'),
   fetchEmails: () => api.post('/email-fetch/fetch'),
+  suggestReply: (id) => api.post(`/emails/${id}/suggest-reply`),
+  sendReply: (id, data) => api.post(`/emails/${id}/reply`, data),
 };
 
 // Contacts API
