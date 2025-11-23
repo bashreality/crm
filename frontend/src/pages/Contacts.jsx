@@ -27,25 +27,25 @@ const Contacts = () => {
   };
 
   const syncContactsFromEmails = async () => {
-    if (!confirm('Czy chcesz zsynchronizować kontakty ze wszystkich emaili? To może potrwać chwilę.')) {
+    if (!confirm('Czy chcesz zsynchronizować kontakty ze wszystkich emaili? Proces zostanie uruchomiony w tle.')) {
       return;
     }
-    
+
     try {
-      setLoading(true);
       const response = await contactsApi.syncFromEmails();
-      
+
       if (response.data.success) {
-        alert(`✅ Synchronizacja zakończona!\nNowe kontakty: ${response.data.newContacts}`);
-        fetchContacts(); // Odśwież listę
+        alert(`✅ ${response.data.message}\n\nKontakty będą aktualizowane w tle. Możesz odświeżyć stronę za chwilę aby zobaczyć nowe kontakty.`);
+        // Opcjonalnie odśwież po 5 sekundach
+        setTimeout(() => {
+          fetchContacts();
+        }, 5000);
       } else {
         alert(`❌ Błąd: ${response.data.message}`);
       }
     } catch (error) {
       console.error('Error syncing contacts:', error);
-      alert('❌ Nie udało się zsynchronizować kontaktów: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
+      alert('❌ Nie udało się uruchomić synchronizacji: ' + (error.response?.data?.message || error.message));
     }
   };
 

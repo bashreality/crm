@@ -20,9 +20,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchEmails();
-    fetchGlobalStats();
     fetchCompanies();
     fetchEmailAccounts();
+    // Załaduj statystyki dla domyślnego widoku (wszystkie skrzynki)
+    fetchGlobalStats();
   }, []);
 
   useEffect(() => {

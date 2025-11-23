@@ -105,24 +105,32 @@ public class ContactController {
     /**
      * Wymuś synchronizację kontaktów ze wszystkich emaili
      * POST /api/contacts/sync-from-emails
+     * Synchronizacja jest wykonywana asynchronicznie w tle
      */
     @PostMapping("/sync-from-emails")
     public ResponseEntity<Map<String, Object>> syncContactsFromEmails() {
         try {
-            int newContacts = contactAutoCreationService.syncContactsFromAllEmails();
-            
+            // Uruchom synchronizację asynchronicznie w osobnym wątku
+            new Thread(() -> {
+                try {
+                    contactAutoCreationService.syncContactsFromAllEmails();
+                } catch (Exception e) {
+                    // Log błędu, ale nie przerywaj
+                    e.printStackTrace();
+                }
+            }).start();
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", "Synchronizacja kontaktów zakończona");
-            response.put("newContacts", newContacts);
-            
+            response.put("message", "Synchronizacja kontaktów rozpoczęta w tle");
+            response.put("status", "running");
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "Błąd: " + e.getMessage());
-            response.put("newContacts", 0);
-            
+
             return ResponseEntity.status(500).body(response);
         }
     }
