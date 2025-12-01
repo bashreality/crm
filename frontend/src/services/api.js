@@ -64,6 +64,23 @@ export const contactsApi = {
   getContactEmails: (contactId) => api.get(`/contacts/${contactId}/emails`),
 };
 
+// Notes API
+export const notesApi = {
+  getByContact: (contactId) => api.get(`/notes/contact/${contactId}`),
+  create: (data) => api.post('/notes', data),
+  update: (id, data) => api.put(`/notes/${id}`, data),
+  delete: (id) => api.delete(`/notes/${id}`),
+};
+
+// AI API
+export const aiApi = {
+  generateSequence: (data) => api.post('/ai/generate-sequence', data),
+  improveEmail: (data) => api.post('/ai/improve-email', data),
+  generateSubject: (data) => api.post('/ai/generate-subject', data),
+  personalizeContent: (data) => api.post('/ai/personalize', data),
+  generateVariants: (data) => api.post('/ai/generate-variants', data),
+};
+
 // Campaigns API
 export const campaignsApi = {
   getAll: (params) => api.get('/campaigns', { params }),

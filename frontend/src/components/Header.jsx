@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import api from '../services/api';
 
-const Header = () => {
+const Header = ({ onOpenSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
@@ -104,6 +105,40 @@ const Header = () => {
             Konta Email
           </Link>
         </div>
+        
+        {/* Search Button */}
+        <button
+          onClick={onOpenSearch}
+          className="search-button"
+          title="Szukaj (Ctrl+K)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            color: 'white',
+            cursor: 'pointer',
+            fontSize: '14px',
+            marginRight: '16px',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.2)'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+        >
+          <Search size={16} />
+          <span style={{ opacity: 0.8 }}>Szukaj...</span>
+          <kbd style={{
+            padding: '2px 6px',
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            borderRadius: '4px',
+            fontSize: '11px',
+            marginLeft: '8px'
+          }}>⌘K</kbd>
+        </button>
+        
         <div className="user-info">
           <button
             className="avatar avatar-button"

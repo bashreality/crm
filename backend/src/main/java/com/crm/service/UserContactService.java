@@ -134,10 +134,14 @@ public class UserContactService {
     }
 
     private boolean shouldAddContact(String emailStatus) {
+        // Dodajemy kontakt dla WSZYSTKICH statusów emaili (oprócz undelivered)
+        // Dzięki temu użytkownik może tagować i zarządzać nawet kontaktami z negatywnymi odpowiedziami
         return "positive".equals(emailStatus) ||
                "maybeLater".equals(emailStatus) ||
                "auto".equals(emailStatus) ||
-               "neutral".equals(emailStatus);
+               "autoReply".equals(emailStatus) ||
+               "neutral".equals(emailStatus) ||
+               "negative".equals(emailStatus);
     }
 
     private String extractEmailDomain(String email) {

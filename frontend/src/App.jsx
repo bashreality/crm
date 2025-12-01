@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
+import CommandPalette from './components/CommandPalette';
 import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
 import Campaigns from './pages/Campaigns';
@@ -30,11 +31,29 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   const [currentSection, setCurrentSection] = useState('emails');
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
+  // Global keyboard shortcut for Command Palette (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <Router>
       <div className="App">
         <Toaster position="top-right" />
+        <CommandPalette 
+          isOpen={commandPaletteOpen} 
+          onClose={() => setCommandPaletteOpen(false)} 
+        />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -42,7 +61,11 @@ function App() {
             element={
               <ProtectedRoute>
                 <>
-                  <Header currentSection={currentSection} setCurrentSection={setCurrentSection} />
+                  <Header 
+                    currentSection={currentSection} 
+                    setCurrentSection={setCurrentSection}
+                    onOpenSearch={() => setCommandPaletteOpen(true)}
+                  />
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/contacts" element={<Contacts />} />

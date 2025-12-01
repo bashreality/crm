@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { sequencesApi, contactsApi, emailAccountsApi, tagsApi } from '../services/api';
+import { sequencesApi, contactsApi, emailAccountsApi, tagsApi, aiApi } from '../services/api';
 import './Sequences.css';
 
 const initialSequenceForm = {
@@ -54,6 +54,10 @@ const Sequences = () => {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // AI states
+  const [aiLoading, setAiLoading] = useState({});
+  const [aiError, setAiError] = useState(null);
   const [showStartModal, setShowStartModal] = useState(false);
   const [showCreateSequenceModal, setShowCreateSequenceModal] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState([]);
@@ -71,6 +75,10 @@ const Sequences = () => {
     additionalContext: ''
   });
   const [aiGenerating, setAiGenerating] = useState(false);
+  
+  // AI Analysis - wyświetlane w builderze po wygenerowaniu
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiWebsiteUrl, setAiWebsiteUrl] = useState('');
 
   useEffect(() => {
     loadInitialData();
@@ -262,6 +270,78 @@ const Sequences = () => {
   const closeBuilder = () => {
     if (window.confirm('Czy na pewno chcesz zamknąć kreator? Niezapisane zmiany zostaną utracone.')) {
       setIsBuilderOpen(false);
+      setAiAnalysis(null);
+      setAiWebsiteUrl('');
+    }
+  };
+
+  // === AI Functions ===
+  const handleAIImprove = async (stepIdx) => {
+    const step = sequenceForm.steps[stepIdx];
+    if (!step.body || step.body.trim().length < 10) {
+      alert('Wpisz najpierw treść wiadomości (min. 10 znaków)');
+      return;
+    }
+    
+    setAiLoading(prev => ({ ...prev, [`improve_${stepIdx}`]: true }));
+    try {
+      const response = await aiApi.improveEmail({
+        content: step.body,
+        goal: 'sales',
+        tone: 'professional'
+      });
+      updateStep(stepIdx, 'body', response.data.content);
+    } catch (err) {
+      console.error('AI improve error:', err);
+      alert('Błąd AI: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setAiLoading(prev => ({ ...prev, [`improve_${stepIdx}`]: false }));
+    }
+  };
+  
+  const handleAIGenerateSubject = async (stepIdx) => {
+    const step = sequenceForm.steps[stepIdx];
+    if (!step.body || step.body.trim().length < 10) {
+      alert('Wpisz najpierw treść wiadomości');
+      return;
+    }
+    
+    setAiLoading(prev => ({ ...prev, [`subject_${stepIdx}`]: true }));
+    try {
+      const response = await aiApi.generateSubject({
+        content: step.body,
+        style: 'professional'
+      });
+      updateStep(stepIdx, 'subject', response.data.subject);
+    } catch (err) {
+      console.error('AI subject error:', err);
+      alert('Błąd AI: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setAiLoading(prev => ({ ...prev, [`subject_${stepIdx}`]: false }));
+    }
+  };
+  
+  const handleAIPersonalize = async (stepIdx) => {
+    const step = sequenceForm.steps[stepIdx];
+    if (!step.body || step.body.trim().length < 10) {
+      alert('Wpisz najpierw treść wiadomości');
+      return;
+    }
+    
+    setAiLoading(prev => ({ ...prev, [`personalize_${stepIdx}`]: true }));
+    try {
+      const response = await aiApi.personalizeContent({
+        content: step.body,
+        contactName: '{{firstName}}',
+        company: '{{company}}',
+        position: '{{position}}'
+      });
+      updateStep(stepIdx, 'body', response.data.content);
+    } catch (err) {
+      console.error('AI personalize error:', err);
+      alert('Błąd AI: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setAiLoading(prev => ({ ...prev, [`personalize_${stepIdx}`]: false }));
     }
   };
 
@@ -328,18 +408,20 @@ const Sequences = () => {
         const pendingDealId = sessionStorage.getItem('pendingDealId');
         const pendingDealTitle = sessionStorage.getItem('pendingDealTitle');
 
-        let preFilledForm = initialSequenceForm;
-        if (pendingDealId) {
-          preFilledForm = {
-            ...initialSequenceForm,
-            name: pendingDealTitle ? `Sekwencja: ${pendingDealTitle}` : 'Nowa Sekwencja AI',
-            description: pendingDealTitle ? `Sekwencja AI dla szansy: ${pendingDealTitle}` : 'Wygenerowana sekwencja AI',
-            emailAccountId: emailAccounts[0]?.id?.toString() || '',
-            steps: aiSteps
-          };
-        }
+        // Zapisz analizę AI
+        setAiAnalysis(aiData.analysis || null);
+        setAiWebsiteUrl(aiModalData.websiteUrl);
 
-        openBuilder(null, aiSteps, preFilledForm);
+        // ZAWSZE dodaj kroki AI do formularza
+        const preFilledForm = {
+          ...initialSequenceForm,
+          name: aiData.suggestedSequenceName || (pendingDealTitle ? `Sekwencja: ${pendingDealTitle}` : 'Nowa Sekwencja AI'),
+          description: aiData.analysis || (pendingDealTitle ? `Sekwencja AI dla szansy: ${pendingDealTitle}` : 'Wygenerowana sekwencja AI'),
+          emailAccountId: emailAccounts[0]?.id?.toString() || '',
+          steps: aiSteps // KROKI AI ZAWSZE DOŁĄCZONE
+        };
+
+        openBuilder(null, null, preFilledForm);
 
         alert('✅ Wygenerowano ' + aiData.emails.length + ' kroków sekwencji!');
       } else {
@@ -918,6 +1000,78 @@ const Sequences = () => {
             {/* Left Sidebar: Settings */}
             <aside className="builder-sidebar">
               <h3>Ustawienia Główne</h3>
+              
+              {/* Panel analizy AI - wyświetlany po wygenerowaniu sekwencji */}
+              {aiAnalysis && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '20px',
+                  color: 'white',
+                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '12px'
+                  }}>
+                    <span style={{ fontSize: '20px' }}>🤖</span>
+                    <span style={{ fontWeight: '600', fontSize: '14px' }}>Analiza AI</span>
+                    <button 
+                      onClick={() => setAiAnalysis(null)}
+                      style={{
+                        marginLeft: 'auto',
+                        background: 'rgba(255,255,255,0.2)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        cursor: 'pointer',
+                        color: 'white',
+                        fontSize: '14px'
+                      }}
+                      title="Zamknij"
+                    >×</button>
+                  </div>
+                  
+                  {aiWebsiteUrl && (
+                    <div style={{
+                      background: 'rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      marginBottom: '12px',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <span>🔗</span>
+                      <a 
+                        href={aiWebsiteUrl.startsWith('http') ? aiWebsiteUrl : `https://${aiWebsiteUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'white', textDecoration: 'underline' }}
+                      >
+                        {aiWebsiteUrl}
+                      </a>
+                    </div>
+                  )}
+                  
+                  <div style={{
+                    fontSize: '13px',
+                    lineHeight: '1.6',
+                    background: 'rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    padding: '12px'
+                  }}>
+                    <strong style={{ display: 'block', marginBottom: '8px' }}>Co udało się ustalić:</strong>
+                    {aiAnalysis}
+                  </div>
+                </div>
+              )}
+              
               <div className="builder-form-group">
                 <label>Nazwa Kampanii</label>
                 <input
@@ -1057,6 +1211,77 @@ const Sequences = () => {
                         value={step.body}
                         onChange={e => updateStep(idx, 'body', e.target.value)}
                       />
+
+                      {/* AI Action Buttons */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        marginTop: '8px',
+                        flexWrap: 'wrap'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => handleAIImprove(idx)}
+                          disabled={aiLoading[`improve_${idx}`]}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            cursor: aiLoading[`improve_${idx}`] ? 'wait' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            opacity: aiLoading[`improve_${idx}`] ? 0.7 : 1
+                          }}
+                        >
+                          <span>✨</span> {aiLoading[`improve_${idx}`] ? 'Ulepszam...' : 'Ulepsz AI'}
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => handleAIGenerateSubject(idx)}
+                          disabled={aiLoading[`subject_${idx}`]}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                            color: 'white',
+                            cursor: aiLoading[`subject_${idx}`] ? 'wait' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            opacity: aiLoading[`subject_${idx}`] ? 0.7 : 1
+                          }}
+                        >
+                          <span>📝</span> {aiLoading[`subject_${idx}`] ? 'Generuję...' : 'Generuj temat'}
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => handleAIPersonalize(idx)}
+                          disabled={aiLoading[`personalize_${idx}`]}
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                            color: 'white',
+                            cursor: aiLoading[`personalize_${idx}`] ? 'wait' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            opacity: aiLoading[`personalize_${idx}`] ? 0.7 : 1
+                          }}
+                        >
+                          <span>👤</span> {aiLoading[`personalize_${idx}`] ? 'Personalizuję...' : 'Personalizuj'}
+                        </button>
+                      </div>
 
                       {/* Placeholder Help Panel */}
                       <div style={{

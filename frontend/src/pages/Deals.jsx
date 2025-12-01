@@ -70,6 +70,7 @@ const Deals = () => {
     contactId: '',
     priority: '3'
   });
+  const [contactSearchQuery, setContactSearchQuery] = useState('');
   
   const [editDealForm, setEditDealForm] = useState({
     id: null,
@@ -217,6 +218,7 @@ const Deals = () => {
       toast.success('Szansa dodana pomyślnie!', { id: loadingToast });
       setShowModal(false);
       setDealForm({ title: '', value: '', currency: 'PLN', contactId: '', priority: '3' });
+      setContactSearchQuery('');
       fetchDeals(activePipeline.id);
     } catch (err) {
       console.error(err);
@@ -239,7 +241,12 @@ const Deals = () => {
 
     const movedDeal = deals.find(d => d.id.toString() === draggableId);
     const newStageId = parseInt(destination.droppableId);
-    const newStage = activePipeline.stages.find(s => s.id === newStageId);
+    const newStage = (activePipeline?.stages || []).find(s => s.id === newStageId);
+    
+    if (!movedDeal || !newStage) {
+      toast.error('Błąd przy przenoszeniu szansy');
+      return;
+    }
 
     const updatedDeals = deals.map(d => 
       d.id.toString() === draggableId ? { ...d, stage: newStage } : d
@@ -486,17 +493,35 @@ const Deals = () => {
   
   const handleSavePipeline = async (e) => {
     e.preventDefault();
+    if (!pipelineForm.name.trim()) {
+      toast.error('Nazwa lejka jest wymagana');
+      return;
+    }
     setIsSaving(true);
     try {
+        let savedPipeline;
         if (editingPipeline) {
-            await api.put(`/deals/pipelines/${editingPipeline.id}`, pipelineForm);
+            const res = await api.put(`/deals/pipelines/${editingPipeline.id}`, pipelineForm);
+            savedPipeline = res.data;
         } else {
-            await api.post('/deals/pipelines', pipelineForm);
+            const res = await api.post('/deals/pipelines', pipelineForm);
+            savedPipeline = res.data;
         }
         toast.success('Lejek zapisany');
         setShowPipelineModal(false);
-        fetchPipelines();
+        
+        // Pobierz zaktualizowaną listę i ustaw nowy/edytowany lejek jako aktywny
+        const pipelinesRes = await api.get('/deals/pipelines');
+        setPipelines(pipelinesRes.data);
+        
+        // Znajdź zaktualizowany pipeline ze stages
+        const updatedPipeline = pipelinesRes.data.find(p => p.id === savedPipeline.id);
+        if (updatedPipeline) {
+          setActivePipeline(updatedPipeline);
+          fetchDeals(updatedPipeline.id);
+        }
     } catch(err) {
+        console.error('Error saving pipeline:', err);
         toast.error('Błąd zapisu lejka');
     } finally {
         setIsSaving(false);
@@ -530,20 +555,34 @@ const Deals = () => {
   };
 
   const handleAddStage = async () => {
-      if(!stageForm.name) return;
+      if(!stageForm.name.trim()) {
+        toast.error('Nazwa etapu jest wymagana');
+        return;
+      }
       try {
           await api.post(`/deals/pipelines/${managingStages.id}/stages`, { ...stageForm, position: stages.length });
           const res = await api.get(`/deals/pipelines/${managingStages.id}/stages`);
           setStages(res.data);
           setStageForm({ name: '', color: '#60A5FA', position: 0, probability: 50 });
           toast.success('Etap dodany');
+          
+          // Odśwież activePipeline jeśli edytujemy aktualny lejek
+          if (activePipeline && activePipeline.id === managingStages.id) {
+            const pipelinesRes = await api.get('/deals/pipelines');
+            const updatedPipeline = pipelinesRes.data.find(p => p.id === managingStages.id);
+            if (updatedPipeline) {
+              setActivePipeline(updatedPipeline);
+              setPipelines(pipelinesRes.data);
+            }
+          }
       } catch(err) {
+          console.error('Error adding stage:', err);
           toast.error('Błąd dodawania etapu');
       }
   };
 
   const handleDeleteStage = async (stageId) => {
-    if (!confirm('Czy na pewno chcesz usunąć ten etap?')) {
+    if (!confirm('Czy na pewno chcesz usunąć ten etap? Szanse przypisane do tego etapu zostaną usunięte!')) {
       return;
     }
 
@@ -552,6 +591,17 @@ const Deals = () => {
       const res = await api.get(`/deals/pipelines/${managingStages.id}/stages`);
       setStages(res.data);
       toast.success('Etap usunięty');
+      
+      // Odśwież activePipeline jeśli usuwamy etap z aktualnego lejka
+      if (activePipeline && activePipeline.id === managingStages.id) {
+        const pipelinesRes = await api.get('/deals/pipelines');
+        const updatedPipeline = pipelinesRes.data.find(p => p.id === managingStages.id);
+        if (updatedPipeline) {
+          setActivePipeline(updatedPipeline);
+          setPipelines(pipelinesRes.data);
+          fetchDeals(managingStages.id);
+        }
+      }
     } catch (err) {
       console.error('Error deleting stage:', err);
       toast.error('Błąd usuwania etapu');
@@ -737,17 +787,38 @@ const Deals = () => {
       ) : (
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="kanban-board">
-            {activePipeline.stages && activePipeline.stages.map(stage => (
-              <PipelineColumn
-                key={stage.id}
-                stage={stage}
-                deals={filteredDeals}
-                onEditDeal={handleEditDeal}
-                onEmailDeal={handleEmail}
-                onTaskDeal={handleAddTask}
-                onSequenceDeal={handleSequence}
-              />
-            ))}
+            {(activePipeline.stages && activePipeline.stages.length > 0) ? (
+              activePipeline.stages.map(stage => (
+                <PipelineColumn
+                  key={stage.id}
+                  stage={stage}
+                  deals={filteredDeals}
+                  onEditDeal={handleEditDeal}
+                  onEmailDeal={handleEmail}
+                  onTaskDeal={handleAddTask}
+                  onSequenceDeal={handleSequence}
+                />
+              ))
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '60px 20px', 
+                color: '#6b7280',
+                gridColumn: '1 / -1'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
+                <h3 style={{ marginBottom: '12px' }}>Brak etapów w tym lejku</h3>
+                <p style={{ marginBottom: '24px', maxWidth: '400px', margin: '0 auto' }}>
+                  Dodaj etapy do lejka, aby móc zarządzać szansami sprzedażowymi.
+                </p>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => handleManageStages(activePipeline)}
+                >
+                  Dodaj etapy
+                </button>
+              </div>
+            )}
           </div>
         </DragDropContext>
       )}
@@ -853,16 +924,47 @@ const Deals = () => {
               </div>
               <div className="form-group">
                 <label>Klient *</label>
+                <input
+                  type="text"
+                  placeholder="🔍 Szukaj po imieniu, emailu lub firmie..."
+                  value={contactSearchQuery}
+                  onChange={e => setContactSearchQuery(e.target.value)}
+                  style={{ marginBottom: '8px' }}
+                />
                 <select
                   value={dealForm.contactId}
                   onChange={e => setDealForm({...dealForm, contactId: e.target.value})}
                   required
+                  size={5}
+                  style={{ height: 'auto', minHeight: '120px' }}
                 >
                   <option value="">-- Wybierz klienta --</option>
-                  {contacts.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} {c.company ? `(${c.company})` : ''}</option>
-                  ))}
+                  {contacts
+                    .filter(c => {
+                      if (!contactSearchQuery.trim()) return true;
+                      const query = contactSearchQuery.toLowerCase();
+                      return (
+                        (c.name && c.name.toLowerCase().includes(query)) ||
+                        (c.email && c.email.toLowerCase().includes(query)) ||
+                        (c.company && c.company.toLowerCase().includes(query))
+                      );
+                    })
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} • {c.email} {c.company ? `(${c.company})` : ''}
+                      </option>
+                    ))}
                 </select>
+                {contactSearchQuery && (
+                  <small style={{ color: '#6b7280', marginTop: '4px', display: 'block' }}>
+                    Znaleziono: {contacts.filter(c => {
+                      const query = contactSearchQuery.toLowerCase();
+                      return (c.name && c.name.toLowerCase().includes(query)) ||
+                             (c.email && c.email.toLowerCase().includes(query)) ||
+                             (c.company && c.company.toLowerCase().includes(query));
+                    }).length} kontaktów
+                  </small>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
@@ -899,7 +1001,7 @@ const Deals = () => {
                   <div className="form-group">
                      <label>Etap</label>
                      <select value={editDealForm.stageId} onChange={e => setEditDealForm({...editDealForm, stageId: Number(e.target.value)})}>
-                        {activePipeline?.stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        {(activePipeline?.stages || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                      </select>
                   </div>
                </div>

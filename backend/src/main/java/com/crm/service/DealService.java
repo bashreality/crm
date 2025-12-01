@@ -117,9 +117,12 @@ public class DealService {
             new PipelineStage(null, savedPipeline, "Zamknięte (Wygrana)", 3, "#10B981", 100.0),
             new PipelineStage(null, savedPipeline, "Zamknięte (Przegrana)", 4, "#EF4444", 0.0)
         );
-        stageRepository.saveAll(defaultStages);
+        List<PipelineStage> savedStages = stageRepository.saveAll(defaultStages);
+        
+        // Ustaw zapisane stages bezpośrednio w pipeline
+        savedPipeline.setStages(savedStages);
 
-        return pipelineRepository.findById(savedPipeline.getId()).orElse(savedPipeline);
+        return savedPipeline;
     }
 
     @Transactional

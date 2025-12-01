@@ -135,7 +135,8 @@ public class ScheduledEmailService {
             String recipientEmail = scheduledEmail.getRecipientEmail();
             Optional<Contact> contactOpt = contactRepository.findByEmail(recipientEmail);
 
-            String processedSubject = scheduledEmail.getSubject();
+            String originalSubject = scheduledEmail.getSubject();
+            String processedSubject = originalSubject;
             String processedBody = scheduledEmail.getBody();
 
             // Jeśli znaleziono kontakt, przetworz zmienne szablonowe
@@ -148,10 +149,31 @@ public class ScheduledEmailService {
                 log.warn("Contact not found for email: {}, sending without variable substitution", recipientEmail);
             }
 
-            // Determine if we should send as a reply to thread
+            // Determine threading behavior:
+            // - If step has EMPTY subject -> continue thread (use previous subject with Re: prefix)
+            // - If step has NEW subject -> start new thread
+            boolean isStepSubjectEmpty = originalSubject == null || originalSubject.trim().isEmpty();
+            boolean canContinueThread = execution != null && 
+                                        execution.getLastMessageId() != null && 
+                                        execution.getLastThreadSubject() != null;
+            boolean shouldContinueThread = isStepSubjectEmpty && canContinueThread;
+
+            // If continuing thread, use the thread subject with Re: prefix
+            if (shouldContinueThread) {
+                String threadSubject = execution.getLastThreadSubject();
+                if (!threadSubject.toLowerCase().startsWith("re:")) {
+                    processedSubject = "Re: " + threadSubject;
+                } else {
+                    processedSubject = threadSubject;
+                }
+                log.debug("Continuing thread with subject: {}", processedSubject);
+            }
+
             Long sentEmailId;
-            if (execution != null && Boolean.TRUE.equals(execution.getIsReplyToThread()) && execution.getLastMessageId() != null) {
+            if (shouldContinueThread) {
                 // Send as reply to maintain thread
+                log.info("Sending scheduled email {} as reply to thread (messageId: {})", 
+                        scheduledEmail.getId(), execution.getLastMessageId());
                 if (account != null) {
                     sentEmailId = emailSendingService.sendReplyFromAccount(
                             account,
@@ -171,7 +193,8 @@ public class ScheduledEmailService {
                     );
                 }
             } else {
-                // Send as new email
+                // Send as new email (new thread)
+                log.info("Sending scheduled email {} as new email (new thread)", scheduledEmail.getId());
                 if (account != null) {
                     sentEmailId = emailSendingService.sendEmailFromAccount(
                             account,
@@ -185,6 +208,12 @@ public class ScheduledEmailService {
                             processedSubject,
                             processedBody
                     );
+                }
+
+                // If starting new thread, reset thread context
+                if (execution != null && !isStepSubjectEmpty) {
+                    execution.setLastThreadSubject(processedSubject);
+                    execution.setIsReplyToThread(false); // Next step will decide based on its subject
                 }
             }
 
@@ -216,25 +245,27 @@ public class ScheduledEmailService {
             execution.setCurrentStep(stepOrder);
         }
 
-        // Update thread context after sending first email
+        // Update thread context after sending email
         if (sentEmailId != null) {
             Optional<Email> sentEmailOpt = emailRepository.findById(sentEmailId);
             if (sentEmailOpt.isPresent()) {
                 Email sentEmail = sentEmailOpt.get();
 
-                // If this is the first email (step 1), set up threading for subsequent emails
-                if (stepOrder == 1 && sentEmail.getMessageId() != null) {
+                if (sentEmail.getMessageId() != null) {
+                    // Always update the last message ID for thread continuity
                     execution.setLastMessageId(sentEmail.getMessageId());
-                    execution.setLastThreadSubject(scheduledEmail.getSubject());
-                    execution.setIsReplyToThread(true);
-                    log.debug("Set up thread context for execution {} - messageId: {}",
-                            execution.getId(), sentEmail.getMessageId());
-                }
-                // Update with the latest message ID for thread continuity
-                else if (sentEmail.getMessageId() != null) {
-                    execution.setLastMessageId(sentEmail.getMessageId());
-                    log.debug("Updated thread context for execution {} - messageId: {}",
-                            execution.getId(), sentEmail.getMessageId());
+                    
+                    // Only update thread subject if this email had a non-empty subject
+                    // (i.e., it started a new thread)
+                    String originalSubject = scheduledEmail.getStep().getSubject();
+                    if (originalSubject != null && !originalSubject.trim().isEmpty()) {
+                        execution.setLastThreadSubject(scheduledEmail.getSubject());
+                        log.debug("Started new thread for execution {} - subject: {}, messageId: {}",
+                                execution.getId(), scheduledEmail.getSubject(), sentEmail.getMessageId());
+                    } else {
+                        log.debug("Continued thread for execution {} - messageId: {}",
+                                execution.getId(), sentEmail.getMessageId());
+                    }
                 }
             }
         }

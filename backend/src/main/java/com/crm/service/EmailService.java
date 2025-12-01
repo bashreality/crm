@@ -36,12 +36,25 @@ public class EmailService {
         Email email = emailRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Email not found with id: " + id));
         
-        email.setSender(emailDetails.getSender());
-        email.setCompany(emailDetails.getCompany());
-        email.setSubject(emailDetails.getSubject());
-        email.setPreview(emailDetails.getPreview());
-        email.setContent(emailDetails.getContent());
-        email.setStatus(emailDetails.getStatus());
+        // Aktualizuj tylko pola, które nie są null (częściowa aktualizacja)
+        if (emailDetails.getSender() != null) {
+            email.setSender(emailDetails.getSender());
+        }
+        if (emailDetails.getCompany() != null) {
+            email.setCompany(emailDetails.getCompany());
+        }
+        if (emailDetails.getSubject() != null) {
+            email.setSubject(emailDetails.getSubject());
+        }
+        if (emailDetails.getPreview() != null) {
+            email.setPreview(emailDetails.getPreview());
+        }
+        if (emailDetails.getContent() != null) {
+            email.setContent(emailDetails.getContent());
+        }
+        if (emailDetails.getStatus() != null) {
+            email.setStatus(emailDetails.getStatus());
+        }
         
         return emailRepository.save(email);
     }

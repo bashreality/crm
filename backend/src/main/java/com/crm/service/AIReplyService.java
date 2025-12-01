@@ -3,15 +3,22 @@ package com.crm.service;
 import com.crm.model.Contact;
 import com.crm.model.Email;
 import com.crm.model.Tag;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,12 +30,27 @@ public class AIReplyService {
 
     @Value("${ai.api.key}")
     private String aiApiKey;
+    
+    @Value("${ai.model:llama-3.3-70b-versatile}")
+    private String aiModel;
 
     private final WebClient webClient;
 
-    public AIReplyService(@Value("${ai.api.url:https://api.groq.com/openai/v1}") String aiApiUrl) {
+    public AIReplyService(@Value("${ai.api.url:https://api.groq.com/openai/v1/chat/completions}") String aiApiUrl) {
+        // Usuń "/chat/completions" z URL jeśli jest na końcu
+        String baseUrl = aiApiUrl.replace("/chat/completions", "");
+        
+        // Timeout 30 sekund dla Groq (jest bardzo szybki)
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
+                .responseTimeout(Duration.ofSeconds(30))
+                .doOnConnected(conn -> conn
+                        .addHandlerLast(new ReadTimeoutHandler(30, TimeUnit.SECONDS))
+                        .addHandlerLast(new WriteTimeoutHandler(10, TimeUnit.SECONDS)));
+        
         this.webClient = WebClient.builder()
-                .baseUrl(aiApiUrl)
+                .baseUrl(baseUrl)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
     }
 
@@ -60,16 +82,18 @@ public class AIReplyService {
         return generateReplySuggestion(originalSubject, originalBody, senderEmail, null, null);
     }
 
-    private String callGroqAPI(String prompt) {
+    private String callAIAPI(String prompt) {
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "llama-3.1-70b-versatile"); // Używamy większego modelu dla lepszej jakości tekstu
+        requestBody.put("model", aiModel); // Z.AI GLM-4.6
         requestBody.put("messages", List.of(
-                Map.of("role", "system", "content", "Jesteś doświadczonym asystentem sprzedaży B2B. Twoim celem jest pisanie skutecznych, uprzejmych i konkretnych maili."),
+                Map.of("role", "system", "content", "Jesteś doświadczonym asystentem sprzedaży B2B. Twoim celem jest pisanie skutecznych, uprzejmych i konkretnych maili po polsku."),
                 Map.of("role", "user", "content", prompt)
         ));
         requestBody.put("temperature", 0.7);
-        requestBody.put("max_tokens", 600);
+        requestBody.put("max_tokens", 800);
 
+        log.info("Calling AI API ({}) for reply suggestion", aiModel);
+        
         return webClient.post()
                 .uri("/chat/completions")
                 .header("Authorization", "Bearer " + aiApiKey)
@@ -88,6 +112,11 @@ public class AIReplyService {
                     return generateDefaultReply("Klient");
                 })
                 .block();
+    }
+    
+    // Zachowaj kompatybilność wsteczną
+    private String callGroqAPI(String prompt) {
+        return callAIAPI(prompt);
     }
 
     private String buildSmartComposePrompt(String subject, String body, String senderEmail, Contact contact, List<Email> history) {

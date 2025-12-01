@@ -9,9 +9,15 @@ import {
   Trash2, 
   Send, 
   UserPlus,
-  X
+  X,
+  Edit3,
+  Building2,
+  User,
+  StickyNote,
+  Plus
 } from 'lucide-react';
-import api, { contactsApi, tasksApi, emailAccountsApi, tagsApi, sequencesApi } from '../services/api';
+import toast, { Toaster } from 'react-hot-toast';
+import api, { contactsApi, tasksApi, emailAccountsApi, tagsApi, sequencesApi, notesApi } from '../services/api';
 import TagModal from '../components/TagModal';
 import '../styles/Contacts.css';
 import '../styles/Tasks.css'; // Ensure modals are styled
@@ -72,6 +78,9 @@ const Contacts = () => {
   const [emailAccounts, setEmailAccounts] = useState([]);
   const [showCreateContactModal, setShowCreateContactModal] = useState(false);
   const [creatingContact, setCreatingContact] = useState(false);
+  const [showEditContactModal, setShowEditContactModal] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  const [editContactData, setEditContactData] = useState({ id: null, name: '', email: '', company: '', phone: '', position: '' });
 
   // Forms
   const [emailFormData, setEmailFormData] = useState({ to: '', subject: '', body: '', accountId: '' });
@@ -82,6 +91,12 @@ const Contacts = () => {
   // Activity State
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  
+  // Notes State
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   // --- Initial Load ---
   const fetchContacts = useCallback(async () => {
@@ -96,14 +111,16 @@ const Contacts = () => {
     }
   }, []);
 
-  // --- Activity Log Logic ---
+  // --- Activity Log & Notes Logic ---
   useEffect(() => {
     if (activeContact) {
         setActivityLoading(true);
+        setNotesLoading(true);
+        
+        // Fetch emails
         contactsApi.getContactEmails(activeContact.id)
             .then(res => {
                 const emails = res.data?.emails || [];
-                // Transform emails to activity stream format
                 const mappedActivity = emails.map(email => ({
                     id: email.id,
                     type: email.status === 'sent' ? 'sent' : 'received',
@@ -117,20 +134,62 @@ const Contacts = () => {
             })
             .catch(err => console.error("Failed to load activity", err))
             .finally(() => setActivityLoading(false));
+            
+        // Fetch notes
+        notesApi.getByContact(activeContact.id)
+            .then(res => setNotes(res.data || []))
+            .catch(err => console.error("Failed to load notes", err))
+            .finally(() => setNotesLoading(false));
     } else {
         setActivity([]);
+        setNotes([]);
     }
   }, [activeContact]);
+  
+  const handleAddNote = async () => {
+    if (!newNoteContent.trim() || !activeContact) return;
+    
+    setSavingNote(true);
+    try {
+      await notesApi.create({
+        content: newNoteContent.trim(),
+        contact: { id: activeContact.id }
+      });
+      toast.success('Notatka dodana!');
+      setNewNoteContent('');
+      // Refresh notes
+      const res = await notesApi.getByContact(activeContact.id);
+      setNotes(res.data || []);
+    } catch (err) {
+      console.error('Error adding note:', err);
+      toast.error('Błąd dodawania notatki');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+  
+  const handleDeleteNote = async (noteId) => {
+    if (!confirm('Czy na pewno chcesz usunąć tę notatkę?')) return;
+    
+    try {
+      await notesApi.delete(noteId);
+      toast.success('Notatka usunięta');
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+    } catch (err) {
+      console.error('Error deleting note:', err);
+      toast.error('Błąd usuwania notatki');
+    }
+  };
 
   const handleTaskSubmit = async (e) => {
       e.preventDefault();
       setIsSaving(true);
       try {
           await tasksApi.create(taskFormData);
-          alert('Zadanie dodane!');
+          toast.success('Zadanie dodane!');
           setShowTaskModal(false);
       } catch (err) {
-          alert('Błąd dodawania zadania');
+          toast.error('Błąd dodawania zadania');
       } finally {
           setIsSaving(false);
       }
@@ -141,10 +200,10 @@ const Contacts = () => {
       setIsSaving(true);
       try {
           await tasksApi.create(meetingFormData);
-          alert('Spotkanie zaplanowane!');
+          toast.success('Spotkanie zaplanowane!');
           setShowMeetingModal(false);
       } catch (err) {
-          alert('Błąd planowania spotkania');
+          toast.error('Błąd planowania spotkania');
       } finally {
           setIsSaving(false);
       }
@@ -154,13 +213,60 @@ const Contacts = () => {
     setNewContactData({ name: '', email: '', company: '', phone: '', position: '' });
   };
 
+  const handleOpenEditContact = (contact) => {
+    setEditContactData({
+      id: contact.id,
+      name: contact.name || '',
+      email: contact.email || '',
+      company: contact.company || '',
+      phone: contact.phone || '',
+      position: contact.position || ''
+    });
+    setShowEditContactModal(true);
+  };
+
+  const handleEditContact = async (e) => {
+    e.preventDefault();
+    const name = editContactData.name.trim();
+    const email = editContactData.email.trim();
+
+    if (!name || !email) {
+      toast.error('Podaj imię i email kontaktu');
+      return;
+    }
+
+    setEditingContact(true);
+    try {
+      const payload = {
+        name,
+        email,
+        company: editContactData.company.trim(),
+        phone: editContactData.phone.trim(),
+        position: editContactData.position.trim()
+      };
+      await contactsApi.update(editContactData.id, payload);
+      toast.success('Kontakt zaktualizowany!');
+      setShowEditContactModal(false);
+      await fetchContacts();
+      // Zaktualizuj activeContact jeśli to ten sam kontakt
+      if (activeContact && activeContact.id === editContactData.id) {
+        setActiveContact({ ...activeContact, ...payload });
+      }
+    } catch (err) {
+      console.error('Error updating contact', err);
+      toast.error(err.response?.data?.message || 'Błąd aktualizacji kontaktu');
+    } finally {
+      setEditingContact(false);
+    }
+  };
+
   const handleCreateContact = async (e) => {
     e.preventDefault();
     const name = newContactData.name.trim();
     const email = newContactData.email.trim();
 
     if (!name || !email) {
-      alert('Podaj imię i email kontaktu');
+      toast.error('Podaj imię i email kontaktu');
       return;
     }
 
@@ -174,7 +280,7 @@ const Contacts = () => {
         position: newContactData.position.trim()
       };
       const response = await contactsApi.create(payload);
-      alert('Kontakt utworzony!');
+      toast.success('Kontakt utworzony!');
       resetNewContactForm();
       setShowCreateContactModal(false);
       await fetchContacts();
@@ -182,7 +288,7 @@ const Contacts = () => {
       setDetailsOpen(true);
     } catch (err) {
       console.error('Error creating contact', err);
-      alert(err.response?.data?.message || 'Błąd dodawania kontaktu');
+      toast.error(err.response?.data?.message || 'Błąd dodawania kontaktu');
     } finally {
       setCreatingContact(false);
     }
@@ -264,8 +370,7 @@ const Contacts = () => {
   };
 
   const handleBulkEmail = () => {
-    // Bulk email logic placeholder - for now just alert or pick first
-    alert(`Wysyłanie wiadomości do ${selectedIds.size} kontaktów (funkcja w przygotowaniu)`);
+    toast('Wysyłanie masowych wiadomości już wkrótce!', { icon: '📧' });
   };
 
   const handleEmailSubmit = async (e) => {
@@ -273,10 +378,10 @@ const Contacts = () => {
     setIsSaving(true);
     try {
         await api.post('/emails/send', { ...emailFormData, accountId: Number(emailFormData.accountId) });
-        alert('Email wysłany!');
+        toast.success('Email wysłany!');
         setShowEmailModal(false);
     } catch (err) {
-        alert('Błąd wysyłki');
+        toast.error('Błąd wysyłki');
     } finally {
         setIsSaving(false);
     }
@@ -300,7 +405,7 @@ const Contacts = () => {
 
   const handleBulkAction = async (action, tagId = null, sequenceId = null) => {
     if (selectedIds.size === 0) {
-      alert('Zaznacz kontakty');
+      toast.error('Zaznacz kontakty');
       return;
     }
 
@@ -308,20 +413,20 @@ const Contacts = () => {
     try {
       if (action === 'tag' && tagId) {
         await tagsApi.addToContacts(Array.from(selectedIds), tagId);
-        alert(`Tag dodany do ${selectedIds.size} kontaktów`);
+        toast.success(`Tag dodany do ${selectedIds.size} kontaktów`);
         await fetchContacts();
       } else if (action === 'sequence' && sequenceId) {
         const promises = Array.from(selectedIds).map(contactId =>
           sequencesApi.startSequence(sequenceId, contactId)
         );
         await Promise.all(promises);
-        alert(`Sekwencja uruchomiona dla ${selectedIds.size} kontaktów`);
+        toast.success(`Sekwencja uruchomiona dla ${selectedIds.size} kontaktów`);
       }
       setSelectedIds(new Set());
       setShowBulkActionsModal(false);
     } catch (err) {
       console.error(err);
-      alert('Błąd wykonywania akcji');
+      toast.error('Błąd wykonywania akcji');
     } finally {
       setIsSaving(false);
     }
@@ -329,6 +434,8 @@ const Contacts = () => {
 
   return (
     <div className="contacts-shell">
+      <Toaster position="top-right" />
+      
       {/* Topbar */}
       <div className="contacts-topbar">
         <div>
@@ -561,9 +668,12 @@ const Contacts = () => {
                         <p className="contacts-sub">{activeContact.company}</p>
                     </div>
 
-                    <div style={{display:'flex', gap:'8px', marginBottom:'24px', justifyContent:'center'}}>
+                    <div style={{display:'flex', gap:'8px', marginBottom:'24px', justifyContent:'center', flexWrap:'wrap'}}>
                         <button className="btn btn-primary" onClick={(e) => handleQuickEmail(e, activeContact)}>
                             <Mail size={16} /> Email
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => handleOpenEditContact(activeContact)}>
+                            ✏️ Edytuj
                         </button>
                         <button className="btn btn-secondary" onClick={() => {
                             setTaskFormData({ title: '', description: '', type: 'todo', priority: '3', dueDate: '', contactId: activeContact.id.toString() });
@@ -593,6 +703,83 @@ const Contacts = () => {
                         </div>
                     </div>
 
+                    {/* Notes Section */}
+                    <div className="contacts-section">
+                        <h3 style={{fontSize:'14px', fontWeight:'600', color:'#0f172a', marginBottom:'12px', display:'flex', alignItems:'center', gap:'6px'}}>
+                            <StickyNote size={16} /> Notatki
+                        </h3>
+                        
+                        {/* Add Note Form */}
+                        <div style={{ marginBottom: '16px' }}>
+                            <textarea
+                                value={newNoteContent}
+                                onChange={e => setNewNoteContent(e.target.value)}
+                                placeholder="Dodaj notatkę..."
+                                rows={3}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e5e7eb',
+                                    fontSize: '14px',
+                                    resize: 'vertical',
+                                    fontFamily: 'inherit'
+                                }}
+                                disabled={savingNote}
+                            />
+                            <button 
+                                className="btn btn-primary" 
+                                style={{ marginTop: '8px', width: '100%' }}
+                                onClick={handleAddNote}
+                                disabled={savingNote || !newNoteContent.trim()}
+                            >
+                                {savingNote ? 'Zapisywanie...' : '+ Dodaj notatkę'}
+                            </button>
+                        </div>
+                        
+                        {/* Notes List */}
+                        {notesLoading ? (
+                            <div className="contacts-sub">Ładowanie notatek...</div>
+                        ) : notes.length === 0 ? (
+                            <div className="contacts-sub" style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
+                                Brak notatek dla tego kontaktu
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {notes.map(note => (
+                                    <div key={note.id} style={{
+                                        padding: '12px',
+                                        backgroundColor: '#fffbeb',
+                                        borderRadius: '8px',
+                                        border: '1px solid #fde68a',
+                                        position: 'relative'
+                                    }}>
+                                        <div style={{ fontSize: '14px', whiteSpace: 'pre-wrap', marginBottom: '8px' }}>
+                                            {note.content}
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '12px', color: '#92400e' }}>
+                                                {new Date(note.createdAt).toLocaleString('pl-PL')}
+                                            </span>
+                                            <button
+                                                onClick={() => handleDeleteNote(note.id)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#ef4444',
+                                                    cursor: 'pointer',
+                                                    fontSize: '12px'
+                                                }}
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     <div className="contacts-section">
                         <h3 style={{fontSize:'14px', fontWeight:'600', color:'#0f172a', marginBottom:'12px'}}>Ostatnia aktywność</h3>
                         {activityLoading ? (
@@ -601,7 +788,7 @@ const Contacts = () => {
                             <div className="contacts-sub">Brak ostatniej aktywności</div>
                         ) : (
                             <div className="contacts-timeline">
-                                {activity.map(item => (
+                                {activity.slice(0, 5).map(item => (
                                     <div key={item.id} className="contacts-timeline-item">
                                         <div style={{fontWeight:'500', marginBottom:'2px'}}>{item.subject || 'Brak tematu'}</div>
                                         <div className="contacts-sub" style={{marginBottom:'4px'}}>
@@ -710,6 +897,78 @@ const Contacts = () => {
                 </button>
                 <button className="btn btn-primary" disabled={creatingContact}>
                   {creatingContact ? 'Zapisywanie...' : 'Dodaj kontakt'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contact Modal */}
+      {showEditContactModal && (
+        <div className="task-modal-overlay" onClick={() => setShowEditContactModal(false)}>
+          <div className="task-modal" onClick={e => e.stopPropagation()}>
+            <header className="task-modal__header">
+              <h2>Edytuj kontakt</h2>
+              <button className="task-modal__close" onClick={() => setShowEditContactModal(false)}>×</button>
+            </header>
+            <form className="task-form" onSubmit={handleEditContact}>
+              <div className="task-form__section">
+                <label className="task-form__label">Imię i nazwisko *</label>
+                <input
+                  className="contacts-search"
+                  value={editContactData.name}
+                  onChange={e => setEditContactData({ ...editContactData, name: e.target.value })}
+                  placeholder="np. Jan Kowalski"
+                  required
+                />
+              </div>
+              <div className="task-form__section">
+                <label className="task-form__label">Email *</label>
+                <input
+                  className="contacts-search"
+                  type="email"
+                  value={editContactData.email}
+                  onChange={e => setEditContactData({ ...editContactData, email: e.target.value })}
+                  placeholder="jan@example.com"
+                  required
+                />
+              </div>
+              <div className="task-form__grid">
+                <label className="task-form__label">
+                  Firma
+                  <input
+                    className="contacts-search"
+                    value={editContactData.company}
+                    onChange={e => setEditContactData({ ...editContactData, company: e.target.value })}
+                    placeholder="Nazwa firmy"
+                  />
+                </label>
+                <label className="task-form__label">
+                  Telefon
+                  <input
+                    className="contacts-search"
+                    value={editContactData.phone}
+                    onChange={e => setEditContactData({ ...editContactData, phone: e.target.value })}
+                    placeholder="+48..."
+                  />
+                </label>
+              </div>
+              <div className="task-form__section">
+                <label className="task-form__label">Stanowisko</label>
+                <input
+                  className="contacts-search"
+                  value={editContactData.position}
+                  onChange={e => setEditContactData({ ...editContactData, position: e.target.value })}
+                  placeholder="np. CEO"
+                />
+              </div>
+              <div className="task-modal__footer" style={{ justifyContent: 'space-between' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEditContactModal(false)} disabled={editingContact}>
+                  Anuluj
+                </button>
+                <button className="btn btn-primary" disabled={editingContact}>
+                  {editingContact ? 'Zapisywanie...' : 'Zapisz zmiany'}
                 </button>
               </div>
             </form>

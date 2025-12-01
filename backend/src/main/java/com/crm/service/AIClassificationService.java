@@ -1,15 +1,22 @@
 package com.crm.service;
 
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 
 import java.text.Normalizer;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -440,10 +447,28 @@ public class AIClassificationService {
 
     @Value("${ai.classification.enabled:true}")
     private boolean classificationEnabled;
+    
+    @Value("${ai.api.url:https://api.groq.com/openai/v1/chat/completions}")
+    private String apiUrl;
+    
+    @Value("${ai.model:llama-3.3-70b-versatile}")
+    private String aiModel;
 
-    public AIClassificationService() {
+    public AIClassificationService(@Value("${ai.api.url:https://api.groq.com/openai/v1/chat/completions}") String aiApiUrl) {
+        // Usuń "/chat/completions" z URL jeśli jest na końcu
+        String baseUrl = aiApiUrl.replace("/chat/completions", "");
+        
+        // Timeout 30 sekund dla Groq (jest bardzo szybki)
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
+                .responseTimeout(Duration.ofSeconds(30))
+                .doOnConnected(conn -> conn
+                        .addHandlerLast(new ReadTimeoutHandler(30, TimeUnit.SECONDS))
+                        .addHandlerLast(new WriteTimeoutHandler(10, TimeUnit.SECONDS)));
+        
         this.webClient = WebClient.builder()
-                .baseUrl("https://api.groq.com/openai/v1")
+                .baseUrl(baseUrl)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
     }
 
@@ -563,10 +588,10 @@ public class AIClassificationService {
                "Odpowiedz TYLKO jednym słowem (bez dodatkowych znaków): positive, negative, neutral, undelivered, maybeLater lub autoReply";
     }
 
-    private String callGroqAPI(String prompt) {
+    private String callAIAPI(String prompt) {
         try {
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "llama-3.1-8b-instant");
+            requestBody.put("model", aiModel); // Z.AI GLM-4.6
             
             Map<String, String> message = new HashMap<>();
             message.put("role", "user");
@@ -574,8 +599,10 @@ public class AIClassificationService {
             requestBody.put("messages", List.of(message));
             
             requestBody.put("temperature", 0.3);
-            requestBody.put("max_tokens", 10);
+            requestBody.put("max_tokens", 50);
 
+            log.info("Calling AI API with model: {}", aiModel);
+            
             Mono<Map> responseMono = webClient.post()
                     .uri("/chat/completions")
                     .header("Authorization", "Bearer " + apiKey)
@@ -598,9 +625,14 @@ public class AIClassificationService {
             throw new RuntimeException("Invalid API response");
             
         } catch (Exception e) {
-            log.error("API call failed: {}", e.getMessage());
+            log.error("AI API call failed: {}", e.getMessage());
             throw e;
         }
+    }
+    
+    // Zachowaj kompatybilność wsteczną
+    private String callGroqAPI(String prompt) {
+        return callAIAPI(prompt);
     }
 
     private String extractClassification(String response) {
