@@ -24,6 +24,9 @@ public class Note {
     @JoinColumn(name = "contact_id")
     private Contact contact;
 
+    @Column(name = "user_id")
+    private Long userId; // ID użytkownika będącego właścicielem notatki
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

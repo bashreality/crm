@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { sequencesApi, contactsApi } from '../services/api';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { sequencesApi, contactsApi, emailAccountsApi, tagsApi } from '../services/api';
 import './Sequences.css';
 
 const initialSequenceForm = {
@@ -10,8 +11,10 @@ const initialSequenceForm = {
   sendWindowStart: '09:00',
   sendWindowEnd: '17:00',
   sendOnWeekends: false,
-  dailySendingLimit: '',
-  throttlePerHour: '',
+  dailySendingLimit: 100,
+  throttlePerHour: 20,
+  emailAccountId: '',
+  tagId: null, // Tag docelowy dla odbiorców (opcjonalny)
   steps: [],
 };
 
@@ -20,75 +23,119 @@ const initialStepForm = {
   stepType: 'email',
   subject: '',
   body: '',
-  delayDays: 0,
+  delayDays: 0, // Domyślnie wysyłka natychmiast po uruchomieniu
   delayHours: 0,
   delayMinutes: 0,
   waitForReplyHours: 0,
   skipIfReplied: true,
-  trackOpens: false,
-  trackClicks: false,
+  trackOpens: true,
+  trackClicks: true,
 };
 
-const timezoneOptions = [
-  'Europe/Warsaw',
-  'Europe/Berlin',
-  'Europe/London',
-  'UTC',
-  'America/New_York',
-  'America/Los_Angeles',
-];
-
-const stepTypeOptions = [
-  { value: 'email', label: 'Email' },
-  { value: 'call', label: 'Telefon' },
-  { value: 'task', label: 'Zadanie' },
-  { value: 'linkedin', label: 'LinkedIn' },
-];
-
 const Sequences = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Try to restore state from sessionStorage
+  const [restoredState, setRestoredState] = React.useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [sequences, setSequences] = useState([]);
   const [selectedSequenceId, setSelectedSequenceId] = useState(null);
   const [selectedSequence, setSelectedSequence] = useState(null);
   const [contacts, setContacts] = useState([]);
+  const [emailAccounts, setEmailAccounts] = useState([]);
+  const [tags, setTags] = useState([]);
+
+  // Form states
   const [sequenceForm, setSequenceForm] = useState(initialSequenceForm);
-  const [stepForm, setStepForm] = useState(initialStepForm);
-  const [stepIndexEditing, setStepIndexEditing] = useState(null);
-  const [selectedContactId, setSelectedContactId] = useState('');
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [editingStepIndex, setEditingStepIndex] = useState(null); // If null -> creating mode, if number -> editing that step card
 
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const [showSequenceModal, setShowSequenceModal] = useState(false);
-  const [showStepModal, setShowStepModal] = useState(false);
   const [showStartModal, setShowStartModal] = useState(false);
-  const [isEditingSequence, setIsEditingSequence] = useState(false);
+  const [showCreateSequenceModal, setShowCreateSequenceModal] = useState(false);
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
+  const [contactSearch, setContactSearch] = useState('');
+  const [contactEmailFilter, setContactEmailFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [excludeInSequence, setExcludeInSequence] = useState(false);
+  const [previewStepIndex, setPreviewStepIndex] = useState(0); // Which step to preview
+
+  // AI Modal states
+  const [aiModalData, setAiModalData] = useState({
+    websiteUrl: '',
+    goal: 'meeting',
+    additionalContext: ''
+  });
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   useEffect(() => {
     loadInitialData();
   }, []);
 
+  // Restore state from sessionStorage if needed
+  useEffect(() => {
+    const stored = sessionStorage.getItem('sequenceState');
+    if (stored) {
+      try {
+        const state = JSON.parse(stored);
+        setRestoredState(state);
+        if (state.contactEmail) {
+          setContactEmailFilter(state.contactEmail);
+        }
+      } catch (e) {
+        console.error('Failed to parse stored state:', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const pendingEmail = sessionStorage.getItem('pendingContactEmail');
+    if (pendingEmail && !contactEmailFilter) {
+      setContactEmailFilter(pendingEmail);
+    }
+  }, [contactEmailFilter]);
+
+  // Handle navigation from Deals page
+  useEffect(() => {
+    if (location.state?.autoOpenCreate && emailAccounts.length > 0) {
+      const { dealTitle, dealId, contactEmail } = location.state;
+
+      // Store dealId for later use when starting sequence
+      sessionStorage.setItem('pendingDealId', dealId);
+      sessionStorage.setItem('pendingContactId', location.state.contactId);
+      sessionStorage.setItem('pendingDealTitle', dealTitle);
+      if (contactEmail) {
+        sessionStorage.setItem('pendingContactEmail', contactEmail);
+        setContactEmailFilter(contactEmail);
+      }
+
+      // Store the state for AI detection
+      const storedState = { fromDeal: true, contactId: location.state.contactId, contactEmail };
+      sessionStorage.setItem('sequenceState', JSON.stringify(storedState));
+
+      // Open create sequence modal instead of directly opening builder
+      openCreateSequenceModal();
+
+      // Clear navigation state to prevent reopening on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, emailAccounts, navigate]);
+
   const loadInitialData = async () => {
     setLoading(true);
-    setError(null);
     try {
-      const [dashboardRes, sequencesRes, contactsRes] = await Promise.all([
-        sequencesApi.getDashboard(),
-        sequencesApi.getAll(),
-        contactsApi.getAll(),
+      await Promise.all([
+        refreshSequences(),
+        fetchContacts(),
+        fetchEmailAccounts(),
+        fetchTags(),
       ]);
-      setDashboard(dashboardRes.data);
-      setSequences(sequencesRes.data);
-      setContacts(contactsRes.data);
-
-      if (sequencesRes.data.length > 0) {
-        const defaultSequence = sequencesRes.data[0];
-        await handleSelectSequence(defaultSequence.id);
-      }
     } catch (err) {
-      console.error('Nie udało się pobrać danych sekwencji:', err);
-      setError('Nie udało się pobrać danych sekwencji. Spróbuj ponownie później.');
+      setError('Nie udało się pobrać danych.');
     } finally {
       setLoading(false);
     }
@@ -102,778 +149,1720 @@ const Sequences = () => {
       ]);
       setDashboard(dashboardRes.data);
       setSequences(sequencesRes.data);
+      if (sequencesRes.data.length > 0 && !selectedSequenceId) {
+        handleSelectSequence(sequencesRes.data[0].id);
+      }
     } catch (err) {
-      console.error('Nie udało się odświeżyć listy sekwencji:', err);
+      console.error(err);
     }
   };
 
-  const handleSelectSequence = async (sequenceId) => {
-    setSelectedSequenceId(sequenceId);
-    setSelectedSequence(null);
+  const fetchContacts = async () => {
     try {
-      const response = await sequencesApi.getById(sequenceId);
-      setSelectedSequence(response.data);
+      const res = await contactsApi.getAll({ showAll: true });
+      setContacts(res.data);
     } catch (err) {
-      console.error('Nie udało się wczytać szczegółów sekwencji:', err);
-      setError('Nie udało się wczytać szczegółów sekwencji.');
+      console.error(err);
     }
   };
 
-  const handleOpenCreateSequence = () => {
-    setSequenceForm({ ...initialSequenceForm });
-    setIsEditingSequence(false);
-    setShowSequenceModal(true);
-  };
-
-  const handleOpenEditSequence = () => {
-    if (!selectedSequence) return;
-    const { summary, steps } = selectedSequence;
-    setSequenceForm({
-      name: summary.name,
-      description: summary.description || '',
-      active: summary.active,
-      timezone: summary.timezone || 'Europe/Warsaw',
-      sendWindowStart: summary.sendWindowStart || '09:00',
-      sendWindowEnd: summary.sendWindowEnd || '17:00',
-      sendOnWeekends: summary.sendOnWeekends || false,
-      dailySendingLimit: summary.dailySendingLimit ?? '',
-      throttlePerHour: summary.throttlePerHour ?? '',
-      steps: steps.map((step) => ({
-        stepOrder: step.stepOrder,
-        stepType: step.stepType,
-        subject: step.subject,
-        body: step.body,
-        delayDays: step.delayDays,
-        delayHours: step.delayHours,
-        delayMinutes: step.delayMinutes,
-        waitForReplyHours: step.waitForReplyHours,
-        skipIfReplied: step.skipIfReplied,
-        trackOpens: step.trackOpens,
-        trackClicks: step.trackClicks,
-      })),
-    });
-    setIsEditingSequence(true);
-    setShowSequenceModal(true);
-  };
-
-  const handleSequenceFormChange = (field, value) => {
-    setSequenceForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleStepFormChange = (field, value) => {
-    setStepForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const normalizeNumber = (value, fallback = 0) => {
-    const parsed = parseInt(value, 10);
-    return Number.isNaN(parsed) ? fallback : parsed;
-  };
-
-  const buildSequencePayload = () => {
-    const payload = {
-      name: sequenceForm.name.trim(),
-      description: sequenceForm.description?.trim() || null,
-      active: sequenceForm.active,
-      timezone: sequenceForm.timezone,
-      sendWindowStart: sequenceForm.sendWindowStart || '09:00',
-      sendWindowEnd: sequenceForm.sendWindowEnd || '17:00',
-      sendOnWeekends: sequenceForm.sendOnWeekends,
-      dailySendingLimit: sequenceForm.dailySendingLimit === '' ? null : Number(sequenceForm.dailySendingLimit),
-      throttlePerHour: sequenceForm.throttlePerHour === '' ? null : Number(sequenceForm.throttlePerHour),
-      steps: sequenceForm.steps
-        .sort((a, b) => a.stepOrder - b.stepOrder)
-        .map((step, index) => ({
-          stepOrder: normalizeNumber(step.stepOrder, index + 1),
-          stepType: step.stepType,
-          subject: step.subject.trim(),
-          body: step.body.trim(),
-          delayDays: normalizeNumber(step.delayDays),
-          delayHours: normalizeNumber(step.delayHours),
-          delayMinutes: normalizeNumber(step.delayMinutes),
-          waitForReplyHours: normalizeNumber(step.waitForReplyHours),
-          skipIfReplied: step.skipIfReplied,
-          trackOpens: step.trackOpens,
-          trackClicks: step.trackClicks,
-        })),
-    };
-
-    if (!payload.name) {
-      throw new Error('Nazwa sekwencji jest wymagana.');
-    }
-
-    payload.steps.forEach((step, idx) => {
-      if (!step.subject || !step.body) {
-        throw new Error(`Uzupełnij temat i treść dla kroku nr ${idx + 1}.`);
-      }
-    });
-
-    return payload;
-  };
-
-  const handleSubmitSequence = async (event) => {
-    event.preventDefault();
+  const fetchEmailAccounts = async () => {
     try {
-      const payload = buildSequencePayload();
-      setActionLoading(true);
-
-      if (isEditingSequence && selectedSequenceId) {
-        await sequencesApi.update(selectedSequenceId, payload);
-        await handleSelectSequence(selectedSequenceId);
-      } else {
-        const response = await sequencesApi.create(payload);
-        await handleSelectSequence(response.data.summary.id);
-      }
-
-      setShowSequenceModal(false);
-      await refreshSequences();
+      const res = await emailAccountsApi.getAll();
+      setEmailAccounts(res.data);
     } catch (err) {
-      console.error('Błąd zapisu sekwencji:', err);
-      alert(err.response?.data?.error || err.message || 'Nie udało się zapisać sekwencji.');
-    } finally {
-      setActionLoading(false);
+      console.error(err);
     }
   };
 
-  const handleOpenStepModal = (step = null, index = null) => {
-    if (step) {
-      setStepForm({ ...step });
-      setStepIndexEditing(index);
-    } else {
-      setStepForm({
-        ...initialStepForm,
-        stepOrder: sequenceForm.steps.length + 1,
-      });
-      setStepIndexEditing(null);
-    }
-    setShowStepModal(true);
-  };
-
-  const handleSubmitStep = (event) => {
-    event.preventDefault();
-
-    if (!stepForm.subject.trim() || !stepForm.body.trim()) {
-      alert('Temat i treść są wymagane.');
-      return;
-    }
-
-    const normalizedStep = {
-      ...stepForm,
-      stepOrder: normalizeNumber(stepForm.stepOrder, sequenceForm.steps.length + 1),
-      delayDays: normalizeNumber(stepForm.delayDays),
-      delayHours: normalizeNumber(stepForm.delayHours),
-      delayMinutes: normalizeNumber(stepForm.delayMinutes),
-      waitForReplyHours: normalizeNumber(stepForm.waitForReplyHours),
-    };
-
-    setSequenceForm((prev) => {
-      const nextSteps = [...prev.steps];
-      if (stepIndexEditing !== null) {
-        nextSteps[stepIndexEditing] = normalizedStep;
-      } else {
-        nextSteps.push(normalizedStep);
-      }
-      return {
+  // Auto-ustaw konto wysyłkowe gdy jest dostępne i brak wybranego
+  useEffect(() => {
+    if (emailAccounts.length > 0 && (!sequenceForm.emailAccountId || sequenceForm.emailAccountId === '')) {
+      setSequenceForm(prev => ({
         ...prev,
-        steps: nextSteps.sort((a, b) => a.stepOrder - b.stepOrder),
-      };
-    });
+        emailAccountId: emailAccounts[0]?.id?.toString() || ''
+      }));
+    }
+  }, [emailAccounts]);
 
-    setShowStepModal(false);
-  };
-
-  const handleDeleteLocalStep = (index) => {
-    setSequenceForm((prev) => ({
-      ...prev,
-      steps: prev.steps.filter((_, idx) => idx !== index),
-    }));
-  };
-
-  const handleDeleteSequence = async (sequenceId) => {
-    const confirmed = window.confirm('Czy na pewno chcesz usunąć tę sekwencję?');
-    if (!confirmed) return;
-
+  const fetchTags = async () => {
     try {
-      setActionLoading(true);
-      await sequencesApi.delete(sequenceId);
-      await refreshSequences();
-      if (selectedSequenceId === sequenceId) {
-        setSelectedSequence(null);
-        setSelectedSequenceId(null);
-      }
+      const res = await tagsApi.getAll();
+      setTags(res.data);
     } catch (err) {
-      console.error('Nie udało się usunąć sekwencji:', err);
-      alert('Nie udało się usunąć sekwencji.');
-    } finally {
-      setActionLoading(false);
+      console.error(err);
     }
   };
 
-  const handleStartSequence = async () => {
-    if (!selectedContactId) {
-      alert('Wybierz kontakt.');
+  const handleSelectSequence = async (id) => {
+    setSelectedSequenceId(id);
+    try {
+      const res = await sequencesApi.getById(id);
+      setSelectedSequence(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // --- Builder Logic ---
+
+  const openBuilder = (sequence = null, aiSteps = null, preFilledForm = null) => {
+    if (sequence) {
+      setSequenceForm({
+        ...sequence.summary,
+        steps: sequence.steps.map(s => ({ ...s })), // Deep copy steps
+      });
+    } else if (preFilledForm) {
+      setSequenceForm(preFilledForm);
+    } else {
+      setSequenceForm({
+        ...initialSequenceForm,
+        steps: aiSteps || []
+      });
+    }
+    setIsBuilderOpen(true);
+    setEditingStepIndex(null);
+  };
+
+  const openCreateSequenceModal = () => {
+    setShowCreateSequenceModal(true);
+    setAiModalData({
+      websiteUrl: '',
+      goal: 'meeting',
+      additionalContext: ''
+    });
+  };
+
+  const closeCreateSequenceModal = () => {
+    setShowCreateSequenceModal(false);
+  };
+
+  const createEmptySequence = () => {
+    setShowCreateSequenceModal(false);
+
+    // Check if we have pending deal data
+    const pendingDealId = sessionStorage.getItem('pendingDealId');
+    const pendingDealTitle = sessionStorage.getItem('pendingDealTitle');
+
+    // Pre-fill sequence form if coming from Deals
+    let preFilledForm = null;
+    if (pendingDealId) {
+      preFilledForm = {
+        ...initialSequenceForm,
+        name: pendingDealTitle ? `Sekwencja: ${pendingDealTitle}` : 'Nowa Sekwencja',
+        description: pendingDealTitle ? `Sekwencja dla szansy: ${pendingDealTitle}` : '',
+        emailAccountId: emailAccounts[0]?.id?.toString() || '',
+        steps: []
+      };
+    }
+
+    openBuilder(null, null, preFilledForm);
+  };
+
+  const closeBuilder = () => {
+    if (window.confirm('Czy na pewno chcesz zamknąć kreator? Niezapisane zmiany zostaną utracone.')) {
+      setIsBuilderOpen(false);
+    }
+  };
+
+  const addStep = () => {
+    const newStep = {
+      ...initialStepForm,
+      stepOrder: sequenceForm.steps.length + 1,
+    };
+    setSequenceForm(prev => ({
+      ...prev,
+      steps: [...prev.steps, newStep]
+    }));
+    // Automatically open edit for the new step
+    setEditingStepIndex(sequenceForm.steps.length);
+  };
+
+  const generateAISequence = async () => {
+    if (!aiModalData.websiteUrl) {
+      alert('Podaj URL strony klienta');
       return;
     }
+
+    setAiGenerating(true);
     try {
-      setActionLoading(true);
-      await sequencesApi.startSequence(selectedSequenceId, Number(selectedContactId));
-      setShowStartModal(false);
-      setSelectedContactId('');
-      await refreshSequences();
-      await handleSelectSequence(selectedSequenceId);
-      alert('Sekwencja została uruchomiona dla wybranego kontaktu.');
-    } catch (err) {
-      console.error('Nie udało się uruchomić sekwencji:', err);
-      alert(err.response?.data?.error || 'Nie udało się uruchomić sekwencji.');
+      const response = await fetch('/api/ai/generate-sequence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          websiteUrl: aiModalData.websiteUrl,
+          goal: aiModalData.goal,
+          additionalContext: aiModalData.additionalContext
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const aiData = await response.json();
+
+      if (aiData.emails && aiData.emails.length > 0) {
+        // Konwertuj emaile AI na kroki sekwencji
+        const aiSteps = aiData.emails.map((email, index) => ({
+          stepOrder: index + 1,
+          stepType: 'email',
+          subject: email.subject,
+          body: email.body,
+          delayDays: Math.floor(email.delay_in_days || 0),
+          delayHours: 0,
+          delayMinutes: 0,
+          waitForReplyHours: index < aiData.emails.length - 1 ? 48 : 0,
+          skipIfReplied: index > 0,
+          trackOpens: true,
+          trackClicks: true
+        }));
+
+        // Zamknij modal AI i otwórz builder z wygenerowanymi krokami
+        setShowCreateSequenceModal(false);
+
+        // Check if we have pending deal data and create pre-filled form
+        const pendingDealId = sessionStorage.getItem('pendingDealId');
+        const pendingDealTitle = sessionStorage.getItem('pendingDealTitle');
+
+        let preFilledForm = initialSequenceForm;
+        if (pendingDealId) {
+          preFilledForm = {
+            ...initialSequenceForm,
+            name: pendingDealTitle ? `Sekwencja: ${pendingDealTitle}` : 'Nowa Sekwencja AI',
+            description: pendingDealTitle ? `Sekwencja AI dla szansy: ${pendingDealTitle}` : 'Wygenerowana sekwencja AI',
+            emailAccountId: emailAccounts[0]?.id?.toString() || '',
+            steps: aiSteps
+          };
+        }
+
+        openBuilder(null, aiSteps, preFilledForm);
+
+        alert('✅ Wygenerowano ' + aiData.emails.length + ' kroków sekwencji!');
+      } else {
+        alert('Nie udało się wygenerować sekwencji. Spróbuj ponownie.');
+      }
+    } catch (error) {
+      console.error('Error generating AI sequence:', error);
+      alert('❌ Błąd generowania sekwencji AI: ' + error.message);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const generateAISteps = async () => {
+    const contactId = location.state?.contactId || restoredState?.contactId;
+    const fromDeal = location.state?.fromDeal || restoredState?.fromDeal;
+
+    if (!fromDeal || !contactId) {
+      alert('Brak danych o kontakcie do wygenerowania sekwencji');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      // Pobierz dane kontaktu
+      const contactResponse = await fetch(`/api/contacts/${contactId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const contact = await contactResponse.json();
+
+      // Wygeneruj sekwencję AI
+      const aiResponse = await fetch('/api/ai/generate-sequence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          dealId: sessionStorage.getItem('pendingDealId') || location.state?.dealId,
+          websiteUrl: contact.company ? `https://${contact.company.toLowerCase().replace(/\s+/g, '')}.pl` : '',
+          additionalContext: '',
+          goal: 'meeting' // Domyślny cel
+        })
+      });
+
+      const aiData = await aiResponse.json();
+
+      if (aiData.emails && aiData.emails.length > 0) {
+        // Konwertuj emaile AI na kroki sekwencji
+        const aiSteps = aiData.emails.map((email, index) => ({
+          stepOrder: index + 1,
+          stepType: 'email',
+          subject: email.subject,
+          body: email.body,
+          delayDays: Math.floor(email.delayHours / 24),
+          delayHours: email.delayHours % 24,
+          delayMinutes: 0,
+          waitForReplyHours: index < aiData.emails.length - 1 ? 48 : 0, // Czekaj na odpowiedź
+          skipIfReplied: index > 0, // Pomijaj jeśli odpowiedziano
+          trackOpens: true,
+          trackClicks: true
+        }));
+
+        // Dodaj kroki AI do sekwencji
+        setSequenceForm(prev => ({
+          ...prev,
+          steps: [...prev.steps, ...aiSteps]
+        }));
+
+        alert('✅ Wygenerowano ' + aiData.emails.length + ' kroków sekwencji!');
+      }
+    } catch (error) {
+      console.error('Error generating AI sequence:', error);
+      alert('❌ Błąd generowania sekwencji AI');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const metrics = useMemo(() => {
-    if (!dashboard) {
-      return [];
-    }
-    return [
-      {
-        label: 'Aktywne sekwencje',
-        value: dashboard.activeSequences,
-        accent: 'positive',
-      },
-      {
-        label: 'Pauzowane sekwencje',
-        value: dashboard.pausedSequences,
-        accent: 'neutral',
-      },
-      {
-        label: 'Aktywne wykonania',
-        value: dashboard.activeExecutions,
-        accent: 'primary',
-      },
-      {
-        label: 'Zaplanowane wysyłki',
-        value: dashboard.pendingScheduledEmails,
-        accent: 'warning',
-      },
-    ];
-  }, [dashboard]);
+  const updateStep = (index, field, value) => {
+    setSequenceForm(prev => {
+      const newSteps = [...prev.steps];
+      newSteps[index] = { ...newSteps[index], [field]: value };
+      return { ...prev, steps: newSteps };
+    });
+  };
 
-  const renderSequenceStatus = (summary) => {
-    if (!summary) return null;
+  const removeStep = (index) => {
+    setSequenceForm(prev => {
+      const newSteps = prev.steps.filter((_, i) => i !== index);
+      // Reorder remaining steps
+      const reordered = newSteps.map((s, i) => ({ ...s, stepOrder: i + 1 }));
+      return { ...prev, steps: reordered };
+    });
+    if (editingStepIndex === index) setEditingStepIndex(null);
+  };
+
+  const processTemplatePreview = (text, sampleContact) => {
+    if (!text || !sampleContact) return text;
+
+    let result = text;
+
+    // {{name}}
+    if (sampleContact.name) {
+      result = result.replace(/\{\{name\}\}/g, sampleContact.name);
+
+      // {{firstName}} and {{lastName}}
+      const nameParts = sampleContact.name.trim().split(/\s+/);
+      if (nameParts.length > 0) {
+        result = result.replace(/\{\{firstName\}\}/g, nameParts[0]);
+      }
+      if (nameParts.length > 1) {
+        result = result.replace(/\{\{lastName\}\}/g, nameParts[nameParts.length - 1]);
+      }
+    }
+
+    // {{email}}
+    if (sampleContact.email) {
+      result = result.replace(/\{\{email\}\}/g, sampleContact.email);
+    }
+
+    // {{phone}}
+    if (sampleContact.phone) {
+      result = result.replace(/\{\{phone\}\}/g, sampleContact.phone);
+    }
+
+    // {{company}}
+    if (sampleContact.company) {
+      result = result.replace(/\{\{company\}\}/g, sampleContact.company);
+    }
+
+    // {{position}}
+    if (sampleContact.position) {
+      result = result.replace(/\{\{position\}\}/g, sampleContact.position);
+    }
+
+    // Highlight remaining unprocessed variables
+    result = result.replace(/\{\{(\w+)\}\}/g, '<span style="background: #fef3c7; color: #92400e; padding: 2px 4px; border-radius: 3px;">{{$1}}</span>');
+
+    return result;
+  };
+
+  const getSampleContact = () => {
+    // Use first contact with complete data, or create a sample
+    const completeContact = contacts.find(c => c.name && c.email && c.company);
+    if (completeContact) return completeContact;
+
+    // Fallback sample data
+    return {
+      name: 'Jan Kowalski',
+      email: 'jan.kowalski@example.com',
+      phone: '+48 123 456 789',
+      company: 'Example Corp',
+      position: 'Dyrektor Sprzedaży'
+    };
+  };
+
+  const validateSequence = () => {
+    // Validate name
+    if (!sequenceForm.name || sequenceForm.name.trim().length === 0) {
+      return 'Nazwa sekwencji jest wymagana.';
+    }
+    if (sequenceForm.name.length > 100) {
+      return 'Nazwa sekwencji nie może być dłuższa niż 100 znaków.';
+    }
+
+    // Validate send window
+    if (sequenceForm.sendWindowStart && sequenceForm.sendWindowEnd) {
+      if (sequenceForm.sendWindowEnd <= sequenceForm.sendWindowStart) {
+        return 'Czas zakończenia okna wysyłki musi być późniejszy niż czas rozpoczęcia.';
+      }
+    }
+
+    // Validate daily sending limit
+    const dailyLimit = Number(sequenceForm.dailySendingLimit);
+    if (isNaN(dailyLimit) || dailyLimit < 1 || dailyLimit > 10000) {
+      return 'Dzienny limit wysyłki musi być liczbą z zakresu 1-10000.';
+    }
+
+    // Validate throttle per hour
+    const throttle = Number(sequenceForm.throttlePerHour);
+    if (isNaN(throttle) || throttle < 1 || throttle > 1000) {
+      return 'Limit wysyłki na godzinę musi być liczbą z zakresu 1-1000.';
+    }
+
+    // Validate email account
+    if (!sequenceForm.emailAccountId) {
+      return 'Wybierz konto email do wysyłki.';
+    }
+
+    // Validate steps
+    if (sequenceForm.steps.length === 0) {
+      return 'Dodaj przynajmniej jeden krok do sekwencji.';
+    }
+
+    for (let i = 0; i < sequenceForm.steps.length; i++) {
+      const step = sequenceForm.steps[i];
+
+      // Validate step type
+      if (!step.stepType || step.stepType.trim().length === 0) {
+        return `Krok ${i + 1}: Typ kroku jest wymagany.`;
+      }
+
+      // Validate subject
+      if (!step.subject || step.subject.trim().length === 0) {
+        return `Krok ${i + 1}: Temat wiadomości jest wymagany.`;
+      }
+      if (step.subject.length > 500) {
+        return `Krok ${i + 1}: Temat wiadomości nie może być dłuższy niż 500 znaków.`;
+      }
+
+      // Validate body
+      if (!step.body || step.body.trim().length === 0) {
+        return `Krok ${i + 1}: Treść wiadomości jest wymagana.`;
+      }
+      if (step.body.length > 10000) {
+        return `Krok ${i + 1}: Treść wiadomości nie może być dłuższa niż 10000 znaków.`;
+      }
+
+      // Validate delays
+      const delayDays = Number(step.delayDays);
+      const delayHours = Number(step.delayHours);
+      const delayMinutes = Number(step.delayMinutes);
+
+      if (isNaN(delayDays) || delayDays < 0 || delayDays > 365) {
+        return `Krok ${i + 1}: Opóźnienie w dniach musi być liczbą z zakresu 0-365.`;
+      }
+      if (isNaN(delayHours) || delayHours < 0 || delayHours > 23) {
+        return `Krok ${i + 1}: Opóźnienie w godzinach musi być liczbą z zakresu 0-23.`;
+      }
+      if (isNaN(delayMinutes) || delayMinutes < 0 || delayMinutes > 59) {
+        return `Krok ${i + 1}: Opóźnienie w minutach musi być liczbą z zakresu 0-59.`;
+      }
+
+      // Validate wait for reply
+      const waitForReplyHours = Number(step.waitForReplyHours);
+      if (isNaN(waitForReplyHours) || waitForReplyHours < 0 || waitForReplyHours > 720) {
+        return `Krok ${i + 1}: Czas oczekiwania na odpowiedź musi być liczbą z zakresu 0-720 godzin.`;
+      }
+    }
+
+    return null; // No errors
+  };
+
+  const saveSequence = async () => {
+    // Validate form
+    const validationError = validateSequence();
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const payload = {
+        ...sequenceForm,
+        dailySendingLimit: Number(sequenceForm.dailySendingLimit),
+        throttlePerHour: Number(sequenceForm.throttlePerHour),
+        emailAccountId: sequenceForm.emailAccountId ? Number(sequenceForm.emailAccountId) : null,
+        tagId: sequenceForm.tagId ? Number(sequenceForm.tagId) : null,
+      };
+
+      let createdSequenceId = null;
+
+      if (sequenceForm.id) {
+        console.log('Updating existing sequence:', sequenceForm.id);
+        await sequencesApi.update(sequenceForm.id, payload);
+      } else {
+        console.log('Creating new sequence with payload:', payload);
+        try {
+          const response = await sequencesApi.create(payload);
+          console.log('Create response:', response);
+          console.log('Response data:', response.data);
+          console.log('Response data summary:', response.data.summary);
+          createdSequenceId = response.data.summary.id;
+          console.log('Set createdSequenceId to:', createdSequenceId);
+        } catch (createErr) {
+          console.error('Error creating sequence:', createErr);
+          throw createErr;
+        }
+      }
+
+      await refreshSequences();
+      setIsBuilderOpen(false);
+
+      // If sequence was created from a Deal, auto-start it for the contact
+      const pendingDealId = sessionStorage.getItem('pendingDealId');
+      const pendingContactId = sessionStorage.getItem('pendingContactId');
+
+      console.log('=== SEQUENCE SAVE DEBUG ===');
+      console.log('Created sequence ID:', createdSequenceId);
+      console.log('Pending dealId:', pendingDealId);
+      console.log('Pending contactId:', pendingContactId);
+      console.log('SessionStorage content:');
+      console.log('- pendingDealId:', sessionStorage.getItem('pendingDealId'));
+      console.log('- pendingContactId:', sessionStorage.getItem('pendingContactId'));
+      console.log('- pendingDealTitle:', sessionStorage.getItem('pendingDealTitle'));
+
+      if (createdSequenceId && pendingDealId && pendingContactId) {
+        console.log('=== STARTING SEQUENCE ===');
+        console.log('Starting sequence for contact:', pendingContactId, 'deal:', pendingDealId);
+        try {
+          // Start sequence for the contact with dealId
+          await sequencesApi.startSequence(
+            createdSequenceId,
+            Number(pendingContactId),
+            Number(pendingDealId)
+          );
+
+          // Clear pending data
+          sessionStorage.removeItem('pendingDealId');
+          sessionStorage.removeItem('pendingContactId');
+          sessionStorage.removeItem('pendingDealTitle');
+
+          alert('Sekwencja została utworzona i uruchomiona! Szansa została przeniesiona do następnego etapu.');
+
+          // Navigate back to deals
+          navigate('/deals');
+        } catch (startErr) {
+          console.error('Failed to start sequence:', startErr);
+          alert('Sekwencja została utworzona, ale nie udało się jej uruchomić: ' + (startErr.response?.data?.message || startErr.message));
+        }
+      } else {
+        console.log('=== NOT STARTING SEQUENCE ===');
+        console.log('Missing data:');
+        console.log('- createdSequenceId exists:', !!createdSequenceId);
+        console.log('- pendingDealId exists:', !!pendingDealId);
+        console.log('- pendingContactId exists:', !!pendingContactId);
+        console.log('This likely means the sequence was not created from a Deal or sessionStorage was cleared.');
+      }
+    } catch (err) {
+      alert('Błąd zapisu: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // --- Render Helpers ---
+
+  const renderMetrics = () => {
+    if (!dashboard) return null;
     return (
-      <span className={`sequence-status ${summary.active ? 'active' : 'inactive'}`}>
-        {summary.active ? 'Aktywna' : 'Wstrzymana'}
-      </span>
+      <div className="sequences-metrics">
+        <div className="metric-tile positive">
+          <span className="metric-label">Aktywne Sekwencje</span>
+          <span className="metric-value">{dashboard.activeSequences}</span>
+        </div>
+        <div className="metric-tile primary">
+          <span className="metric-label">Aktywne Wykonania</span>
+          <span className="metric-value">{dashboard.activeExecutions}</span>
+        </div>
+        <div className="metric-tile warning">
+          <span className="metric-label">Oczekujące Maile</span>
+          <span className="metric-value">{dashboard.pendingScheduledEmails}</span>
+        </div>
+      </div>
     );
   };
 
-  const formatDateTime = (value) => {
-    if (!value) return '—';
-    const date = new Date(value);
-    return date.toLocaleString('pl-PL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  return (
-    <div className="sequences-wrapper">
-      <div className="sequences-topbar">
-        <div>
-          <h1>Automatyczne sekwencje</h1>
-          <p>Buduj wieloetapowe follow-upy i kontroluj harmonogram wysyłek.</p>
-        </div>
-        <button className="btn-primary" onClick={handleOpenCreateSequence}>
-          + Nowa sekwencja
-        </button>
-      </div>
-
-      {error && <div className="sequences-error">{error}</div>}
-
-      <section className="sequences-metrics">
-        {metrics.map((metric) => (
-          <div key={metric.label} className={`metric-tile ${metric.accent}`}>
-            <span className="metric-label">{metric.label}</span>
-            <span className="metric-value">{metric.value}</span>
-          </div>
-        ))}
-      </section>
-
-      <div className="sequences-layout">
-        <aside className="sequences-list">
-          <div className="sequences-list__header">
-            <h2>Twoje sekwencje</h2>
-            <span>{sequences.length}</span>
-          </div>
-          <div className="sequences-list__items">
-            {loading && sequences.length === 0 && (
-              <div className="sequences-placeholder">Ładowanie sekwencji...</div>
-            )}
-            {!loading && sequences.length === 0 && (
-              <div className="sequences-placeholder">
-                <p>Brak sekwencji</p>
-                <span>Dodaj pierwszą sekwencję, aby zacząć automatyzować follow-upy.</span>
+  const renderTimeline = (steps, readOnly = false) => (
+    <div className="enhanced-timeline">
+      {steps.map((step, idx) => (
+        <React.Fragment key={idx}>
+          {/* Delay Indicator Between Steps */}
+          {idx > 0 && (
+            <div className="timeline-delay-indicator">
+              <div className="timeline-connector">
+                <div className="connector-line"></div>
+                <div className="connector-icon">⏱️</div>
               </div>
-            )}
-            {sequences.map((sequence) => (
-              <button
-                key={sequence.id}
-                className={`sequence-tile ${selectedSequenceId === sequence.id ? 'selected' : ''}`}
-                onClick={() => handleSelectSequence(sequence.id)}
-                type="button"
-              >
-                <div className="sequence-tile__header">
-                  <h3>{sequence.name}</h3>
-                  {renderSequenceStatus(sequence)}
-                </div>
-                <p>{sequence.description || 'Brak opisu'}</p>
-                <div className="sequence-tile__meta">
-                  <span>📬 Kroki: {sequence.stepsCount}</span>
-                  <span>▶️ Aktywne wykonania: {sequence.executionsActive}</span>
-                </div>
-                <div className="sequence-tile__footer">
-                  <span>Następna wysyłka: {formatDateTime(sequence.nextScheduledSend)}</span>
-                  <button
-                    className="text-link"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleDeleteSequence(sequence.id);
-                    }}
-                    disabled={actionLoading}
-                  >
-                    Usuń
-                  </button>
-                </div>
-              </button>
-            ))}
-          </div>
-        </aside>
-
-        <section className="sequence-details">
-          {!selectedSequence && (
-            <div className="sequence-details__placeholder">
-              <p>Wybierz sekwencję z listy, aby zobaczyć szczegóły.</p>
+              <div className="delay-badge">
+                {step.delayDays > 0 && <span>{step.delayDays} {step.delayDays === 1 ? 'dzień' : 'dni'}</span>}
+                {step.delayHours > 0 && <span>{step.delayHours} {step.delayHours === 1 ? 'godz' : 'godz'}</span>}
+                {step.delayMinutes > 0 && <span>{step.delayMinutes} min</span>}
+                {step.delayDays === 0 && step.delayHours === 0 && step.delayMinutes === 0 && <span>natychmiast</span>}
+              </div>
             </div>
           )}
 
-          {selectedSequence && (
-            <>
-              <header className="sequence-details__header">
-                <div>
-                  <h2>{selectedSequence.summary.name}</h2>
-                  <div className="sequence-details__meta">
-                    {renderSequenceStatus(selectedSequence.summary)}
-                    <span>Strefa: {selectedSequence.summary.timezone}</span>
-                    <span>
-                      Okno wysyłki: {selectedSequence.summary.sendWindowStart} –{' '}
-                      {selectedSequence.summary.sendWindowEnd}
-                    </span>
+          {/* Step Card */}
+          <div className="enhanced-timeline-step">
+            <div className="step-number-badge">
+              <div className="step-number">{idx + 1}</div>
+            </div>
+            <div className="enhanced-step-card">
+              <div className="enhanced-step-header">
+                <div className="step-type-badge">
+                  📧 Email
+                </div>
+                <div className="step-subject">
+                  {step.subject || '(Bez tematu)'}
+                </div>
+              </div>
+              <div className="enhanced-step-body">
+                {step.body ? (
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                    {step.body.length > 200 ? step.body.substring(0, 200) + '...' : step.body}
                   </div>
-                </div>
-                <div className="sequence-details__actions">
-                  <button className="btn-secondary" onClick={handleOpenEditSequence}>
-                    Edytuj sekwencję
-                  </button>
-                  <button className="btn-primary" onClick={() => setShowStartModal(true)}>
-                    Uruchom na kontakcie
-                  </button>
-                </div>
-              </header>
+                ) : (
+                  <em style={{ color: '#9ca3af' }}>Brak treści wiadomości...</em>
+                )}
+              </div>
+              <div className="enhanced-step-meta">
+                {step.trackOpens && (
+                  <span className="meta-badge">
+                    <span style={{ fontSize: '14px' }}>👁️</span> Śledzenie otwarć
+                  </span>
+                )}
+                {step.trackClicks && (
+                  <span className="meta-badge">
+                    <span style={{ fontSize: '14px' }}>🖱️</span> Śledzenie kliknięć
+                  </span>
+                )}
+                {step.skipIfReplied && (
+                  <span className="meta-badge">
+                    <span style={{ fontSize: '14px' }}>↩️</span> Pomiń jeśli odpowiedział
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
 
-              <div className="sequence-summary-grid">
-                <div>
-                  <span className="label">Aktywne wykonania</span>
-                  <strong>{selectedSequence.summary.executionsActive}</strong>
+  return (
+    <>
+      {/* --- Main View --- */}
+      {!isBuilderOpen && (
+        <div className="sequences-shell">
+          {/* Topbar */}
+          <div className="sequences-topbar">
+            <div>
+              <h1>Kampanie Drip</h1>
+              <p className="sequences-sub">Planuj automatyczne sekwencje maili i follow-upów.</p>
+            </div>
+            <div className="sequences-topbar-actions">
+              <button className="btn btn-secondary" onClick={() => refreshSequences()}>
+                🔄 Odśwież
+              </button>
+              <button className="btn btn-primary" onClick={openCreateSequenceModal}>
+                + Nowa Sekwencja
+              </button>
+            </div>
+          </div>
+
+          {/* Main Dashboard Layout - matching Dashboard page */}
+          <div className="container" style={{ paddingTop: '24px' }}>
+            {renderMetrics()}
+
+            <div className="sequences-main-layout">
+              {/* Left Sidebar - Sequences List */}
+              <div className="sequences-list-section">
+                <div className="sequences-list-header">
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+                    Twoje Kampanie
+                  </h3>
                 </div>
-                <div>
-                  <span className="label">Zakończone</span>
-                  <strong>{selectedSequence.summary.executionsCompleted}</strong>
-                </div>
-                <div>
-                  <span className="label">Zaplanowane maile</span>
-                  <strong>{selectedSequence.pendingScheduledEmails}</strong>
-                </div>
-                <div>
-                  <span className="label">Limit dzienny</span>
-                  <strong>
-                    {selectedSequence.summary.dailySendingLimit
-                      ? `${selectedSequence.summary.dailySendingLimit}/dzień`
-                      : 'Bez limitu'}
-                  </strong>
+                <div className="sequences-list-content">
+                  <div className="sequence-list">
+                    {sequences.map(seq => (
+                      <div
+                        key={seq.id}
+                        className={`sequence-tile ${selectedSequenceId === seq.id ? 'selected' : ''}`}
+                        onClick={() => handleSelectSequence(seq.id)}
+                      >
+                        <div className="sequence-tile__header">
+                          <h3>{seq.name}</h3>
+                          <span className={`sequence-status ${seq.active ? 'active' : 'inactive'}`}>
+                            {seq.active ? 'Aktywna' : 'Pauza'}
+                          </span>
+                        </div>
+                        <p>{seq.description || 'Brak opisu'}</p>
+                        <div className="sequence-tile__footer">
+                          <span>📬 Kroki: {seq.stepsCount}</span>
+                          <button onClick={(e) => { e.stopPropagation(); sequencesApi.delete(seq.id).then(refreshSequences); }}>
+                            Usuń
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <section className="sequence-steps">
-                <div className="sequence-steps__header">
-                  <h3>Kroki ({selectedSequence.steps.length})</h3>
-                </div>
-
-                {selectedSequence.steps.length === 0 && (
-                  <div className="sequence-details__placeholder">
-                    <p>Ta sekwencja nie ma jeszcze żadnych kroków.</p>
-                  </div>
-                )}
-
-                {selectedSequence.steps.map((step, index) => (
-                  <article key={step.id || index} className="step-card">
-                    <header>
-                      <div className="step-index">Krok {step.stepOrder}</div>
-                      <div className="step-badges">
-                        <span className="badge">{step.stepType}</span>
-                        {step.skipIfReplied && <span className="badge badge-outline">Pomijaj po odpowiedzi</span>}
+            {/* Main Content - Sequence Details */}
+              <section className="sequences-center">
+                {selectedSequence ? (
+                  <div>
+                    {/* Toolbar */}
+                    <div className="sequences-toolbar">
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+                          {selectedSequence.summary.name}
+                        </h3>
+                        <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
+                          <span>🌍 {selectedSequence.summary.timezone}</span>
+                          <span>🕒 {selectedSequence.summary.sendWindowStart} - {selectedSequence.summary.sendWindowEnd}</span>
+                          <span>📊 Limit: {selectedSequence.summary.dailySendingLimit}/dzień</span>
+                        </div>
                       </div>
-                    </header>
-                    <div className="step-content">
-                      <div className="step-delay">
-                        ⏱️ Wyślij po {step.delayDays} d, {step.delayHours} h, {step.delayMinutes} min
-                        {step.waitForReplyHours > 0 && ` (dodatkowo poczekaj ${step.waitForReplyHours}h na odpowiedź)`}
-                      </div>
-                      <div className="step-subject">
-                        <strong>Temat:</strong> {step.subject}
-                      </div>
-                      <div className="step-body">
-                        <strong>Treść:</strong>
-                        <p>{step.body}</p>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button className="btn btn-secondary" onClick={() => openBuilder(selectedSequence)}>
+                          ✏️ Edytuj
+                        </button>
+                        <button className="btn btn-primary" onClick={() => setShowStartModal(true)}>
+                          ▶️ Uruchom
+                        </button>
                       </div>
                     </div>
-                  </article>
-                ))}
-              </section>
-            </>
-          )}
-        </section>
-      </div>
 
-      {/* Sequence modal */}
-      {showSequenceModal && (
-        <div className="modal-overlay" onClick={() => setShowSequenceModal(false)}>
-          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <h2>{isEditingSequence ? 'Edytuj sekwencję' : 'Nowa sekwencja'}</h2>
-              <button type="button" onClick={() => setShowSequenceModal(false)}>
-                ×
-              </button>
-            </header>
-            <form onSubmit={handleSubmitSequence}>
-              <section>
-                <label>
-                  Nazwa*
-                  <input
-                    type="text"
-                    value={sequenceForm.name}
-                    onChange={(e) => handleSequenceFormChange('name', e.target.value)}
-                    required
-                  />
-                </label>
-                <label>
-                  Opis
-                  <textarea
-                    rows={3}
-                    value={sequenceForm.description}
-                    onChange={(e) => handleSequenceFormChange('description', e.target.value)}
-                  />
-                </label>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={sequenceForm.active}
-                    onChange={(e) => handleSequenceFormChange('active', e.target.checked)}
-                  />
-                  Sekwencja aktywna
-                </label>
-              </section>
-
-              <section className="form-grid">
-                <label>
-                  Strefa czasowa
-                  <select
-                    value={sequenceForm.timezone}
-                    onChange={(e) => handleSequenceFormChange('timezone', e.target.value)}
-                  >
-                    {timezoneOptions.map((tz) => (
-                      <option key={tz} value={tz}>
-                        {tz}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Start okna
-                  <input
-                    type="time"
-                    value={sequenceForm.sendWindowStart}
-                    onChange={(e) => handleSequenceFormChange('sendWindowStart', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Koniec okna
-                  <input
-                    type="time"
-                    value={sequenceForm.sendWindowEnd}
-                    onChange={(e) => handleSequenceFormChange('sendWindowEnd', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Limit dzienny
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="np. 100"
-                    value={sequenceForm.dailySendingLimit}
-                    onChange={(e) => handleSequenceFormChange('dailySendingLimit', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Limit na godzinę
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="np. 20"
-                    value={sequenceForm.throttlePerHour}
-                    onChange={(e) => handleSequenceFormChange('throttlePerHour', e.target.value)}
-                  />
-                </label>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={sequenceForm.sendOnWeekends}
-                    onChange={(e) => handleSequenceFormChange('sendOnWeekends', e.target.checked)}
-                  />
-                  Wysyłaj w weekendy
-                </label>
-              </section>
-
-              <section className="steps-builder">
-                <div className="steps-builder__header">
-                  <h3>Kroki sekwencji</h3>
-                  <button type="button" className="btn-secondary" onClick={() => handleOpenStepModal()}>
-                    Dodaj krok
-                  </button>
-                </div>
-                {sequenceForm.steps.length === 0 && (
-                  <div className="steps-placeholder">Dodaj pierwszy krok, aby rozpocząć automatyzację.</div>
-                )}
-                {sequenceForm.steps.map((step, index) => (
-                  <div key={`${step.stepOrder}-${index}`} className="steps-builder__item">
-                    <div>
-                      <strong>Krok {step.stepOrder}</strong> • {step.stepType}
-                      <p>{step.subject}</p>
-                    </div>
-                    <div className="steps-builder__actions">
-                      <button type="button" onClick={() => handleOpenStepModal(step, index)}>
-                        Edytuj
-                      </button>
-                      <button type="button" onClick={() => handleDeleteLocalStep(index)}>
-                        Usuń
-                      </button>
+                    {/* Timeline Content */}
+                    <div className="sequences-content">
+                      <h4 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                        Ścieżka kontaktu
+                      </h4>
+                      {selectedSequence.steps.length > 0 ? (
+                        renderTimeline(selectedSequence.steps, true)
+                      ) : (
+                        <div style={{
+                          padding: '40px',
+                          textAlign: 'center',
+                          color: '#9ca3af',
+                          border: '2px dashed #e5e7eb',
+                          borderRadius: '16px',
+                          background: '#f9fafb'
+                        }}>
+                          <div style={{ fontSize: '24px', marginBottom: '12px' }}>📭</div>
+                          Brak kroków w tej sekwencji.
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                ) : (
+                  <div style={{
+                    padding: '48px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#9ca3af',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📧</div>
+                    <h3 style={{ margin: '0 0 8px', fontSize: '18px', color: '#6b7280' }}>
+                      Wybierz sekwencję z listy
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '14px' }}>
+                      aby zobaczyć szczegóły i zarządzać kampanią.
+                    </p>
+                  </div>
+                )}
               </section>
-
-              <footer>
-                <button type="button" className="btn-secondary" onClick={() => setShowSequenceModal(false)}>
-                  Anuluj
-                </button>
-                <button type="submit" className="btn-primary" disabled={actionLoading}>
-                  {actionLoading ? 'Zapisywanie...' : 'Zapisz sekwencję'}
-                </button>
-              </footer>
-            </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Step modal */}
-      {showStepModal && (
-        <div className="modal-overlay" onClick={() => setShowStepModal(false)}>
-          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <h2>{stepIndexEditing !== null ? 'Edytuj krok' : 'Dodaj krok'}</h2>
-              <button type="button" onClick={() => setShowStepModal(false)}>
-                ×
+      {/* --- Builder Modal (Full Screen) --- */}
+      {isBuilderOpen && (
+        <div className="builder-modal">
+          <header className="builder-header">
+            <h2>{sequenceForm.id ? 'Edycja Sekwencji' : 'Kreator Sekwencji'}</h2>
+            <div className="builder-actions">
+              <button className="btn-secondary" onClick={closeBuilder}>Anuluj</button>
+              <button className="btn-primary" onClick={saveSequence} disabled={actionLoading}>
+                {actionLoading ? 'Zapisywanie...' : 'Zapisz Zmiany'}
               </button>
-            </header>
-            <form onSubmit={handleSubmitStep}>
-              <section className="form-grid">
-                <label>
-                  Kolejność
-                  <input
-                    type="number"
-                    min="1"
-                    value={stepForm.stepOrder}
-                    onChange={(e) => handleStepFormChange('stepOrder', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Typ kroku
-                  <select
-                    value={stepForm.stepType}
-                    onChange={(e) => handleStepFormChange('stepType', e.target.value)}
-                  >
-                    {stepTypeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </section>
+            </div>
+          </header>
 
-              <section>
-                <label>
-                  Temat*
-                  <input
-                    type="text"
-                    value={stepForm.subject}
-                    onChange={(e) => handleStepFormChange('subject', e.target.value)}
-                    required
-                  />
-                </label>
-                <label>
-                  Treść*
-                  <textarea
-                    rows={6}
-                    value={stepForm.body}
-                    onChange={(e) => handleStepFormChange('body', e.target.value)}
-                    required
-                  />
-                </label>
-              </section>
-
-              <section className="form-grid">
-                <label>
-                  Opóźnienie (dni)
-                  <input
-                    type="number"
-                    min="0"
-                    value={stepForm.delayDays}
-                    onChange={(e) => handleStepFormChange('delayDays', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Opóźnienie (godz.)
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={stepForm.delayHours}
-                    onChange={(e) => handleStepFormChange('delayHours', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Opóźnienie (min.)
-                  <input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={stepForm.delayMinutes}
-                    onChange={(e) => handleStepFormChange('delayMinutes', e.target.value)}
-                  />
-                </label>
-                <label>
-                  Czekaj na odpowiedź (h)
-                  <input
-                    type="number"
-                    min="0"
-                    value={stepForm.waitForReplyHours}
-                    onChange={(e) => handleStepFormChange('waitForReplyHours', e.target.value)}
-                  />
-                </label>
-              </section>
-
-              <section className="checkbox-row">
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={stepForm.skipIfReplied}
-                    onChange={(e) => handleStepFormChange('skipIfReplied', e.target.checked)}
-                  />
-                  Pomijaj jeśli kontakt już odpowiedział
-                </label>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={stepForm.trackOpens}
-                    onChange={(e) => handleStepFormChange('trackOpens', e.target.checked)}
-                  />
-                  Śledź otwarcia
-                </label>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={stepForm.trackClicks}
-                    onChange={(e) => handleStepFormChange('trackClicks', e.target.checked)}
-                  />
-                  Śledź kliknięcia
-                </label>
-              </section>
-
-              <footer>
-                <button type="button" className="btn-secondary" onClick={() => setShowStepModal(false)}>
-                  Anuluj
-                </button>
-                <button type="submit" className="btn-primary">
-                  Zapisz krok
-                </button>
-              </footer>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Start modal */}
-      {showStartModal && (
-        <div className="modal-overlay" onClick={() => setShowStartModal(false)}>
-          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <h2>Uruchom sekwencję</h2>
-              <button type="button" onClick={() => setShowStartModal(false)}>
-                ×
-              </button>
-            </header>
-            <div className="modal-body">
-              <label>
-                Kontakt
+          <div className="builder-content-with-preview">
+            {/* Left Sidebar: Settings */}
+            <aside className="builder-sidebar">
+              <h3>Ustawienia Główne</h3>
+              <div className="builder-form-group">
+                <label>Nazwa Kampanii</label>
+                <input
+                  value={sequenceForm.name}
+                  onChange={e => setSequenceForm({ ...sequenceForm, name: e.target.value })}
+                  placeholder="np. Cold Mailing Q1"
+                  maxLength={100}
+                />
+                <small style={{ color: '#64748b', fontSize: '11px' }}>
+                  {sequenceForm.name.length}/100 znaków
+                </small>
+              </div>
+              <div className="builder-form-group">
+                <label>Konto Email (Wysyłkowe)</label>
                 <select
-                  value={selectedContactId}
-                  onChange={(e) => setSelectedContactId(e.target.value)}
+                  value={sequenceForm.emailAccountId || ''}
+                  onChange={e => setSequenceForm({ ...sequenceForm, emailAccountId: e.target.value })}
                 >
-                  <option value="">— Wybierz kontakt —</option>
-                  {contacts.map((contact) => (
-                    <option key={contact.id} value={contact.id}>
-                      {contact.name} ({contact.email})
+                  <option value="">-- Wybierz konto --</option>
+                  {emailAccounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.emailAddress} ({acc.displayName})</option>
+                  ))}
+                </select>
+                {(!emailAccounts || emailAccounts.length === 0) && (
+                  <small style={{ color: '#dc2626', fontSize: '12px' }}>
+                    Brak skonfigurowanych kont email — dodaj konto, aby wysłać sekwencję.
+                  </small>
+                )}
+              </div>
+              <div className="builder-form-group">
+                <label>Tag Docelowy (Odbiorcy) — opcjonalne</label>
+                <select
+                  value={sequenceForm.tagId || ''}
+                  onChange={e => setSequenceForm({ ...sequenceForm, tagId: e.target.value || null })}
+                >
+                  <option value="">-- Wszyscy kontakty --</option>
+                  {tags.map(tag => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
                     </option>
                   ))}
                 </select>
-              </label>
+                <small style={{ color: '#64748b', fontSize: '12px' }}>
+                  Pozostaw puste, aby wysłać do wskazanych kontaktów niezależnie od tagu
+                </small>
+              </div>
+              <div className="builder-form-group">
+                <label>Strefa Czasowa</label>
+                <select
+                  value={sequenceForm.timezone}
+                  onChange={e => setSequenceForm({ ...sequenceForm, timezone: e.target.value })}
+                >
+                  <option value="Europe/Warsaw">Europe/Warsaw</option>
+                  <option value="Europe/London">Europe/London</option>
+                  <option value="America/New_York">America/New York</option>
+                </select>
+              </div>
+              <div className="builder-form-group">
+                <label>Okno wysyłki</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input type="time" value={sequenceForm.sendWindowStart} onChange={e => setSequenceForm({ ...sequenceForm, sendWindowStart: e.target.value })} />
+                  <input type="time" value={sequenceForm.sendWindowEnd} onChange={e => setSequenceForm({ ...sequenceForm, sendWindowEnd: e.target.value })} />
+                </div>
+              </div>
+              <div className="builder-form-group">
+                <label>Dzienny limit wysyłki</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10000"
+                  placeholder="Dzienny limit (np. 50)"
+                  value={sequenceForm.dailySendingLimit}
+                  onChange={e => setSequenceForm({ ...sequenceForm, dailySendingLimit: e.target.value })}
+                />
+                <small style={{ color: '#64748b', fontSize: '11px' }}>
+                  Zakres: 1-10000 maili dziennie
+                </small>
+              </div>
+              <div className="builder-form-group">
+                <label>Limit na godzinę</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  placeholder="Maili na godzinę (np. 20)"
+                  value={sequenceForm.throttlePerHour}
+                  onChange={e => setSequenceForm({ ...sequenceForm, throttlePerHour: e.target.value })}
+                />
+                <small style={{ color: '#64748b', fontSize: '11px' }}>
+                  Zakres: 1-1000 maili na godzinę
+                </small>
+              </div>
+              <div className="builder-form-group">
+                <label style={{ flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={sequenceForm.active}
+                    onChange={e => setSequenceForm({ ...sequenceForm, active: e.target.checked })}
+                  />
+                  Kampania aktywna
+                </label>
+              </div>
+            </aside>
+
+            {/* Main Canvas: Visual Builder */}
+            <main className="builder-canvas">
+              {sequenceForm.steps.map((step, idx) => (
+                <div key={idx} className="builder-step">
+                  <div className="builder-step-header">
+                    <div className="delay-selector">
+                      <span>⏳ Czekaj</span>
+                      <input
+                        type="number"
+                        min="0"
+                        style={{ width: '40px', textAlign: 'center' }}
+                        value={step.delayDays}
+                        onChange={e => updateStep(idx, 'delayDays', parseInt(e.target.value) || 0)}
+                      />
+                      <span>dni od poprzedniego kroku</span>
+                    </div>
+                    <button className="btn-danger" onClick={() => removeStep(idx)}>Usuń</button>
+                  </div>
+                  
+                  <div className="builder-step-content">
+                    <div className="step-editor">
+                      <input
+                        className="builder-form-group"
+                        style={{ fontWeight: 'bold', fontSize: '16px', padding: '8px', width: '100%', border: 'none', borderBottom: '1px solid #e5e7eb' }}
+                        placeholder="Temat wiadomości..."
+                        value={step.subject}
+                        onChange={e => updateStep(idx, 'subject', e.target.value)}
+                      />
+                      <textarea
+                        rows={6}
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e5e7eb', fontFamily: 'inherit' }}
+                        placeholder="Treść wiadomości... Użyj zmiennych np. {{name}}"
+                        value={step.body}
+                        onChange={e => updateStep(idx, 'body', e.target.value)}
+                      />
+
+                      {/* Placeholder Help Panel */}
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '12px',
+                        backgroundColor: '#f9fafb',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb'
+                      }}>
+                        <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
+                          💡 Dostępne zmienne:
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontSize: '12px' }}>
+                          <div style={{
+                            padding: '6px 10px',
+                            backgroundColor: '#fff',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const newBody = step.body + '{{name}}';
+                            updateStep(idx, 'body', newBody);
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                          title="Kliknij aby wstawić">
+                            <code style={{ color: '#059669', fontWeight: '600' }}>{'{{name}}'}</code>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Pełne imię</div>
+                          </div>
+                          <div style={{
+                            padding: '6px 10px',
+                            backgroundColor: '#fff',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const newBody = step.body + '{{firstName}}';
+                            updateStep(idx, 'body', newBody);
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                          title="Kliknij aby wstawić">
+                            <code style={{ color: '#059669', fontWeight: '600' }}>{'{{firstName}}'}</code>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Imię</div>
+                          </div>
+                          <div style={{
+                            padding: '6px 10px',
+                            backgroundColor: '#fff',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const newBody = step.body + '{{company}}';
+                            updateStep(idx, 'body', newBody);
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                          title="Kliknij aby wstawić">
+                            <code style={{ color: '#059669', fontWeight: '600' }}>{'{{company}}'}</code>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Firma</div>
+                          </div>
+                          <div style={{
+                            padding: '6px 10px',
+                            backgroundColor: '#fff',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const newBody = step.body + '{{position}}';
+                            updateStep(idx, 'body', newBody);
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                          title="Kliknij aby wstawić">
+                            <code style={{ color: '#059669', fontWeight: '600' }}>{'{{position}}'}</code>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Stanowisko</div>
+                          </div>
+                          <div style={{
+                            padding: '6px 10px',
+                            backgroundColor: '#fff',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const newBody = step.body + '{{email}}';
+                            updateStep(idx, 'body', newBody);
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                          title="Kliknij aby wstawić">
+                            <code style={{ color: '#059669', fontWeight: '600' }}>{'{{email}}'}</code>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Email</div>
+                          </div>
+                          <div style={{
+                            padding: '6px 10px',
+                            backgroundColor: '#fff',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const newBody = step.body + '{{phone}}';
+                            updateStep(idx, 'body', newBody);
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                          title="Kliknij aby wstawić">
+                            <code style={{ color: '#059669', fontWeight: '600' }}>{'{{phone}}'}</code>
+                            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>Telefon</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', gap: '12px', marginTop: '12px' }}>
+                        <label><input type="checkbox" checked={step.trackOpens} onChange={e => updateStep(idx, 'trackOpens', e.target.checked)} /> Śledź otwarcia</label>
+                        <label><input type="checkbox" checked={step.trackClicks} onChange={e => updateStep(idx, 'trackClicks', e.target.checked)} /> Śledź kliknięcia</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* AI Empty State when coming from Deals */}
+              {sequenceForm.steps.length === 0 && (location.state?.fromDeal || restoredState?.fromDeal) && (
+                <div style={{
+                  padding: '40px',
+                  textAlign: 'center',
+                  background: 'linear-gradient(135deg, #f0f1ff 0%, #f5f3ff 100%)',
+                  borderRadius: '12px',
+                  border: '2px dashed #667eea',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
+                  <h3 style={{ margin: '0 0 8px', color: '#667eea' }}>Sekwencja AI</h3>
+                  <p style={{ margin: '0', color: '#6b7280', fontSize: '14px' }}>
+                    Kliknij przycisk poniżej, aby wygenerować automatyczną sekwencję<br/>
+                    dopasowaną do tej szansy sprzedażowej
+                  </p>
+                </div>
+              )}
+
+              {/* Smart Add Step Button - AI first if from Deals */}
+              {(location.state?.fromDeal || restoredState?.fromDeal) && sequenceForm.steps.length === 0 ? (
+                <button
+                  className="timeline-add-btn ai-generate-btn"
+                  onClick={generateAISteps}
+                  disabled={actionLoading}
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    fontSize: '14px',
+                    padding: '12px 20px'
+                  }}
+                >
+                  <span>🤖</span> {actionLoading ? 'Generuję sekwencję AI...' : 'Generuj sekwencję AI'}
+                </button>
+              ) : (
+                <button
+                  className="timeline-add-btn"
+                  onClick={() => (location.state?.fromDeal || restoredState?.fromDeal) && sequenceForm.steps.length === 0 ? generateAISteps() : addStep()}
+                  style={(location.state?.fromDeal || restoredState?.fromDeal) && sequenceForm.steps.length === 0 ? {
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none'
+                  } : {}}
+                >
+                  {(location.state?.fromDeal || restoredState?.fromDeal) && sequenceForm.steps.length === 0 ? (
+                    <>
+                      <span>🤖</span> {actionLoading ? 'Generuję...' : 'Generuj sekwencję AI'}
+                    </>
+                  ) : (
+                    <>
+                      <span>➕</span> Dodaj kolejny krok (E-mail)
+                    </>
+                  )}
+                </button>
+              )}
+            </main>
+
+            {/* Right Sidebar: Preview */}
+            <aside className="builder-preview">
+              <div className="preview-header">
+                <h3>📧 Podgląd na żywo</h3>
+                <select
+                  value={previewStepIndex}
+                  onChange={e => setPreviewStepIndex(Number(e.target.value))}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '13px'
+                  }}
+                >
+                  {sequenceForm.steps.map((step, idx) => (
+                    <option key={idx} value={idx}>Krok {idx + 1}</option>
+                  ))}
+                  {sequenceForm.steps.length === 0 && <option value={0}>Brak kroków</option>}
+                </select>
+              </div>
+
+              {sequenceForm.steps.length > 0 && sequenceForm.steps[previewStepIndex] ? (
+                <div className="preview-content">
+                  <div className="preview-sample-info">
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px' }}>
+                      Przykładowy kontakt: <strong>{getSampleContact().name}</strong>
+                    </div>
+                  </div>
+
+                  <div className="preview-email">
+                    <div className="preview-email-header">
+                      <div className="preview-label">Temat:</div>
+                      <div
+                        className="preview-subject"
+                        dangerouslySetInnerHTML={{
+                          __html: processTemplatePreview(
+                            sequenceForm.steps[previewStepIndex].subject || '(Brak tematu)',
+                            getSampleContact()
+                          )
+                        }}
+                      />
+                    </div>
+                    <div className="preview-email-body">
+                      <div className="preview-label">Treść:</div>
+                      <div
+                        className="preview-body-text"
+                        dangerouslySetInnerHTML={{
+                          __html: processTemplatePreview(
+                            sequenceForm.steps[previewStepIndex].body || '(Brak treści)',
+                            getSampleContact()
+                          ).replace(/\n/g, '<br/>')
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="preview-tips">
+                    <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: '600', marginBottom: '8px' }}>
+                      💡 Wskazówka:
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#6b7280', lineHeight: '1.5' }}>
+                      Zmienne w kolorze żółtym nie zostaną podstawione, bo kontakt nie ma tych danych.
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '40px 20px',
+                  textAlign: 'center',
+                  color: '#9ca3af',
+                  fontSize: '14px'
+                }}>
+                  Dodaj krok, aby zobaczyć podgląd
+                </div>
+              )}
+            </aside>
+          </div>
+        </div>
+      )}
+
+      {/* Start Modal */}
+      {showStartModal && (
+        <div className="modal-overlay" onClick={() => setShowStartModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>Uruchom Sekwencję</h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
+                  Wybierz kontakty do uruchomienia sekwencji: <strong>{selectedSequence?.summary.name}</strong>
+                </p>
+              </div>
+              <button onClick={() => setShowStartModal(false)} style={{
+                fontSize: '28px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#9ca3af',
+                lineHeight: 1
+              }}>×</button>
+            </header>
+
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', maxHeight: 'calc(90vh - 200px)' }}>
+              {/* Filtry */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Szukaj po imieniu lub emailu..."
+                    value={contactSearch}
+                    onChange={e => setContactSearch(e.target.value)}
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                  />
+                  <input
+                    type="email"
+                    placeholder="Filtruj po emailu (np. z szansy)"
+                    value={contactEmailFilter}
+                    onChange={e => setContactEmailFilter(e.target.value)}
+                    style={{ flex: 1, minWidth: '220px', padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db' }}
+                  />
+                  <select
+                    value={companyFilter}
+                    onChange={e => setCompanyFilter(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', minWidth: '200px' }}
+                  >
+                    <option value="">Wszystkie firmy</option>
+                    {[...new Set(contacts.map(c => c.company).filter(Boolean))].map(company => (
+                      <option key={company} value={company}>{company}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={tagFilter}
+                    onChange={e => setTagFilter(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', minWidth: '180px' }}
+                  >
+                    <option value="">Wszystkie tagi</option>
+                    {tags.map(tag => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={excludeInSequence}
+                      onChange={e => setExcludeInSequence(e.target.checked)}
+                    />
+                    Wykluczaj kontakty już w aktywnych sekwencjach
+                  </label>
+                </div>
+              </div>
+
+              {/* Quick Selection */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '0 4px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>Szybki wybór:</span>
+                <button
+                  onClick={() => {
+                    const filtered = contacts.filter(c => {
+                      const matchesSearch = !contactSearch ||
+                        c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                        c.email.toLowerCase().includes(contactSearch.toLowerCase());
+                      const matchesEmail = !contactEmailFilter ||
+                        (c.email && c.email.toLowerCase().includes(contactEmailFilter.toLowerCase()));
+                      const matchesCompany = !companyFilter || c.company === companyFilter;
+                      const matchesTag = !tagFilter || (c.tags && c.tags.some(t => t.id === parseInt(tagFilter)));
+                      const notInSequence = !excludeInSequence || !c.inActiveSequence;
+                      return matchesSearch && matchesEmail && matchesCompany && matchesTag && notInSequence;
+                    });
+                    setSelectedContactIds(filtered.map(c => c.id));
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Zaznacz wszystkie
+                </button>
+                <button
+                  onClick={() => setSelectedContactIds([])}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    borderRadius: '6px',
+                    border: '1px solid #d1d5db',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Odznacz wszystkie
+                </button>
+                <span style={{ fontSize: '13px', color: '#059669', fontWeight: '600', marginLeft: 'auto' }}>
+                  Wybrano: {selectedContactIds.length}
+                </span>
+              </div>
+
+              {/* Contact List */}
+              <div style={{
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                maxHeight: '400px',
+                overflowY: 'auto'
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb', zIndex: 1 }}>
+                    <tr>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px', color: '#374151', width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedContactIds.length > 0 && contacts.filter(c => {
+                            const matchesSearch = !contactSearch ||
+                              c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                              c.email.toLowerCase().includes(contactSearch.toLowerCase());
+                            const matchesEmail = !contactEmailFilter ||
+                              (c.email && c.email.toLowerCase().includes(contactEmailFilter.toLowerCase()));
+                            const matchesCompany = !companyFilter || c.company === companyFilter;
+                            const matchesTag = !tagFilter || (c.tags && c.tags.some(t => t.id === parseInt(tagFilter)));
+                            const notInSequence = !excludeInSequence || !c.inActiveSequence;
+                            return matchesSearch && matchesEmail && matchesCompany && matchesTag && notInSequence;
+                          }).every(c => selectedContactIds.includes(c.id))}
+                          onChange={(e) => {
+                            const filtered = contacts.filter(c => {
+                              const matchesSearch = !contactSearch ||
+                                c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                                c.email.toLowerCase().includes(contactSearch.toLowerCase());
+                              const matchesEmail = !contactEmailFilter ||
+                                (c.email && c.email.toLowerCase().includes(contactEmailFilter.toLowerCase()));
+                              const matchesCompany = !companyFilter || c.company === companyFilter;
+                              const matchesTag = !tagFilter || (c.tags && c.tags.some(t => t.id === parseInt(tagFilter)));
+                              const notInSequence = !excludeInSequence || !c.inActiveSequence;
+                              return matchesSearch && matchesEmail && matchesCompany && matchesTag && notInSequence;
+                            });
+                            if (e.target.checked) {
+                              setSelectedContactIds(filtered.map(c => c.id));
+                            } else {
+                              setSelectedContactIds([]);
+                            }
+                          }}
+                        />
+                      </th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px', color: '#374151' }}>Imię i nazwisko</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px', color: '#374151' }}>Email</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px', color: '#374151' }}>Firma</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px', color: '#374151' }}>Stanowisko</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '13px', color: '#374151' }}>Telefon</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                {contacts
+                  .filter(c => {
+                    const matchesSearch = !contactSearch ||
+                      c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                      c.email.toLowerCase().includes(contactSearch.toLowerCase());
+                    const matchesEmail = !contactEmailFilter ||
+                      (c.email && c.email.toLowerCase().includes(contactEmailFilter.toLowerCase()));
+                    const matchesCompany = !companyFilter || c.company === companyFilter;
+                    const matchesTag = !tagFilter || (c.tags && c.tags.some(t => t.id === parseInt(tagFilter)));
+                    const notInSequence = !excludeInSequence || !c.inActiveSequence;
+                    return matchesSearch && matchesEmail && matchesCompany && matchesTag && notInSequence;
+                  })
+                  .map(contact => {
+                        const isSelected = selectedContactIds.includes(contact.id);
+                        return (
+                          <tr
+                            key={contact.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedContactIds(selectedContactIds.filter(id => id !== contact.id));
+                              } else {
+                                setSelectedContactIds([...selectedContactIds, contact.id]);
+                              }
+                            }}
+                            style={{
+                              backgroundColor: isSelected ? '#f0fdf4' : '#fff',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f3f4f6',
+                              transition: 'background-color 0.15s'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = '#f9fafb';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) e.currentTarget.style.backgroundColor = '#fff';
+                            }}
+                          >
+                            <td style={{ padding: '12px' }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </td>
+                            <td style={{ padding: '12px', fontWeight: '500', fontSize: '14px', color: '#111827' }}>
+                              {contact.name || '-'}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', color: '#4b5563' }}>
+                              {contact.email || '-'}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', color: '#6b7280' }}>
+                              {contact.company || '-'}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', color: '#6b7280' }}>
+                              {contact.position || '-'}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', color: '#6b7280' }}>
+                              {contact.phone || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {contacts.filter(c => {
+                const matchesSearch = !contactSearch ||
+                  c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                  c.email.toLowerCase().includes(contactSearch.toLowerCase());
+                const matchesEmail = !contactEmailFilter ||
+                  (c.email && c.email.toLowerCase().includes(contactEmailFilter.toLowerCase()));
+                const matchesCompany = !companyFilter || c.company === companyFilter;
+                return matchesSearch && matchesCompany;
+              }).length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+                  Brak kontaktów spełniających kryteria
+                </div>
+              )}
             </div>
-            <footer>
-              <button type="button" className="btn-secondary" onClick={() => setShowStartModal(false)}>
-                Anuluj
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleStartSequence}
-                disabled={!selectedContactId || actionLoading}
-              >
-                {actionLoading ? 'Uruchamiam...' : 'Start'}
-              </button>
+
+            <footer style={{
+              padding: '16px 20px',
+              borderTop: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                {selectedContactIds.length > 0 && (
+                  <span>Sekwencja zostanie uruchomiona dla <strong>{selectedContactIds.length}</strong> kontakt{selectedContactIds.length === 1 ? 'u' : 'ów'}</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setShowStartModal(false)}
+                  disabled={actionLoading}
+                >
+                  Anuluj
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={async () => {
+                    if (selectedContactIds.length === 0) return alert('Wybierz przynajmniej jeden kontakt');
+                    setActionLoading(true);
+                    try {
+                      let successCount = 0;
+                      let errorCount = 0;
+
+                      for (const contactId of selectedContactIds) {
+                        try {
+                          await sequencesApi.startSequence(selectedSequenceId, contactId);
+                          successCount++;
+                        } catch (err) {
+                          console.error(`Failed to start sequence for contact ${contactId}:`, err);
+                          errorCount++;
+                        }
+                      }
+
+                      alert(`Uruchomiono sekwencję dla ${successCount} kontakt${successCount === 1 ? 'u' : 'ów'}${errorCount > 0 ? `. Błędów: ${errorCount}` : ''}`);
+                      setShowStartModal(false);
+                      setSelectedContactIds([]);
+                      setContactSearch('');
+                      setCompanyFilter('');
+                      refreshSequences();
+                    } catch (err) {
+                      alert('Błąd: ' + err.message);
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }}
+                  disabled={actionLoading || selectedContactIds.length === 0}
+                >
+                  {actionLoading ? 'Uruchamianie...' : `Uruchom dla ${selectedContactIds.length || 0}`}
+                </button>
+              </div>
             </footer>
           </div>
         </div>
       )}
-    </div>
+
+      {/* Create Sequence Modal */}
+      {showCreateSequenceModal && (
+        <div className="modal-overlay" onClick={closeCreateSequenceModal}>
+          <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>Nowa Sekwencja</h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#6b7280' }}>
+                  Wybierz sposób tworzenia nowej sekwencji
+                </p>
+              </div>
+              <button onClick={closeCreateSequenceModal} style={{
+                fontSize: '28px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#9ca3af',
+                lineHeight: 1
+              }}>×</button>
+            </header>
+
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                <div
+                  onClick={createEmptySequence}
+                  style={{
+                    padding: '24px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s',
+                    backgroundColor: '#fff'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#3b82f6';
+                    e.currentTarget.style.backgroundColor = '#f8fafc';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e5e7eb';
+                    e.currentTarget.style.backgroundColor = '#fff';
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>📝</div>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                    Pusta sekwencja
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#6b7280', lineHeight: '1.4' }}>
+                    Rozpocznij od zera i stwórz własną sekwencję krok po kroku
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => {
+                    // Wyświetl formularz AI
+                    const formContainer = document.getElementById('ai-form-container');
+                    if (formContainer) {
+                      formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none';
+                    }
+                  }}
+                  style={{
+                    padding: '24px',
+                    border: '2px solid #e5e7eb',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s',
+                    backgroundColor: '#fff'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#8b5cf6';
+                    e.currentTarget.style.backgroundColor = '#faf5ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e5e7eb';
+                    e.currentTarget.style.backgroundColor = '#fff';
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '12px' }}>🤖</div>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>
+                    Generuj z AI
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#6b7280', lineHeight: '1.4' }}>
+                    Wygeneruj automatycznie sekwencję na podstawie danych klienta
+                  </p>
+                </div>
+              </div>
+
+              {/* AI Configuration Form */}
+              <div id="ai-form-container" style={{ display: 'none' }}>
+                <div style={{
+                  padding: '20px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <h4 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
+                    Konfiguracja generatora AI
+                  </h4>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      Link do strony klienta*
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://klient.pl"
+                      value={aiModalData.websiteUrl}
+                      onChange={e => setAiModalData({ ...aiModalData, websiteUrl: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#8b5cf6'}
+                      onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                    />
+                    <small style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      AI przeanalizuje zawartość strony i dopasuje treść wiadomości
+                    </small>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      Cel sekwencji
+                    </label>
+                    <select
+                      value={aiModalData.goal}
+                      onChange={e => setAiModalData({ ...aiModalData, goal: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        backgroundColor: '#fff'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#8b5cf6'}
+                      onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                    >
+                      <option value="meeting">Doprowadź do spotkania</option>
+                      <option value="discovery">Zbadaj potrzebę (Discovery)</option>
+                      <option value="sale">Złóż ofertę</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      Dodatkowy kontekst (opcjonalny)
+                    </label>
+                    <textarea
+                      placeholder="np. Spotkaliśmy się na targach, byli zainteresowani, ale milczą"
+                      value={aiModalData.additionalContext}
+                      onChange={e => setAiModalData({ ...aiModalData, additionalContext: e.target.value })}
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                        resize: 'vertical',
+                        fontFamily: 'inherit'
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = '#8b5cf6'}
+                      onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
+                    />
+                    <small style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      Dodatkowe informacje które pomogą AI lepiej dopasować treść
+                    </small>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => {
+                        const formContainer = document.getElementById('ai-form-container');
+                        if (formContainer) {
+                          formContainer.style.display = 'none';
+                        }
+                      }}
+                      className="btn-secondary"
+                      disabled={aiGenerating}
+                    >
+                      Anuluj
+                    </button>
+                    <button
+                      onClick={generateAISequence}
+                      className="btn-primary"
+                      disabled={aiGenerating || !aiModalData.websiteUrl}
+                      style={{
+                        backgroundColor: '#8b5cf6',
+                        borderColor: '#8b5cf6',
+                        minWidth: '140px'
+                      }}
+                    >
+                      {aiGenerating ? (
+                        <>
+                          <span>⚡</span> Generuję...
+                        </>
+                      ) : (
+                        <>
+                          <span>🤖</span> Generuj sekwencję
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

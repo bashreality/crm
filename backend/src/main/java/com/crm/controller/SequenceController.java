@@ -5,6 +5,7 @@ import com.crm.model.SequenceExecution;
 import com.crm.model.ScheduledEmail;
 import com.crm.service.SequenceService;
 import com.crm.service.ScheduledEmailService;
+import com.crm.service.UserContextService;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,11 +25,14 @@ public class SequenceController {
 
     private final SequenceService sequenceService;
     private final ScheduledEmailService scheduledEmailService;
+    private final UserContextService userContextService;
 
     // ============ Sequence Management ============
 
     @GetMapping
     public ResponseEntity<List<SequenceSummaryDto>> getAllSequences() {
+        Long userId = userContextService.getCurrentUserId();
+        log.info("getAllSequences called for userId: {}", userId);
         return ResponseEntity.ok(sequenceService.getAllSequences());
     }
 
@@ -53,6 +57,8 @@ public class SequenceController {
 
     @PostMapping
     public ResponseEntity<SequenceDetailsDto> createSequence(@RequestBody SequenceRequestDto request) {
+        Long userId = userContextService.getCurrentUserId();
+        log.info("createSequence called for userId: {}, sequence name: {}", userId, request.getName());
         SequenceDetailsDto created = sequenceService.createSequence(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -114,18 +120,29 @@ public class SequenceController {
     @PostMapping("/{sequenceId}/start")
     public ResponseEntity<Map<String, Object>> startSequence(@PathVariable Long sequenceId,
                                                              @RequestBody Map<String, Long> request) {
+        log.info("=== REQUEST RECEIVED ===");
+        log.info("Request body: {}", request);
+        log.info("sequenceId: {}", sequenceId);
+        log.info("contactId: {}", request.get("contactId"));
+        log.info("dealId: {}", request.get("dealId"));
+
         try {
             Long contactId = request.get("contactId");
+            Long dealId = request.get("dealId"); // Optional: ID szansy powiązanej z sekwencją
+
             if (contactId == null) {
                 return ResponseEntity.badRequest().body(Map.of("error", "contactId is required"));
             }
 
-            SequenceExecution execution = sequenceService.startSequenceForContact(sequenceId, contactId);
+            SequenceExecution execution = sequenceService.startSequenceForContact(sequenceId, contactId, dealId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("executionId", execution.getId());
             response.put("message", "Sequence started successfully");
+            if (dealId != null) {
+                response.put("dealId", dealId);
+            }
 
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {

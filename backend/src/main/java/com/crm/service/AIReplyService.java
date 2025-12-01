@@ -1,14 +1,18 @@
 package com.crm.service;
 
+import com.crm.model.Contact;
+import com.crm.model.Email;
+import com.crm.model.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -17,83 +21,31 @@ public class AIReplyService {
     @Value("${ai.classification.enabled:true}")
     private boolean aiEnabled;
 
-    @Value("${ai.api.url}")
-    private String aiApiUrl;
-
     @Value("${ai.api.key}")
     private String aiApiKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final WebClient webClient;
+
+    public AIReplyService(@Value("${ai.api.url:https://api.groq.com/openai/v1}") String aiApiUrl) {
+        this.webClient = WebClient.builder()
+                .baseUrl(aiApiUrl)
+                .build();
+    }
 
     /**
-     * Generuje sugestię odpowiedzi na email używając AI (Groq)
-     *
-     * @param originalSubject Temat oryginalnego emaila
-     * @param originalBody Treść oryginalnego emaila
-     * @param senderEmail Email nadawcy
-     * @return Sugerowana treść odpowiedzi
+     * Generuje sugestię odpowiedzi z pełnym kontekstem (Smart Compose)
      */
-    public String generateReplySuggestion(String originalSubject, String originalBody, String senderEmail) {
+    public String generateReplySuggestion(String originalSubject, String originalBody, String senderEmail, Contact contact, List<Email> history) {
         if (!aiEnabled) {
             log.info("AI is disabled, returning default reply");
             return generateDefaultReply(senderEmail);
         }
 
         try {
-            log.info("Generating AI reply suggestion for email from: {}", senderEmail);
+            log.info("Generating AI Smart Compose for email from: {}", senderEmail);
 
-            String prompt = buildReplyPrompt(originalSubject, originalBody, senderEmail);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(aiApiKey);
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "llama-3.1-70b-versatile");
-            requestBody.put("messages", List.of(
-                    Map.of(
-                            "role", "system",
-                            "content", "Jesteś doświadczonym asystentem biznesowym specjalizującym się w odpowiedziach na emaile. " +
-                                    "Twoje zadanie to generowanie KONTEKSTOWYCH odpowiedzi - MUSISZ przeczytać i zrozumieć treść każdego emaila. " +
-                                    "KAŻDA odpowiedź musi być UNIKALNA i odnosić się do KONKRETNEJ treści emaila. " +
-                                    "NIGDY nie używaj szablonowych odpowiedzi - zawsze dostosuj się do kontekstu. " +
-                                    "Odpowiadaj w tym samym języku co email oryginalny. " +
-                                    "Ton: profesjonalny ale ciepły i przyjazny. " +
-                                    "Format: TYLKO treść odpowiedzi bez tematu, nagłówków i stopek."
-                    ),
-                    Map.of(
-                            "role", "user",
-                            "content", prompt
-                    )
-            ));
-            requestBody.put("temperature", 0.8);
-            requestBody.put("max_tokens", 800);
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    aiApiUrl,
-                    HttpMethod.POST,
-                    request,
-                    Map.class
-            );
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> responseBody = response.getBody();
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
-
-                if (choices != null && !choices.isEmpty()) {
-                    Map<String, Object> firstChoice = choices.get(0);
-                    Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
-                    String generatedReply = (String) message.get("content");
-
-                    log.info("AI reply generated successfully");
-                    return generatedReply.trim();
-                }
-            }
-
-            log.warn("AI reply generation failed, using default reply");
-            return generateDefaultReply(senderEmail);
+            String prompt = buildSmartComposePrompt(originalSubject, originalBody, senderEmail, contact, history);
+            return callGroqAPI(prompt);
 
         } catch (Exception e) {
             log.error("Error generating AI reply suggestion", e);
@@ -102,50 +54,95 @@ public class AIReplyService {
     }
 
     /**
-     * Buduje prompt dla AI
+     * Wersja uproszczona (dla wstecznej kompatybilności)
      */
-    private String buildReplyPrompt(String subject, String body, String senderEmail) {
-        // Czyść i skróć treść emaila jeśli za długa
-        String cleanBody = body != null ? body.replaceAll("<[^>]*>", "").trim() : "";
-        if (cleanBody.length() > 2000) {
-            cleanBody = cleanBody.substring(0, 2000) + "...";
-        }
-
-        return String.format(
-                "Przeanalizuj poniższy email i wygeneruj odpowiednią, kontekstową odpowiedź:\n\n" +
-                        "=== EMAIL PRZYCHODZĄCY ===\n" +
-                        "Od: %s\n" +
-                        "Temat: %s\n\n" +
-                        "Treść emaila:\n%s\n\n" +
-                        "=== INSTRUKCJE ===\n" +
-                        "1. Przeczytaj dokładnie treść emaila i zrozum kontekst\n" +
-                        "2. Odpowiedz w tym samym języku co email oryginalny\n" +
-                        "3. DOSTOSUJ odpowiedź do KONKRETNEJ treści tego emaila:\n" +
-                        "   - Jeśli to pytanie - odpowiedz na to pytanie\n" +
-                        "   - Jeśli to prośba - odnieś się do tej prośby\n" +
-                        "   - Jeśli to oferta - skomentuj tę ofertę\n" +
-                        "   - Jeśli to odmowa - zaakceptuj i podziękuj\n" +
-                        "   - Jeśli to zainteresowanie - wyraź entuzjazm i zaproponuj kolejne kroki\n" +
-                        "4. Użyj profesjonalnego ale przyjaznego tonu\n" +
-                        "5. Wygeneruj TYLKO treść odpowiedzi (bez tematu, bez 'Od:', bez 'Do:', bez pozdrowień końcowych)\n" +
-                        "6. Odpowiedź powinna być zwięzła (2-4 zdania) i konkretna\n" +
-                        "7. WAŻNE: Odnieś się do KONKRETNYCH elementów z treści emaila!\n\n" +
-                        "Wygeneruj odpowiedź:",
-                senderEmail,
-                subject != null ? subject : "(brak tematu)",
-                cleanBody.isEmpty() ? "(email bez treści - możliwe że był to tylko attachment)" : cleanBody
-        );
+    public String generateReplySuggestion(String originalSubject, String originalBody, String senderEmail) {
+        return generateReplySuggestion(originalSubject, originalBody, senderEmail, null, null);
     }
 
-    /**
-     * Generuje domyślną odpowiedź (fallback gdy AI nie działa)
-     */
+    private String callGroqAPI(String prompt) {
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", "llama-3.1-70b-versatile"); // Używamy większego modelu dla lepszej jakości tekstu
+        requestBody.put("messages", List.of(
+                Map.of("role", "system", "content", "Jesteś doświadczonym asystentem sprzedaży B2B. Twoim celem jest pisanie skutecznych, uprzejmych i konkretnych maili."),
+                Map.of("role", "user", "content", prompt)
+        ));
+        requestBody.put("temperature", 0.7);
+        requestBody.put("max_tokens", 600);
+
+        return webClient.post()
+                .uri("/chat/completions")
+                .header("Authorization", "Bearer " + aiApiKey)
+                .header("Content-Type", "application/json")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .map(response -> {
+                    if (response != null && response.containsKey("choices")) {
+                        List<Map> choices = (List<Map>) response.get("choices");
+                        if (!choices.isEmpty()) {
+                            Map message = (Map) choices.get(0).get("message");
+                            return (String) message.get("content");
+                        }
+                    }
+                    return generateDefaultReply("Klient");
+                })
+                .block();
+    }
+
+    private String buildSmartComposePrompt(String subject, String body, String senderEmail, Contact contact, List<Email> history) {
+        StringBuilder sb = new StringBuilder();
+        
+        sb.append("Jako asystent sprzedaży, przygotuj treść odpowiedzi na ostatni email.\n\n");
+        
+        // 1. Kontekst Klienta
+        if (contact != null) {
+            sb.append("=== DANE KLIENTA ===\n");
+            sb.append("Imię i nazwisko: ").append(contact.getName()).append("\n");
+            sb.append("Firma: ").append(contact.getCompany()).append("\n");
+            if (contact.getPosition() != null) sb.append("Stanowisko: ").append(contact.getPosition()).append("\n");
+            
+            if (contact.getTags() != null && !contact.getTags().isEmpty()) {
+                String tags = contact.getTags().stream().map(Tag::getName).collect(Collectors.joining(", "));
+                sb.append("Tagi/Status: ").append(tags).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        // 2. Historia Korespondencji
+        if (history != null && !history.isEmpty()) {
+            sb.append("=== OSTATNIE 3 WIADOMOŚCI (Kontekst) ===\n");
+            // Bierzemy max 3 ostatnie, od najstarszego do najnowszego logicznie (ale history jest zazwyczaj desc)
+            // Zakładamy że lista history jest posortowana od najnowszych. Bierzemy 3 i odwracamy.
+            int limit = Math.min(history.size(), 3);
+            for (int i = limit - 1; i >= 0; i--) {
+                Email e = history.get(i);
+                sb.append("--- Email od: ").append(e.getSender()).append(" ---\n");
+                sb.append(e.getContent() != null ? e.getContent().substring(0, Math.min(e.getContent().length(), 300)) : "").append("\n\n");
+            }
+        }
+
+        // 3. Obecny Email
+        String cleanBody = body != null ? body.replaceAll("<[^>]*>", "").trim() : "";
+        sb.append("=== NOWA WIADOMOŚĆ (na którą odpisujemy) ===\n");
+        sb.append("Od: ").append(senderEmail).append("\n");
+        sb.append("Temat: ").append(subject).append("\n");
+        sb.append("Treść:\n").append(cleanBody).append("\n\n");
+
+        // 4. Instrukcje
+        sb.append("=== INSTRUKCJE ===\n");
+        sb.append("1. Napisz gotową do wysłania odpowiedź (samą treść).\n");
+        sb.append("2. Styl: Profesjonalny, pomocny, ale nie 'sztywny'.\n");
+        sb.append("3. Jeśli klient pyta o coś, co było w historii - nawiąż do tego.\n");
+        sb.append("4. Jeśli mamy tagi (np. 'VIP', 'Nowy Lead'), dostosuj ton.\n");
+        sb.append("5. Jeśli treść maila to 'Rezygnuję', 'Nie jestem zainteresowany' -> napisz uprzejme podziękowanie i zamknięcie tematu.\n");
+        sb.append("6. Jeśli treść to 'Jestem zainteresowany' -> zaproponuj spotkanie lub przesłanie oferty.\n");
+        sb.append("7. NIE dodawaj nagłówków typu 'Temat:', tylko treść wiadomości.\n");
+        
+        return sb.toString();
+    }
+
     private String generateDefaultReply(String senderEmail) {
-        return String.format(
-                "Dzień dobry,\n\n" +
-                        "Dziękuję za Twoją wiadomość. Otrzymałem/am Twój email i wkrótce się z Tobą skontaktuję.\n\n" +
-                        "Pozdrawiam,\n" +
-                        "Zespół CRM"
-        );
+        return "Dzień dobry,\n\nDziękuję za wiadomość. Wrócę do Ciebie z odpowiedzią najszybciej jak to możliwe.\n\nPozdrawiam,";
     }
 }

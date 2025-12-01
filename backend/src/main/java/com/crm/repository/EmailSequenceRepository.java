@@ -9,4 +9,7 @@ import java.util.List;
 public interface EmailSequenceRepository extends JpaRepository<EmailSequence, Long> {
     List<EmailSequence> findByActiveTrue();
     List<EmailSequence> findByNameContainingIgnoreCase(String name);
+    List<EmailSequence> findByUserId(Long userId);
+    List<EmailSequence> findByUserIdAndActiveTrue(Long userId);
+    long countByEmailAccount_Id(Long accountId);
 }

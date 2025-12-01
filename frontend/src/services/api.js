@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Użyj względnej ścieżki dla produkcji (nginx proxy) lub zmiennej środowiskowej
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Zawsze używaj względnej ścieżki - nginx przekaże to do backendu
+const API_URL = '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -9,6 +9,35 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Request interceptor - dodaj token do każdego zapytania
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - obsługa wygasłego tokena
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token wygasł lub jest nieprawidłowy
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Emails API
 export const emailsApi = {
@@ -26,6 +55,7 @@ export const emailsApi = {
 // Contacts API
 export const contactsApi = {
   getAll: (params) => api.get('/contacts', { params }),
+  getCompanies: () => api.get('/contacts/companies'),
   getById: (id) => api.get(`/contacts/${id}`),
   create: (data) => api.post('/contacts', data),
   update: (id, data) => api.put(`/contacts/${id}`, data),
@@ -78,7 +108,10 @@ export const sequencesApi = {
   deleteStep: (stepId) => api.delete(`/sequences/steps/${stepId}`),
 
   // Executions
-  startSequence: (sequenceId, contactId) => api.post(`/sequences/${sequenceId}/start`, { contactId }),
+  startSequence: (sequenceId, contactId, dealId = null) => {
+    console.log('API: startSequence called with:', { sequenceId, contactId, dealId });
+    return api.post(`/sequences/${sequenceId}/start`, { contactId, dealId });
+  },
   pauseExecution: (executionId) => api.post(`/sequences/executions/${executionId}/pause`),
   resumeExecution: (executionId) => api.post(`/sequences/executions/${executionId}/resume`),
   getExecutions: (sequenceId) => api.get(`/sequences/${sequenceId}/executions`),
@@ -115,6 +148,22 @@ export const analyticsApi = {
   getDashboard: () => api.get('/analytics/dashboard'),
   getAccountStats: (accountId) => api.get(`/analytics/account/${accountId}`),
   getEmailSentimentTrend: () => api.get('/analytics/email-sentiment-trend'),
+  getGlobalSequenceAnalytics: () => api.get('/analytics/sequences/global'),
+  getSequenceAnalytics: (sequenceId) => api.get(`/analytics/sequences/${sequenceId}`),
+};
+
+// Tags API
+export const tagsApi = {
+  getAll: () => api.get('/tags'),
+  getById: (id) => api.get(`/tags/${id}`),
+  create: (data) => api.post('/tags', data),
+  update: (id, data) => api.put(`/tags/${id}`, data),
+  delete: (id) => api.delete(`/tags/${id}`),
+  addToContact: (contactId, tagId) => api.post(`/tags/contact/${contactId}/add/${tagId}`),
+  removeFromContact: (contactId, tagId) => api.delete(`/tags/contact/${contactId}/remove/${tagId}`),
+  addToContacts: (contactIds, tagId) => api.post('/tags/contacts/add', { contactIds, tagId }),
+  removeFromContacts: (contactIds, tagId) => api.post('/tags/contacts/remove', { contactIds, tagId }),
+  getContactsByTag: (tagId) => api.get(`/tags/${tagId}/contacts`),
 };
 
 export default api;

@@ -1,290 +1,946 @@
-import React, { useState, useEffect } from 'react';
-import { contactsApi } from '../services/api';
-import EmailModal from '../components/EmailModal';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { 
+  Search, 
+  Filter, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  MoreHorizontal, 
+  Trash2, 
+  Send, 
+  UserPlus,
+  X
+} from 'lucide-react';
+import api, { contactsApi, tasksApi, emailAccountsApi, tagsApi, sequencesApi } from '../services/api';
+import TagModal from '../components/TagModal';
+import '../styles/Contacts.css';
+import '../styles/Tasks.css'; // Ensure modals are styled
+
+// Utility for initials
+const getInitials = (name) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+// Utility for Last Activity Logic
+const getLastActivityLabel = (dateString) => {
+  if (!dateString) return { label: 'Brak', class: 'old' };
+  const now = Date.now();
+  const date = new Date(dateString).getTime();
+  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return { label: 'Dzisiaj', class: 'recent' };
+  if (diffDays <= 2) return { label: `${diffDays} dni temu`, class: 'recent' };
+  if (diffDays <= 14) return { label: `${diffDays} dni temu`, class: 'medium' };
+  return { label: diffDays > 30 ? '> 1 mies.' : `${diffDays} dni temu`, class: 'old' };
+};
 
 const Contacts = () => {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedContact, setSelectedContact] = useState(null);
-  const [contactEmails, setContactEmails] = useState([]);
-  const [showConversation, setShowConversation] = useState(false);
-  const [selectedEmail, setSelectedEmail] = useState(null);
+  
+  // Selection & UI State
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [activeContact, setActiveContact] = useState(null);
+  
+  // Filter State
+  const [search, setSearch] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [companies, setCompanies] = useState([]);
+  const [tagFilter, setTagFilter] = useState('');
+  const [tags, setTags] = useState([]);
 
-  useEffect(() => {
-    fetchContacts();
-  }, []);
+  // Pagination
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchContacts = async () => {
+  // Tag & Bulk Actions
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [tagContact, setTagContact] = useState(null);
+  const [showBulkActionsModal, setShowBulkActionsModal] = useState(false);
+  const [selectedBulkAction, setSelectedBulkAction] = useState('');
+  const [sequences, setSequences] = useState([]);
+
+  // Modals
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [emailAccounts, setEmailAccounts] = useState([]);
+  const [showCreateContactModal, setShowCreateContactModal] = useState(false);
+  const [creatingContact, setCreatingContact] = useState(false);
+
+  // Forms
+  const [emailFormData, setEmailFormData] = useState({ to: '', subject: '', body: '', accountId: '' });
+  const [taskFormData, setTaskFormData] = useState({ title: '', description: '', type: 'todo', priority: '3', dueDate: '', contactId: '' });
+  const [meetingFormData, setMeetingFormData] = useState({ title: '', description: '', type: 'meeting', priority: '2', dueDate: '', contactId: '' });
+  const [newContactData, setNewContactData] = useState({ name: '', email: '', company: '', phone: '', position: '' });
+  
+  // Activity State
+  const [activity, setActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  // --- Initial Load ---
+  const fetchContacts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await contactsApi.getAll();
-      setContacts(response.data);
+      const response = await contactsApi.getAll({ showAll: true });
+      setContacts(response.data || []);
     } catch (error) {
       console.error('Error fetching contacts:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const syncContactsFromEmails = async () => {
-    if (!confirm('Czy chcesz zsynchronizować kontakty ze wszystkich emaili? Proces zostanie uruchomiony w tle.')) {
-      return;
+  // --- Activity Log Logic ---
+  useEffect(() => {
+    if (activeContact) {
+        setActivityLoading(true);
+        contactsApi.getContactEmails(activeContact.id)
+            .then(res => {
+                const emails = res.data?.emails || [];
+                // Transform emails to activity stream format
+                const mappedActivity = emails.map(email => ({
+                    id: email.id,
+                    type: email.status === 'sent' ? 'sent' : 'received',
+                    subject: email.subject,
+                    body: email.body || email.snippet,
+                    preview: email.preview,
+                    receivedAt: email.receivedAt,
+                    sentAt: email.sentAt
+                })).sort((a, b) => new Date(b.receivedAt || b.sentAt) - new Date(a.receivedAt || a.sentAt));
+                setActivity(mappedActivity);
+            })
+            .catch(err => console.error("Failed to load activity", err))
+            .finally(() => setActivityLoading(false));
+    } else {
+        setActivity([]);
     }
+  }, [activeContact]);
 
-    try {
-      const response = await contactsApi.syncFromEmails();
-
-      if (response.data.success) {
-        alert(`✅ ${response.data.message}\n\nKontakty będą aktualizowane w tle. Możesz odświeżyć stronę za chwilę aby zobaczyć nowe kontakty.`);
-        // Opcjonalnie odśwież po 5 sekundach
-        setTimeout(() => {
-          fetchContacts();
-        }, 5000);
-      } else {
-        alert(`❌ Błąd: ${response.data.message}`);
+  const handleTaskSubmit = async (e) => {
+      e.preventDefault();
+      setIsSaving(true);
+      try {
+          await tasksApi.create(taskFormData);
+          alert('Zadanie dodane!');
+          setShowTaskModal(false);
+      } catch (err) {
+          alert('Błąd dodawania zadania');
+      } finally {
+          setIsSaving(false);
       }
-    } catch (error) {
-      console.error('Error syncing contacts:', error);
-      alert('❌ Nie udało się uruchomić synchronizacji: ' + (error.response?.data?.message || error.message));
-    }
   };
 
-  const viewConversation = async (contact) => {
-    try {
-      const response = await contactsApi.getContactEmails(contact.id);
-      setSelectedContact(response.data.contact);
-      setContactEmails(response.data.emails);
-      setShowConversation(true);
-    } catch (error) {
-      console.error('Error fetching conversation:', error);
-      alert('Nie udało się pobrać konwersacji: ' + (error.response?.data?.message || error.message));
-    }
+  const handleMeetingSubmit = async (e) => {
+      e.preventDefault();
+      setIsSaving(true);
+      try {
+          await tasksApi.create(meetingFormData);
+          alert('Spotkanie zaplanowane!');
+          setShowMeetingModal(false);
+      } catch (err) {
+          alert('Błąd planowania spotkania');
+      } finally {
+          setIsSaving(false);
+      }
   };
 
-  const closeConversation = () => {
-    setShowConversation(false);
-    setSelectedContact(null);
-    setContactEmails([]);
+  const resetNewContactForm = () => {
+    setNewContactData({ name: '', email: '', company: '', phone: '', position: '' });
   };
 
-  const deleteContact = async (contactId, contactName) => {
-    if (!confirm(`Czy na pewno chcesz usunąć kontakt "${contactName}"?`)) {
+  const handleCreateContact = async (e) => {
+    e.preventDefault();
+    const name = newContactData.name.trim();
+    const email = newContactData.email.trim();
+
+    if (!name || !email) {
+      alert('Podaj imię i email kontaktu');
       return;
     }
-    
+
+    setCreatingContact(true);
     try {
-      await contactsApi.delete(contactId);
-      alert(`✅ Kontakt "${contactName}" został usunięty`);
-      fetchContacts(); // Odśwież listę
+      const payload = {
+        name,
+        email,
+        company: newContactData.company.trim(),
+        phone: newContactData.phone.trim(),
+        position: newContactData.position.trim()
+      };
+      const response = await contactsApi.create(payload);
+      alert('Kontakt utworzony!');
+      resetNewContactForm();
+      setShowCreateContactModal(false);
+      await fetchContacts();
+      setActiveContact(response.data);
+      setDetailsOpen(true);
+    } catch (err) {
+      console.error('Error creating contact', err);
+      alert(err.response?.data?.message || 'Błąd dodawania kontaktu');
+    } finally {
+      setCreatingContact(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchContacts();
+    fetchInitialData();
+  }, [fetchContacts]);
+
+  const fetchInitialData = async () => {
+    try {
+      const [companiesRes, accountsRes, tagsRes, seqRes] = await Promise.all([
+        contactsApi.getCompanies(),
+        emailAccountsApi.getAll(),
+        tagsApi.getAll(),
+        sequencesApi.getActive()
+      ]);
+      setCompanies(companiesRes.data || []);
+      setEmailAccounts(accountsRes.data || []);
+      setTags(tagsRes.data || []);
+      setSequences(seqRes.data || []);
     } catch (error) {
-      console.error('Error deleting contact:', error);
-      alert('❌ Nie udało się usunąć kontaktu');
+      console.error(error);
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pl-PL', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+  // --- Filtering & Pagination ---
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return contacts.filter((c) => {
+      const matchesSearch = !query || [c.name, c.company, c.email].some(f => (f || '').toLowerCase().includes(query));
+      const matchesCompany = !companyFilter || c.company === companyFilter;
+      const matchesTag = !tagFilter || (c.tags || []).some(t => t.id.toString() === tagFilter);
+      return matchesSearch && matchesCompany && matchesTag;
     });
+  }, [contacts, search, companyFilter, tagFilter]);
+
+  const paginatedContacts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+
+  // --- Selection Logic ---
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(new Set(paginatedContacts.map(c => c.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
   };
 
-  const getStatusLabel = (status) => {
-    const labels = {
-      positive: 'Pozytywna',
-      neutral: 'Neutralna',
-      negative: 'Negatywna'
-    };
-    return labels[status] || status;
+  const handleSelectRow = (id) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
   };
 
-  const getInitials = (name) => {
-    if (!name || name.trim().length === 0) {
-      return '?';
-    }
-    const words = name.trim().split(/\s+/).filter(word => word.length > 0);
-    if (words.length === 0) {
-      return '?';
-    }
-    if (words.length === 1) {
-      return words[0].substring(0, 2).toUpperCase();
-    }
-    // Weź pierwszą literę pierwszego i drugiego słowa
-    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  const handleRowClick = (contact) => {
+    setActiveContact(contact);
+    setDetailsOpen(true);
   };
 
-  const getRandomColor = () => {
-    const colors = ['#007AFF', '#34C759', '#FF9500', '#5856D6', '#FF3B30', '#00C7BE'];
-    return colors[Math.floor(Math.random() * colors.length)];
+  // --- Actions ---
+  const handleQuickEmail = (e, contact) => {
+    e.stopPropagation();
+    // Logic to find best account similar to previous implementation
+    const defaultAccount = emailAccounts.length > 0 ? emailAccounts[0].id : '';
+    setEmailFormData({
+        to: contact.email,
+        subject: '',
+        body: '',
+        accountId: defaultAccount
+    });
+    setShowEmailModal(true);
+  };
+
+  const handleBulkEmail = () => {
+    // Bulk email logic placeholder - for now just alert or pick first
+    alert(`Wysyłanie wiadomości do ${selectedIds.size} kontaktów (funkcja w przygotowaniu)`);
+  };
+
+  const handleEmailSubmit = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+        await api.post('/emails/send', { ...emailFormData, accountId: Number(emailFormData.accountId) });
+        alert('Email wysłany!');
+        setShowEmailModal(false);
+    } catch (err) {
+        alert('Błąd wysyłki');
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  // Tag & Bulk Actions Handlers
+  const handleTagContact = (contact) => {
+    setTagContact(contact);
+    setShowTagModal(true);
+  };
+
+  const handleToggleSelection = (contactId) => {
+    const newSelection = new Set(selectedIds);
+    if (newSelection.has(contactId)) {
+      newSelection.delete(contactId);
+    } else {
+      newSelection.add(contactId);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const handleBulkAction = async (action, tagId = null, sequenceId = null) => {
+    if (selectedIds.size === 0) {
+      alert('Zaznacz kontakty');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (action === 'tag' && tagId) {
+        await tagsApi.addToContacts(Array.from(selectedIds), tagId);
+        alert(`Tag dodany do ${selectedIds.size} kontaktów`);
+        await fetchContacts();
+      } else if (action === 'sequence' && sequenceId) {
+        const promises = Array.from(selectedIds).map(contactId =>
+          sequencesApi.startSequence(sequenceId, contactId)
+        );
+        await Promise.all(promises);
+        alert(`Sekwencja uruchomiona dla ${selectedIds.size} kontaktów`);
+      }
+      setSelectedIds(new Set());
+      setShowBulkActionsModal(false);
+    } catch (err) {
+      console.error(err);
+      alert('Błąd wykonywania akcji');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="container">
-      {selectedEmail && (
-        <EmailModal 
-          email={selectedEmail} 
-          onClose={() => setSelectedEmail(null)} 
-        />
-      )}
-      {showConversation && selectedContact ? (
-        // Widok konwersacji
+    <div className="contacts-shell">
+      {/* Topbar */}
+      <div className="contacts-topbar">
         <div>
-          <div className="page-header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h1 className="page-title">Konwersacja z {selectedContact.name}</h1>
-                <p className="page-subtitle">{selectedContact.email} • {selectedContact.company}</p>
-              </div>
-              <button className="btn btn-secondary" onClick={closeConversation}>
-                ← Powrót do kontaktów
-              </button>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">Historia wiadomości ({contactEmails.length})</h2>
-            </div>
-            <div className="email-list">
-              {contactEmails.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon">📭</div>
-                  <p>Brak wiadomości z tym kontaktem</p>
-                </div>
-              ) : (
-                contactEmails.map((email) => (
-                  <div 
-                    key={email.id} 
-                    className="email-item"
-                    onClick={() => setSelectedEmail(email)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="email-header">
-                      <div>
-                        <span className="email-sender">{email.sender}</span>
-                        <span className="email-company">{email.company}</span>
-                      </div>
-                      <span className="email-time">{formatDate(email.receivedAt)}</span>
-                    </div>
-                    <div className="email-subject">{email.subject}</div>
-                    <div className="email-preview">{email.preview}</div>
-                    <div className="email-tags">
-                      <span className={`tag ${email.status}`}>
-                        {getStatusLabel(email.status)}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <h1>Kontakty</h1>
+          <p className="contacts-sub">Zarządzaj relacjami z klientami</p>
         </div>
-      ) : (
-        // Widok listy kontaktów
-        <div>
-          <div className="page-header">
-            <h1 className="page-title">Kontakty biznesowe</h1>
-            <p className="page-subtitle">Zarządzanie bazą kontaktów i relacjami z klientami</p>
+        <div className="contacts-topbar-actions">
+          <button className="btn btn-secondary" onClick={() => fetchContacts()}>🔄 Odśwież</button>
+          <button className="btn btn-primary" onClick={() => setShowCreateContactModal(true)}>+ Dodaj kontakt</button>
+        </div>
+      </div>
+
+      {/* Main Dashboard Layout - matching Dashboard page */}
+      <div className="container" style={{ paddingTop: '24px' }}>
+        <div className="main-layout">
+        {/* Left Sidebar - Filters */}
+        <aside className="sidebar">
+          <h3>Filtry kontaktów</h3>
+
+          <div className="filter-group">
+            <label className="filter-label">Szukaj</label>
+            <div className="filter-input" style={{ position: 'relative' }}>
+               <Search className="search-icon" size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
+               <input
+                 style={{ paddingLeft: '40px', width: '100%' }}
+                 placeholder="Szukaj kontaktów..."
+                 value={search}
+                 onChange={e => setSearch(e.target.value)}
+               />
+            </div>
           </div>
 
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">Wszyscy kontakty ({contacts.length})</h2>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="filter-group">
+            <label className="filter-label">Firma</label>
+            <select
+                className="filter-input"
+                value={companyFilter}
+                onChange={e => setCompanyFilter(e.target.value)}
+            >
+                <option value="">Wszystkie firmy</option>
+                {companies.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Tagi</label>
+            <select
+                className="filter-input"
+                value={tagFilter}
+                onChange={e => setTagFilter(e.target.value)}
+            >
+                <option value="">Wszystkie tagi</option>
+                {tags.map(tag => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Statystyki</label>
+            <div style={{ background: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px' }}>
+                <span style={{ color: '#6b7280' }}>Wszystkie kontakty:</span>
+                <span style={{ fontWeight: '600', color: '#111827' }}>{contacts.length}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                <span style={{ color: '#6b7280' }}>Po filtrowaniu:</span>
+                <span style={{ fontWeight: '600', color: '#111827' }}>{filtered.length}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <section className="contacts-center">
+          {/* Toolbar - simplified */}
+          <div className="contacts-toolbar">
+            <div>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#111827' }}>
+                Lista kontaktów
+              </h3>
+              <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6b7280' }}>
+                Wyświetlono {filtered.length} z {contacts.length} kontaktów
+              </p>
+            </div>
+
+            <div style={{display:'flex', gap: '12px', alignItems: 'center'}}>
+              <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                {selectedIds.size > 0 && `${selectedIds.size} zaznaczonych`}
+              </span>
+            </div>
+          </div>
+
+          {/* Data Grid */}
+          <div className="contacts-table-container">
+            <table className="contacts-table">
+              <thead>
+                <tr>
+                  <th className="col-checkbox">
+                    <input 
+                      type="checkbox" 
+                      onChange={handleSelectAll} 
+                      checked={paginatedContacts.length > 0 && selectedIds.size === paginatedContacts.length}
+                    />
+                  </th>
+                  <th className="col-name">Nazwa / Firma</th>
+                  <th className="col-contact">Kontakt</th>
+                  <th>Status / Tagi</th>
+                  <th>Aktywność</th>
+                  <th className="col-actions"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedContacts.map(contact => {
+                   const initials = getInitials(contact.name);
+                   const activity = getLastActivityLabel(contact.updatedAt); // Using updatedAt as proxy
+                   return (
+                     <tr 
+                        key={contact.id} 
+                        className={`contacts-row ${selectedIds.has(contact.id) ? 'selected' : ''}`}
+                        onClick={() => handleRowClick(contact)}
+                     >
+                       <td className="col-checkbox" onClick={e => e.stopPropagation()}>
+                         <input 
+                            type="checkbox" 
+                            checked={selectedIds.has(contact.id)}
+                            onChange={() => handleSelectRow(contact.id)}
+                         />
+                       </td>
+                       <td>
+                         <div className="name-cell">
+                           <div className="contact-avatar">{initials}</div>
+                           <div>
+                             <div className="name-text">{contact.name}</div>
+                             <div className="company-text">{contact.company || '-'}</div>
+                           </div>
+                         </div>
+                       </td>
+                       <td>
+                         <div className="meta-cell">
+                           <a href={`mailto:${contact.email}`} className="email-link" onClick={e => e.stopPropagation()}>{contact.email}</a>
+                           <span style={{color:'#94a3b8'}}>{contact.phone}</span>
+                         </div>
+                       </td>
+                       <td>
+                         <div className="tags-wrapper">
+                            {(contact.tags || []).slice(0, 3).map(tag => (
+                              <span
+                                key={tag.id}
+                                className="tag-chip"
+                                style={{backgroundColor: tag.color, color: 'white'}}
+                                onClick={(e) => { e.stopPropagation(); handleTagContact(contact); }}
+                                title="Kliknij aby zarządzać tagami"
+                              >
+                                {tag.name}
+                              </span>
+                            ))}
+                            {(contact.tags || []).length === 0 && (
+                              <button
+                                className="add-tag-btn"
+                                onClick={(e) => { e.stopPropagation(); handleTagContact(contact); }}
+                              >
+                                + Tag
+                              </button>
+                            )}
+                         </div>
+                       </td>
+                       <td>
+                          <span className={`activity-badge ${activity.class}`}>
+                             {activity.label}
+                          </span>
+                       </td>
+                       <td>
+                         <div className="row-actions">
+                            <button 
+                                className="action-icon-btn" 
+                                title="Wyślij email"
+                                onClick={(e) => handleQuickEmail(e, contact)}
+                            >
+                                <Mail size={16} />
+                            </button>
+                            <button 
+                                className="action-icon-btn" 
+                                title="Zadzwoń"
+                                onClick={(e) => { e.stopPropagation(); window.location.href=`tel:${contact.phone}`}}
+                            >
+                                <Phone size={16} />
+                            </button>
+                         </div>
+                       </td>
+                     </tr>
+                   );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          <div className="contacts-pagination">
+             <span className="contacts-sub">Strona {currentPage} z {totalPages}</span>
+             <div style={{display:'flex', gap:'8px'}}>
                 <button 
-                  className="btn btn-secondary" 
-                  onClick={syncContactsFromEmails}
-                  disabled={loading}
+                    className="btn btn-secondary" 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
                 >
-                  🔄 Synchronizuj z emaili
+                    Poprzednia
                 </button>
-                <button className="btn btn-primary" onClick={() => alert('Funkcja dodawania kontaktu')}>
-                  <span>+</span> Dodaj kontakt
+                <button 
+                    className="btn btn-secondary" 
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                >
+                    Następna
                 </button>
-              </div>
-            </div>
+             </div>
+          </div>
+        </section>
 
-            {loading ? (
-              <div style={{ padding: '2rem', textAlign: 'center' }}>
-                Ładowanie kontaktów...
-              </div>
-            ) : (
-              <div className="contacts-grid">
-                {contacts.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-state-icon">👥</div>
-                    <p>Brak kontaktów. Kontakty są tworzone automatycznie z maili!</p>
-                  </div>
-                ) : (
-                  contacts.map((contact) => {
-                    const initials = getInitials(contact.name);
-                    const color = getRandomColor();
-
-                    return (
-                      <div key={contact.id} className="contact-card">
-                        <div className="contact-header">
-                          <div 
-                            className="contact-avatar" 
-                            style={{ background: `linear-gradient(135deg, ${color}, ${color}aa)` }}
-                          >
-                            {initials}
-                          </div>
-                          <div className="contact-info" style={{ flex: 1 }}>
-                            <h3 style={{ margin: 0, marginBottom: '0.25rem' }}>{contact.name}</h3>
-                            <p style={{ margin: 0 }}>{contact.company}</p>
-                          </div>
+        {/* Right Slide-Over Panel */}
+        <aside className={`contacts-details ${detailsOpen ? 'open' : ''}`}>
+            <button className="details-close" onClick={() => setDetailsOpen(false)}>
+                <X size={20} />
+            </button>
+            {activeContact && (
+                <div style={{marginTop:'20px'}}>
+                    <div style={{textAlign:'center', marginBottom:'24px'}}>
+                        <div className="contact-avatar" style={{width:'64px', height:'64px', fontSize:'24px', margin:'0 auto 12px'}}>
+                            {getInitials(activeContact.name)}
                         </div>
-                        <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '0.5rem', marginTop: 0 }}>
-                          {contact.email}
-                        </p>
-                        {contact.position && (
-                          <p style={{ color: '#007AFF', fontSize: '0.85rem', marginBottom: '0.5rem', marginTop: 0, fontWeight: '500' }}>
-                            {contact.position}
-                          </p>
+                        <h2 style={{fontSize:'18px', margin:'0 0 4px'}}>{activeContact.name}</h2>
+                        <p className="contacts-sub">{activeContact.company}</p>
+                    </div>
+
+                    <div style={{display:'flex', gap:'8px', marginBottom:'24px', justifyContent:'center'}}>
+                        <button className="btn btn-primary" onClick={(e) => handleQuickEmail(e, activeContact)}>
+                            <Mail size={16} /> Email
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => {
+                            setTaskFormData({ title: '', description: '', type: 'todo', priority: '3', dueDate: '', contactId: activeContact.id.toString() });
+                            setShowTaskModal(true);
+                        }}>
+                            <Calendar size={16} /> Zadanie
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => {
+                            setMeetingFormData({ title: `Spotkanie z ${activeContact.name}`, description: '', type: 'meeting', priority: '2', dueDate: '', contactId: activeContact.id.toString() });
+                            setShowMeetingModal(true);
+                        }}>
+                            <UserPlus size={16} /> Spotkanie
+                        </button>
+                    </div>
+
+                    <div className="contacts-section">
+                        <h3 style={{fontSize:'14px', fontWeight:'600', color:'#0f172a', marginBottom:'12px'}}>Dane kontaktowe</h3>
+                        <div style={{display:'flex', flexDirection:'column', gap:'12px', fontSize:'14px'}}>
+                            <div>
+                                <span className="contacts-sub" style={{display:'block', marginBottom:'2px'}}>Email</span>
+                                {activeContact.email}
+                            </div>
+                            <div>
+                                <span className="contacts-sub" style={{display:'block', marginBottom:'2px'}}>Telefon</span>
+                                {activeContact.phone || '-'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="contacts-section">
+                        <h3 style={{fontSize:'14px', fontWeight:'600', color:'#0f172a', marginBottom:'12px'}}>Ostatnia aktywność</h3>
+                        {activityLoading ? (
+                            <div className="contacts-sub">Ładowanie...</div>
+                        ) : activity.length === 0 ? (
+                            <div className="contacts-sub">Brak ostatniej aktywności</div>
+                        ) : (
+                            <div className="contacts-timeline">
+                                {activity.map(item => (
+                                    <div key={item.id} className="contacts-timeline-item">
+                                        <div style={{fontWeight:'500', marginBottom:'2px'}}>{item.subject || 'Brak tematu'}</div>
+                                        <div className="contacts-sub" style={{marginBottom:'4px'}}>
+                                            {new Date(item.receivedAt || item.sentAt).toLocaleDateString()} • {item.type === 'sent' ? 'Wysłano' : 'Odebrano'}
+                                        </div>
+                                        <div style={{color:'#64748b', fontSize:'13px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+                                            {item.preview || item.body}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
-                        <p style={{ color: '#666', fontSize: '0.9rem', marginBottom: '1rem', marginTop: 0 }}>
-                          {contact.phone || 'Brak telefonu'}
-                        </p>
-                        <div className="contact-stats">
-                          <div className="stat">
-                            <div className="stat-number-small">{contact.emailCount}</div>
-                            <div className="stat-label-small">Maile</div>
-                          </div>
-                          <div className="stat">
-                            <div className="stat-number-small">{contact.meetingCount}</div>
-                            <div className="stat-label-small">Spotkania</div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                          <button 
-                            className="btn btn-primary" 
-                            style={{ flex: 1 }}
-                            onClick={() => viewConversation(contact)}
-                          >
-                            📧 Zobacz konwersację
-                          </button>
-                          <button 
-                            className="btn btn-danger" 
-                            style={{ padding: '0.5rem', minWidth: 'auto' }}
-                            onClick={() => deleteContact(contact.id, contact.name)}
-                            title="Usuń kontakt"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                    </div>
+                </div>
             )}
+        </aside>
+        </div>
+      </div>
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+          <div className="floating-bar">
+              <div className="floating-count">{selectedIds.size} zaznaczonych</div>
+              <div className="floating-actions">
+                  <button className="floating-btn" onClick={handleBulkEmail}>
+                      <Send size={16} /> Wyślij email
+                  </button>
+                  <button className="floating-btn" onClick={() => { setSelectedBulkAction('tag'); setShowBulkActionsModal(true); }}>
+                      🏷️ Dodaj tag
+                  </button>
+                  <button className="floating-btn" onClick={() => { setSelectedBulkAction('sequence'); setShowBulkActionsModal(true); }}>
+                      ▶️ Uruchom sekwencję
+                  </button>
+                  <button className="floating-btn">
+                      <UserPlus size={16} /> Zmień opiekuna
+                  </button>
+                  <button className="floating-btn" style={{color:'#f87171'}}>
+                      <Trash2 size={16} /> Usuń
+                  </button>
+              </div>
+          </div>
+      )}
+
+      {/* Create Contact Modal */}
+      {showCreateContactModal && (
+        <div className="task-modal-overlay" onClick={() => { setShowCreateContactModal(false); resetNewContactForm(); }}>
+          <div className="task-modal" onClick={e => e.stopPropagation()}>
+            <header className="task-modal__header">
+              <h2>Dodaj nowy kontakt</h2>
+              <button className="task-modal__close" onClick={() => { setShowCreateContactModal(false); resetNewContactForm(); }}>×</button>
+            </header>
+            <form className="task-form" onSubmit={handleCreateContact}>
+              <div className="task-form__section">
+                <label className="task-form__label">Imię i nazwisko *</label>
+                <input
+                  className="contacts-search"
+                  value={newContactData.name}
+                  onChange={e => setNewContactData({ ...newContactData, name: e.target.value })}
+                  placeholder="np. Jan Kowalski"
+                  required
+                />
+              </div>
+              <div className="task-form__section">
+                <label className="task-form__label">Email *</label>
+                <input
+                  className="contacts-search"
+                  type="email"
+                  value={newContactData.email}
+                  onChange={e => setNewContactData({ ...newContactData, email: e.target.value })}
+                  placeholder="jan@example.com"
+                  required
+                />
+              </div>
+              <div className="task-form__grid">
+                <label className="task-form__label">
+                  Firma
+                  <input
+                    className="contacts-search"
+                    value={newContactData.company}
+                    onChange={e => setNewContactData({ ...newContactData, company: e.target.value })}
+                    placeholder="Nazwa firmy"
+                  />
+                </label>
+                <label className="task-form__label">
+                  Telefon
+                  <input
+                    className="contacts-search"
+                    value={newContactData.phone}
+                    onChange={e => setNewContactData({ ...newContactData, phone: e.target.value })}
+                    placeholder="+48..."
+                  />
+                </label>
+              </div>
+              <div className="task-form__section">
+                <label className="task-form__label">Stanowisko</label>
+                <input
+                  className="contacts-search"
+                  value={newContactData.position}
+                  onChange={e => setNewContactData({ ...newContactData, position: e.target.value })}
+                  placeholder="np. CEO"
+                />
+              </div>
+              <div className="task-modal__footer" style={{ justifyContent: 'space-between' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => { setShowCreateContactModal(false); resetNewContactForm(); }} disabled={creatingContact}>
+                  Anuluj
+                </button>
+                <button className="btn btn-primary" disabled={creatingContact}>
+                  {creatingContact ? 'Zapisywanie...' : 'Dodaj kontakt'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="task-modal-overlay" onClick={() => setShowEmailModal(false)}>
+            <div className="task-modal" onClick={e => e.stopPropagation()}>
+                <header className="task-modal__header">
+                    <h2>Wyślij wiadomość</h2>
+                    <button className="task-modal__close" onClick={() => setShowEmailModal(false)}>×</button>
+                </header>
+                <form className="task-form" onSubmit={handleEmailSubmit}>
+                    <div className="task-form__section">
+                        <label className="task-form__label">Do</label>
+                        <input value={emailFormData.to} disabled className="contacts-search" />
+                    </div>
+                    <div className="task-form__section">
+                        <label className="task-form__label">Temat</label>
+                        <input 
+                            value={emailFormData.subject} 
+                            onChange={e => setEmailFormData({...emailFormData, subject: e.target.value})}
+                            className="contacts-search" 
+                        />
+                    </div>
+                    <div className="task-form__section">
+                        <label className="task-form__label">Treść</label>
+                        <textarea 
+                            rows={5}
+                            value={emailFormData.body} 
+                            onChange={e => setEmailFormData({...emailFormData, body: e.target.value})}
+                            className="contacts-search"
+                        />
+                    </div>
+                    <div className="task-modal__footer">
+                        <button className="btn btn-primary" disabled={isSaving}>Wyślij</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* Task Modal */}
+      {showTaskModal && (
+        <div className="task-modal-overlay" onClick={() => setShowTaskModal(false)}>
+            <div className="task-modal" onClick={e => e.stopPropagation()}>
+                <header className="task-modal__header">
+                    <h2>Nowe Zadanie</h2>
+                    <button className="task-modal__close" onClick={() => setShowTaskModal(false)}>×</button>
+                </header>
+                <form className="task-form" onSubmit={handleTaskSubmit}>
+                    <div className="task-form__section">
+                        <label className="task-form__label">Tytuł</label>
+                        <input 
+                            value={taskFormData.title} 
+                            onChange={e => setTaskFormData({...taskFormData, title: e.target.value})}
+                            className="contacts-search"
+                            placeholder="np. Zadzwonić do klienta"
+                            required
+                        />
+                    </div>
+                    <div className="task-form__section">
+                        <label className="task-form__label">Opis</label>
+                        <textarea 
+                            rows={3}
+                            value={taskFormData.description} 
+                            onChange={e => setTaskFormData({...taskFormData, description: e.target.value})}
+                            className="contacts-search"
+                        />
+                    </div>
+                    <div className="task-form__grid">
+                        <label className="task-form__label">
+                            Priorytet
+                            <select 
+                                value={taskFormData.priority} 
+                                onChange={e => setTaskFormData({...taskFormData, priority: e.target.value})}
+                                className="contacts-search"
+                            >
+                                <option value="1">Wysoki</option>
+                                <option value="2">Średni</option>
+                                <option value="3">Niski</option>
+                            </select>
+                        </label>
+                        <label className="task-form__label">
+                            Termin
+                            <input 
+                                type="datetime-local"
+                                value={taskFormData.dueDate} 
+                                onChange={e => setTaskFormData({...taskFormData, dueDate: e.target.value})}
+                                className="contacts-search"
+                            />
+                        </label>
+                    </div>
+                    <div className="task-modal__footer">
+                        <button className="btn btn-primary" disabled={isSaving}>Zapisz</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* Meeting Modal */}
+      {showMeetingModal && (
+        <div className="task-modal-overlay" onClick={() => setShowMeetingModal(false)}>
+            <div className="task-modal" onClick={e => e.stopPropagation()}>
+                <header className="task-modal__header">
+                    <h2>Zaplanuj Spotkanie</h2>
+                    <button className="task-modal__close" onClick={() => setShowMeetingModal(false)}>×</button>
+                </header>
+                <form className="task-form" onSubmit={handleMeetingSubmit}>
+                    <div className="task-form__section">
+                        <label className="task-form__label">Tytuł</label>
+                        <input 
+                            value={meetingFormData.title} 
+                            onChange={e => setMeetingFormData({...meetingFormData, title: e.target.value})}
+                            className="contacts-search"
+                            required
+                        />
+                    </div>
+                    <div className="task-form__section">
+                        <label className="task-form__label">Opis / Agenda</label>
+                        <textarea 
+                            rows={3}
+                            value={meetingFormData.description} 
+                            onChange={e => setMeetingFormData({...meetingFormData, description: e.target.value})}
+                            className="contacts-search"
+                        />
+                    </div>
+                    <div className="task-form__grid">
+                        <label className="task-form__label">
+                            Data i godzina
+                            <input 
+                                type="datetime-local"
+                                value={meetingFormData.dueDate} 
+                                onChange={e => setMeetingFormData({...meetingFormData, dueDate: e.target.value})}
+                                className="contacts-search"
+                                required
+                            />
+                        </label>
+                    </div>
+                    <div className="task-modal__footer">
+                        <button className="btn btn-primary" disabled={isSaving}>Zaplanuj</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* Tag Modal */}
+      <TagModal
+        isOpen={showTagModal}
+        onClose={() => {
+          setShowTagModal(false);
+          setTagContact(null);
+        }}
+        contact={tagContact}
+        onTagAdded={fetchContacts}
+      />
+
+      {/* Bulk Actions Modal */}
+      {showBulkActionsModal && (
+        <div className="modal-overlay" onClick={() => { setShowBulkActionsModal(false); setSelectedBulkAction(''); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{selectedBulkAction === 'tag' ? 'Dodaj tag do kontaktów' : 'Uruchom sekwencję'}</h2>
+              <p>Zaznaczono kontaktów: {selectedIds.size}</p>
+              <button className="modal-close" onClick={() => { setShowBulkActionsModal(false); setSelectedBulkAction(''); }}>×</button>
+            </div>
+            <div className="modal-body">
+              {selectedBulkAction === 'tag' && (
+                <div className="form-group">
+                  <label>Wybierz tag</label>
+                  <select
+                    id="bulkTagSelect"
+                    disabled={isSaving}
+                  >
+                    <option value="">-- Wybierz tag --</option>
+                    {tags.map(tag => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {selectedBulkAction === 'sequence' && (
+                <div className="form-group">
+                  <label>Wybierz sekwencję</label>
+                  <select
+                    id="bulkSequenceSelect"
+                    disabled={isSaving}
+                  >
+                    <option value="">-- Wybierz sekwencję --</option>
+                    {sequences.map(seq => (
+                      <option key={seq.id} value={seq.id}>{seq.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => { setShowBulkActionsModal(false); setSelectedBulkAction(''); }}
+                  disabled={isSaving}
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={isSaving}
+                  onClick={() => {
+                    const tagSelect = document.getElementById('bulkTagSelect');
+                    const seqSelect = document.getElementById('bulkSequenceSelect');
+                    const tagId = tagSelect ? Number(tagSelect.value) : null;
+                    const seqId = seqSelect ? Number(seqSelect.value) : null;
+                    handleBulkAction(selectedBulkAction, tagId, seqId);
+                  }}
+                >
+                  {isSaving ? 'Wykonywanie...' : 'Wykonaj'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

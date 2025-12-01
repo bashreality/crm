@@ -49,12 +49,13 @@ public class WoodpeckerController {
             // Zawsze zwracaj sukces, nawet jeśli lista jest pusta
             return ResponseEntity.ok(campaigns);
         } catch (RuntimeException e) {
-            // Tylko błędy autoryzacji powinny być rzucane jako wyjątki
-            log.error("Error fetching campaigns", e);
+            // Log error but don't return 401 to avoid logging out the user
+            log.error("Error fetching campaigns (RuntimeException)", e);
             Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
             error.put("campaigns", new ArrayList<>());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            // Return 200 OK with empty list instead of 401
+            return ResponseEntity.ok(error);
         } catch (Exception e) {
             log.error("Unexpected error fetching campaigns", e);
             // Dla innych błędów zwróć pustą listę

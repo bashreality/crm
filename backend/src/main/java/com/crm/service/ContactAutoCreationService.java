@@ -16,6 +16,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.scheduling.annotation.Async;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -27,8 +29,9 @@ public class ContactAutoCreationService {
     /**
      * Wymusza utworzenie kontaktów ze wszystkich istniejących emaili
      */
+    @Async
     @Transactional
-    public int syncContactsFromAllEmails() {
+    public void syncContactsFromAllEmails() {
         log.info("Starting manual contact sync from all emails...");
         List<Email> allEmails = emailRepository.findAll();
         int created = 0;
@@ -72,7 +75,6 @@ public class ContactAutoCreationService {
         }
         
         log.info("Contact sync completed. Created: {}, Updated: {}, Errors: {}", created, updated, errors);
-        return created;
     }
 
     /**
@@ -198,6 +200,7 @@ public class ContactAutoCreationService {
                 newContact.setPosition(position);
                 newContact.setEmailCount(1);
                 newContact.setMeetingCount(0);
+                // Nie ustawiamy userId - kontakt będzie globalny
 
                 log.debug("Attempting to save new contact: email={}, name={}, company={}",
                     newContact.getEmail(), newContact.getName(), newContact.getCompany());

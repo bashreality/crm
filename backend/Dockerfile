@@ -9,6 +9,8 @@ RUN mvn dependency:go-offline -B
 
 # Copy source code and build
 COPY src ./src
+# Debug: Print V2 migration file to ensure it is updated
+RUN cat src/main/resources/db/migration/V2__add_reply_and_sequence_columns.sql
 RUN mvn clean package -DskipTests
 
 # Runtime stage

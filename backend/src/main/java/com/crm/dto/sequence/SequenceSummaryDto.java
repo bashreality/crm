@@ -27,5 +27,9 @@ public class SequenceSummaryDto {
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     LocalDateTime nextScheduledSend;
+    Long tagId;
+    String tagName;
+    Long emailAccountId;
+    String emailAccountName;
 }
 

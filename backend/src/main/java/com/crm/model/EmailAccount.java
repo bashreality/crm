@@ -11,7 +11,7 @@ public class EmailAccount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String emailAddress;
 
     @Column(nullable = false)
@@ -37,6 +37,12 @@ public class EmailAccount {
 
     @Column(nullable = false)
     private String displayName; // Friendly name for the account
+
+    @Column(name = "user_id")
+    private Long userId; // ID użytkownika będącego właścicielem tego konta
+
+    @Column(name = "signature", columnDefinition = "TEXT")
+    private String signature; // Email signature for this account
 
     private LocalDateTime lastFetchAt;
 
@@ -170,5 +176,21 @@ public class EmailAccount {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getSignature() {
+        return signature;
+    }
+
+    public void setSignature(String signature) {
+        this.signature = signature;
     }
 }

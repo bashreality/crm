@@ -1,0 +1,425 @@
+/* Dashboard Specific Styles */
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--color-bg-surface);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary);
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.stat-number.positive { color: var(--color-success); }
+.stat-number.neutral { color: var(--color-warning); }
+.stat-number.negative { color: var(--color-danger); }
+
+.stat-label {
+  font-size: 13px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+/* Main Layout */
+.main-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--color-bg-surface);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border);
+  position: sticky;
+  top: 88px;
+}
+
+.sidebar h3 {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.filter-group {
+  margin-bottom: 20px;
+}
+
+.filter-input {
+  width: 100%;
+}
+
+/* Email List */
+.email-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.email-item {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.email-item:hover {
+  background: var(--color-bg-main);
+}
+
+.email-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.email-sender {
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.email-company {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+.email-subject {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+  color: var(--color-text-main);
+}
+
+.email-subject-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.email-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.email-tag-pill {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.email-tag-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.email-preview {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Action Chips */
+.email-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.email-item:hover .email-actions {
+  opacity: 1;
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  background: white;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.chip-primary {
+  color: var(--color-primary);
+  border-color: var(--color-primary-light);
+  background: var(--color-primary-light);
+}
+
+.chip-success {
+  color: var(--color-success);
+  border-color: #d1fae5;
+  background: #ecfdf5;
+}
+
+.chip-info {
+  color: #3b82f6;
+  border-color: #dbeafe;
+  background: #eff6ff;
+}
+
+.chip-danger {
+  color: var(--color-danger);
+  border-color: #fee2e2;
+  background: #fef2f2;
+}
+
+/* Tags */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+.tag.positive { background: #d1fae5; color: #065f46; }
+.tag.neutral { background: #fef3c7; color: #92400e; }
+.tag.negative { background: #fee2e2; color: #991b1b; }
+.tag.undelivered { background: #f3f4f6; color: #1f2937; }
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: var(--color-text-secondary);
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* Pagination */
+.emails-pagination {
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.emails-pagination-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .email-actions {
+    opacity: 1;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-number {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .stat-number {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+}
+
+/* FORCE: Critical styles for Sequences and Tasks pages */
+.sequences-shell, .tasks-shell {
+  background-color: #f8fafc !important;
+  min-height: 100vh !important;
+  overflow: hidden !important;
+}
+
+.sequences-topbar, .tasks-topbar {
+  padding: 20px 32px !important;
+  background-color: white !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.sequences-center, .tasks-center {
+  background: #f8fafc !important;
+  padding: 24px 0 0 0 !important;
+}
+
+/* White cards for content */
+.sequences-center > div, .tasks-center > div {
+  background: white !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #e5e7eb !important;
+  margin-bottom: 20px !important;
+  overflow: hidden !important;
+}
+
+.sequences-toolbar, .tasks-toolbar {
+  padding: 20px 24px !important;
+  background: white !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.sequences-content {
+  padding: 24px !important;
+  background: white !important;
+  border-radius: 0 0 16px 16px !important;
+}
+
+.tasks-list {
+  background: white !important;
+  border-radius: 0 0 16px 16px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+/* Tasks-specific styles */
+.tasks-stats {
+  background: #f9fafb !important;
+  padding: 16px !important;
+  border-radius: 8px !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* Add spacing between metrics and main content */
+.tasks-metrics {
+  margin-bottom: 32px !important;
+}
+
+.sequences-metrics {
+  margin-bottom: 32px !important;
+}
+
+/* Sequences-specific layout adjustments */
+.sequences-main-layout {
+  display: grid !important;
+  grid-template-columns: 400px 1fr !important; /* Wider sequences list, smaller details */
+  gap: 24px !important;
+  align-items: start !important;
+}
+
+.sequences-list-section {
+  background: white !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #e5e7eb !important;
+  overflow: hidden !important;
+}
+
+.sequences-list-header {
+  padding: 20px 24px !important;
+  background: white !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.sequences-list-content {
+  padding: 16px !important;
+  background: white !important;
+  max-height: 600px !important;
+  overflow-y: auto !important;
+}
+
+.stat-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  margin-bottom: 8px !important;
+  font-size: 14px !important;
+}
+
+.stat-row:last-child {
+  margin-bottom: 0 !important;
+}
+
+.stat-row span:first-child {
+  color: #6b7280 !important;
+}
+
+.stat-row span:last-child {
+  font-weight: 600 !important;
+  color: #111827 !important;
+}

@@ -79,6 +79,7 @@ const TaskModal = ({
   task,
   setTask,
   isSaving,
+  isEditing = false,
 }) => {
   if (!isOpen) return null;
 
@@ -96,8 +97,8 @@ const TaskModal = ({
       >
         <header className="task-modal__header">
           <div>
-            <h2>Nowe zadanie</h2>
-            <p>Przypisz follow-up lub zadanie dla zespołu</p>
+            <h2>{isEditing ? 'Edytuj zadanie' : 'Nowe zadanie'}</h2>
+            <p>{isEditing ? 'Zaktualizuj szczegóły zadania' : 'Przypisz follow-up lub zadanie dla zespołu'}</p>
           </div>
           <button
             type="button"
@@ -270,7 +271,7 @@ const TaskModal = ({
               Anuluj
             </button>
             <button type="submit" className="btn-primary" disabled={isSaving}>
-              {isSaving ? 'Zapisywanie...' : 'Zapisz zadanie'}
+              {isSaving ? 'Zapisywanie...' : isEditing ? 'Zaktualizuj zadanie' : 'Zapisz zadanie'}
             </button>
           </footer>
         </form>
@@ -289,6 +290,7 @@ const Tasks = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [formState, setFormState] = useState(emptyTask);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingTask, setEditingTask] = useState(null); // null = create mode, task object = edit mode
 
   useEffect(() => {
     const loadData = async () => {
@@ -376,22 +378,44 @@ const Tasks = () => {
         type: formState.type,
         dueDate: formState.dueDate ? `${formState.dueDate}:00` : null,
         priority: Number(formState.priority),
-        completed: false,
+        completed: editingTask ? editingTask.completed : false,
         contact: formState.contactId
           ? { id: Number(formState.contactId) }
           : null,
       };
 
-      await tasksApi.create(payload);
+      if (editingTask) {
+        // Edit mode - update existing task
+        await tasksApi.update(editingTask.id, payload);
+      } else {
+        // Create mode - create new task
+        await tasksApi.create(payload);
+      }
+
       await refreshTasks();
       setModalOpen(false);
       setFormState(emptyTask);
+      setEditingTask(null);
     } catch (err) {
       console.error('Błąd zapisu zadania:', err);
       alert('Nie udało się zapisać zadania. Sprawdź dane i spróbuj ponownie.');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleEditTask = (task) => {
+    // Convert task to form format
+    setFormState({
+      title: task.title,
+      description: task.description || '',
+      type: task.type,
+      contactId: task.contact?.id || '',
+      dueDate: task.dueDate ? task.dueDate.slice(0, 16) : '',
+      priority: String(task.priority),
+    });
+    setEditingTask(task);
+    setModalOpen(true);
   };
 
   const handleCompleteTask = async (taskId) => {
@@ -418,77 +442,162 @@ const Tasks = () => {
   };
 
   return (
-    <div className="tasks-page">
+    <div className="tasks-shell">
       <div className="tasks-topbar">
         <div>
           <h1>Zadania i follow-upy</h1>
-          <p>Zaplanuj kolejne kroki i domknij rozmowy z klientami.</p>
+          <p className="tasks-sub">Zaplanuj kolejne kroki i domknij rozmowy z klientami.</p>
         </div>
-        <button className="btn-primary" onClick={() => setModalOpen(true)}>
-          + Nowe zadanie
-        </button>
+        <div className="tasks-topbar-actions">
+          <button className="btn btn-secondary" onClick={() => refreshTasks()}>
+            🔄 Odśwież
+          </button>
+          <button className="btn btn-primary" onClick={() => {
+            setFormState(emptyTask);
+            setEditingTask(null);
+            setModalOpen(true);
+          }}>
+            + Nowe zadanie
+          </button>
+        </div>
       </div>
 
-      <section className="tasks-metrics">
+      <div className="container" style={{ paddingTop: '24px' }}>
+        <section className="tasks-metrics">
         <article className="metric-card">
-          <span className="metric-label">Aktywne</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span className="metric-label">Aktywne</span>
+            <span style={{ fontSize: '20px' }}>📋</span>
+          </div>
           <strong className="metric-value">{stats.pending}</strong>
           <span className="metric-trend positive">
             {stats.today} zaplanowane na dziś
           </span>
         </article>
         <article className="metric-card">
-          <span className="metric-label">Spóźnione</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span className="metric-label">Spóźnione</span>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+          </div>
           <strong className="metric-value overdue">{stats.overdue}</strong>
           <span className="metric-trend">
             {stats.total ? `${Math.round((stats.overdue / stats.total) * 100)}%` : 0}
-            {' '}portfela
+            {' '}listy zadań
           </span>
         </article>
         <article className="metric-card">
-          <span className="metric-label">Zakończone</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span className="metric-label">Zakończone</span>
+            <span style={{ fontSize: '20px' }}>✅</span>
+          </div>
           <strong className="metric-value completed">{stats.completed}</strong>
           <span className="metric-trend neutral">
             Łącznie {stats.total} zadań
           </span>
         </article>
+        <article className="metric-card" style={{ gridColumn: 'span 1' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span className="metric-label">Postęp</span>
+            <span style={{ fontSize: '20px' }}>📊</span>
+          </div>
+          <strong className="metric-value" style={{ color: '#6366f1' }}>
+            {stats.total ? Math.round((stats.completed / stats.total) * 100) : 0}%
+          </strong>
+          <div style={{ width: '100%', height: '8px', backgroundColor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', marginTop: '12px' }}>
+            <div style={{
+              width: `${stats.total ? (stats.completed / stats.total) * 100 : 0}%`,
+              height: '100%',
+              backgroundColor: '#10b981',
+              transition: 'width 0.3s ease',
+              borderRadius: '4px'
+            }}></div>
+          </div>
+          <span className="metric-trend neutral" style={{ marginTop: '8px', display: 'block' }}>
+            {stats.completed} z {stats.total} ukończonych
+          </span>
+        </article>
       </section>
 
-      <div className="tasks-controls">
-        <div className="tasks-filters">
-          {filterOptions.map((option) => (
-            <button
-              key={option.value}
-              className={filter === option.value ? 'active' : ''}
-              onClick={() => setFilter(option.value)}
-            >
-              {option.label}
-              <span>
-                {option.value === 'all'
-                  ? stats.total
-                  : option.value === 'pending'
-                  ? stats.pending
-                  : option.value === 'overdue'
-                  ? stats.overdue
-                  : option.value === 'completed'
-                  ? stats.completed
-                  : stats.today}
-              </span>
-            </button>
-          ))}
-        </div>
+      <div className="main-layout">
+        {/* Left Sidebar - Filters */}
+        <aside className="sidebar">
+          <h3>Filtry zadań</h3>
 
-        <div className="tasks-search">
-          <input
-            type="search"
-            placeholder="Szukaj po tytule, opisie lub kontakcie..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
+          <div className="filter-group">
+            <label className="filter-label">Status</label>
+            <div className="tasks-filters">
+              {filterOptions.map((option) => (
+                <button
+                  key={option.value}
+                  className={filter === option.value ? 'active' : ''}
+                  onClick={() => setFilter(option.value)}
+                >
+                  {option.label}
+                  <span>
+                    {option.value === 'all'
+                      ? stats.total
+                      : option.value === 'pending'
+                      ? stats.pending
+                      : option.value === 'overdue'
+                      ? stats.overdue
+                      : option.value === 'completed'
+                      ? stats.completed
+                      : stats.today}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <section className="tasks-list">
+          <div className="filter-group">
+            <label className="filter-label">Szukaj</label>
+            <div className="filter-input">
+              <input
+                type="search"
+                placeholder="Szukaj po tytule, opisie lub kontakcie..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="filter-group">
+            <label className="filter-label">Statystyki</label>
+            <div className="tasks-stats">
+              <div className="stat-row">
+                <span>Wszystkie zadania:</span>
+                <span>{stats.total}</span>
+              </div>
+              <div className="stat-row">
+                <span>Oczekujące:</span>
+                <span>{stats.pending}</span>
+              </div>
+              <div className="stat-row">
+                <span>Spóźnione:</span>
+                <span>{stats.overdue}</span>
+              </div>
+              <div className="stat-row">
+                <span>Ukończone:</span>
+                <span>{stats.completed}</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content - Tasks List */}
+        <section className="tasks-center">
+          {/* White Card Container */}
+          <div>
+            {/* Toolbar */}
+            <div className="tasks-toolbar">
+              <div>
+                <h3>Lista zadań</h3>
+                <p>Wyświetlono {filteredTasks.length} z {stats.total} zadań</p>
+              </div>
+            </div>
+
+            {/* Tasks List */}
+            <div className="tasks-list">
         {isLoading && (
           <div className="tasks-empty">
             <div className="tasks-spinner" />
@@ -508,7 +617,11 @@ const Tasks = () => {
             <div className="tasks-empty__icon">🗂️</div>
             <h3>Brak zadań w tej sekcji</h3>
             <p>Utwórz nowe zadanie lub zmień filtr, aby zobaczyć archiwum.</p>
-            <button className="btn-secondary" onClick={() => setModalOpen(true)}>
+            <button className="btn-secondary" onClick={() => {
+              setFormState(emptyTask);
+              setEditingTask(null);
+              setModalOpen(true);
+            }}>
               Dodaj pierwsze zadanie
             </button>
           </div>
@@ -522,6 +635,8 @@ const Tasks = () => {
               className={`task-card ${
                 task.completed ? 'task-card--completed' : ''
               } ${isOverdue(task) ? 'task-card--overdue' : ''}`}
+              onClick={() => handleEditTask(task)}
+              style={{ cursor: 'pointer' }}
             >
               <div className="task-card__header">
                 <div className="task-card__info">
@@ -572,13 +687,21 @@ const Tasks = () => {
 
                 <div className="task-card__actions">
                   {!task.completed && (
-                    <button onClick={() => handleCompleteTask(task.id)}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCompleteTask(task.id);
+                      }}
+                    >
                       Oznacz jako ukończone
                     </button>
                   )}
                   <button
                     className="danger"
-                    onClick={() => handleDeleteTask(task.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTask(task.id);
+                    }}
                   >
                     Usuń
                   </button>
@@ -586,7 +709,11 @@ const Tasks = () => {
               </footer>
             </article>
           ))}
-      </section>
+            </div>
+          </div>
+        </section>
+      </div>
+      </div>
 
       <TaskModal
         contacts={contacts}
@@ -595,12 +722,14 @@ const Tasks = () => {
           if (!isSaving) {
             setModalOpen(false);
             setFormState(emptyTask);
+            setEditingTask(null);
           }
         }}
         onSubmit={handleSubmitTask}
         task={formState}
         setTask={setFormState}
         isSaving={isSaving}
+        isEditing={!!editingTask}
       />
     </div>
   );

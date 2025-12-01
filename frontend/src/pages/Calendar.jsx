@@ -3,8 +3,10 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { tasksApi, contactsApi } from '../services/api';
+import { CheckCircle2, AlertCircle, Clock, Trash2 } from 'lucide-react'; // Import icons
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '../styles/Calendar.css';
+import '../styles/Tasks.css';
 
 const locales = {
   'pl': pl,
@@ -18,19 +20,29 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+const formats = {
+  monthHeaderFormat: 'LLLL yyyy',
+  dayHeaderFormat: 'EEEE, d LLLL',
+  dayRangeHeaderFormat: ({ start, end }, culture, loc) =>
+    `${loc.format(start, 'd LLLL', culture)} – ${loc.format(end, 'd LLLL', culture)}`,
+  eventTimeRangeFormat: ({ start, end }, culture, loc) =>
+    `${loc.format(start, 'HH:mm', culture)} - ${loc.format(end, 'HH:mm', culture)}`,
+};
+
 const CalendarTask = () => {
   const [tasks, setTasks] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [onlyHighPriority, setOnlyHighPriority] = useState(false);
   const [taskFormData, setTaskFormData] = useState({
     title: '',
     description: '',
     type: 'todo',
     dueDate: '',
     contactId: null,
-    priority: 2
+    priority: 3 // Default Low
   });
 
   useEffect(() => {
@@ -56,9 +68,12 @@ const CalendarTask = () => {
     }
   };
 
-  // Konwertuj zadania na eventy dla kalendarza
-  const events = tasks.map(task => {
-    const start = task.dueDate ? new Date(task.dueDate) : new Date();
+  const visibleTasks = onlyHighPriority
+    ? tasks.filter((t) => Number(t.priority) === 1)
+    : tasks;
+
+  const events = visibleTasks.map(task => {
+    const start = task.dueDate ? new Date(task.dueDate) : new Date(); // Default to now if no date, or filter out?
     const end = new Date(start.getTime() + 60 * 60 * 1000); // +1 hour
 
     return {
@@ -71,8 +86,7 @@ const CalendarTask = () => {
     };
   });
 
-  const handleSelectSlot = useCallback(({ start, end }) => {
-    // Formatuj datę do datetime-local input
+  const handleSelectSlot = useCallback(({ start }) => {
     const formattedDate = format(start, "yyyy-MM-dd'T'HH:mm");
     setTaskFormData({
       title: '',
@@ -80,7 +94,7 @@ const CalendarTask = () => {
       type: 'todo',
       dueDate: formattedDate,
       contactId: null,
-      priority: 2
+      priority: 3
     });
     setShowTaskModal(true);
   }, []);
@@ -92,14 +106,21 @@ const CalendarTask = () => {
 
   const handleTaskFormChange = (e) => {
     const { name, value } = e.target;
-    setTaskFormData(prev => ({ ...prev, [name]: value }));
+    setTaskFormData(prev => ({
+      ...prev,
+      [name]: name === 'priority'
+        ? Number(value)
+        : name === 'contactId'
+          ? (value ? Number(value) : null)
+          : value
+    }));
   };
 
   const handleTaskSubmit = async (e) => {
     e.preventDefault();
 
     if (!taskFormData.title || !taskFormData.dueDate) {
-      alert('Wypełnij tytuł i datę wykonania');
+      alert('Wpisz tytuł i termin zadania');
       return;
     }
 
@@ -109,11 +130,9 @@ const CalendarTask = () => {
         description: taskFormData.description?.trim() || null,
         type: taskFormData.type,
         dueDate: taskFormData.dueDate ? `${taskFormData.dueDate}:00` : null,
-        priority: Number(taskFormData.priority),
+        priority: Number(taskFormData.priority) || 3,
         completed: false,
-        contact: taskFormData.contactId
-          ? { id: Number(taskFormData.contactId) }
-          : null,
+        contact: taskFormData.contactId ? { id: Number(taskFormData.contactId) } : null,
       };
 
       await tasksApi.create(payload);
@@ -125,9 +144,9 @@ const CalendarTask = () => {
         type: 'todo',
         dueDate: '',
         contactId: null,
-        priority: 2
+        priority: 3
       });
-      fetchTasks(); // Odśwież kalendarz
+      fetchTasks();
     } catch (error) {
       console.error('Error creating task:', error);
       alert('❌ Błąd podczas tworzenia zadania');
@@ -136,7 +155,6 @@ const CalendarTask = () => {
 
   const handleCompleteTask = async () => {
     if (!selectedEvent) return;
-
     try {
       await tasksApi.complete(selectedEvent.id);
       alert('✅ Zadanie oznaczone jako ukończone!');
@@ -151,7 +169,6 @@ const CalendarTask = () => {
 
   const handleDeleteTask = async () => {
     if (!selectedEvent || !window.confirm('Czy na pewno chcesz usunąć to zadanie?')) return;
-
     try {
       await tasksApi.delete(selectedEvent.id);
       alert('✅ Zadanie zostało usunięte!');
@@ -164,56 +181,111 @@ const CalendarTask = () => {
     }
   };
 
+  // Custom Event Component
+  const CustomEvent = ({ event }) => {
+    const task = event.resource;
+    if (!task) return null;
+    return (
+      <div className="rbc-event-content">
+        <div className="rbc-event-title">
+          {task.completed && <CheckCircle2 size={12} style={{marginRight:4}} />}
+          {task.title}
+        </div>
+      </div>
+    );
+  };
+
   const eventStyleGetter = (event) => {
     const task = event.resource;
-    let backgroundColor = '#3174ad';
+    let backgroundColor = '#3b82f6'; // Default
+    const priority = parseInt(task.priority);
 
     if (task.completed) {
-      backgroundColor = '#4caf50'; // Zielony dla ukończonych
-    } else if (task.priority === 1) {
-      backgroundColor = '#f44336'; // Czerwony dla wysokiego priorytetu
-    } else if (task.priority === 2) {
-      backgroundColor = '#ff9800'; // Pomarańczowy dla średniego
+      backgroundColor = '#9ca3af'; // Gray for completed
+    } else {
+      switch(priority) {
+        case 1: backgroundColor = '#ef4444'; break; // High (Red)
+        case 2: backgroundColor = '#f59e0b'; break; // Medium (Amber)
+        case 3: backgroundColor = '#10b981'; break; // Low (Green)
+        default: backgroundColor = '#3b82f6';
+      }
     }
 
     return {
       style: {
         backgroundColor,
-        borderRadius: '5px',
-        opacity: task.completed ? 0.6 : 1,
+        borderRadius: '6px',
+        opacity: 1,
         color: 'white',
-        border: '0px',
-        display: 'block'
+        border: 'none',
+        display: 'block',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        fontSize: '13px',
+        fontWeight: '500',
+        padding: '2px 6px'
       }
     };
   };
 
+  // ... existing eventStyleGetter ...
+
   return (
     <div className="container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Kalendarz Zadań</h1>
-          <p className="page-subtitle">Widok kalendarza z wszystkimi zadaniami i terminami</p>
-        </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowTaskModal(true)}
-        >
-          + Nowe zadanie
-        </button>
-      </div>
-
       <div className="calendar-container">
+        <div className="calendar-header-custom">
+            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
+                <h2>Kalendarz zadań</h2>
+                <button 
+                    className="btn btn-primary" 
+                    style={{padding: '6px 12px', fontSize: '13px'}}
+                    onClick={() => {
+                        setTaskFormData({
+                            title: '',
+                            description: '',
+                            type: 'todo',
+                            dueDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+                            contactId: null,
+                            priority: 3
+                        });
+                        setShowTaskModal(true);
+                    }}
+                >
+                    + Nowe zadanie
+                </button>
+            </div>
+            <div className="calendar-legend">
+              {/* ... legend items ... */}
+              <div className="legend-item"><span className="legend-dot high"></span> Wysoki</div>
+              <div className="legend-item"><span className="legend-dot medium"></span> Średni</div>
+              <div className="legend-item"><span className="legend-dot low"></span> Niski</div>
+              <div className="legend-item"><span className="legend-dot completed"></span> Ukończone</div>
+              
+              <label className="legend-toggle">
+                <input
+                  type="checkbox"
+                  checked={onlyHighPriority}
+                  onChange={(e) => setOnlyHighPriority(e.target.checked)}
+                />
+                <span>Tylko pilne</span>
+              </label>
+            </div>
+        </div>
+
         <Calendar
+          // ... props ...
           localizer={localizer}
           events={events}
           startAccessor="start"
           endAccessor="end"
-          style={{ height: '700px' }}
+          style={{ height: '750px' }}
           onSelectSlot={handleSelectSlot}
           onSelectEvent={handleSelectEvent}
           selectable
           eventPropGetter={eventStyleGetter}
+          components={{
+            event: CustomEvent
+          }}
+          formats={formats}
           messages={{
             next: "Następny",
             previous: "Poprzedni",
@@ -225,188 +297,176 @@ const CalendarTask = () => {
             date: "Data",
             time: "Czas",
             event: "Wydarzenie",
+            noEventsInRange: "Brak wydarzeń w tym zakresie."
           }}
           culture="pl"
         />
       </div>
 
-      {/* Modal szczegółów zadania */}
+      {/* Event Detail Modal */}
       {showEventModal && selectedEvent && (
-        <div className="modal-overlay" onClick={() => setShowEventModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div className="modal-header">
-              <h2 style={{ marginBottom: '0.5rem', fontSize: '1.5rem', wordWrap: 'break-word' }}>{selectedEvent.title}</h2>
-              <button className="modal-close" onClick={() => setShowEventModal(false)}>×</button>
-            </div>
-            <div className="modal-body" style={{ padding: '1.5rem' }}>
-              <div className="event-details">
-                <div className="event-detail-item" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                  <strong style={{ fontSize: '0.95rem', color: '#555' }}>Typ:</strong>
-                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem' }}>{selectedEvent.type}</p>
-                </div>
-                <div className="event-detail-item" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                  <strong style={{ fontSize: '0.95rem', color: '#555' }}>Termin:</strong>
-                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem' }}>{format(new Date(selectedEvent.dueDate), 'dd.MM.yyyy HH:mm')}</p>
-                </div>
-                <div className="event-detail-item" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                  <strong style={{ fontSize: '0.95rem', color: '#555' }}>Priorytet:</strong>
-                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem' }}>
-                    {selectedEvent.priority === 1 ? '🔴 Wysoki' : selectedEvent.priority === 2 ? '🟠 Średni' : '🟢 Niski'}
-                  </p>
-                </div>
-                {selectedEvent.contact && (
-                  <div className="event-detail-item" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                    <strong style={{ fontSize: '0.95rem', color: '#555' }}>Kontakt:</strong>
-                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem', wordWrap: 'break-word' }}>
-                      {selectedEvent.contact.name} ({selectedEvent.contact.email})
-                    </p>
-                  </div>
-                )}
-                {selectedEvent.description && (
-                  <div className="event-detail-item" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                    <strong style={{ fontSize: '0.95rem', color: '#555' }}>Opis:</strong>
-                    <div style={{
-                      marginTop: '0.75rem',
-                      whiteSpace: 'pre-wrap',
-                      wordWrap: 'break-word',
-                      maxHeight: '300px',
-                      overflow: 'auto',
-                      padding: '0.75rem',
-                      backgroundColor: '#fff',
-                      borderRadius: '4px',
-                      border: '1px solid #e0e0e0',
-                      fontSize: '0.95rem',
-                      lineHeight: '1.6'
-                    }}>
-                      {selectedEvent.description}
-                    </div>
-                  </div>
-                )}
-                <div className="event-detail-item" style={{ padding: '1rem' }}>
-                  <strong style={{ fontSize: '0.95rem', color: '#555' }}>Status:</strong>
-                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem' }}>
-                    {selectedEvent.completed ? '✅ Ukończone' : '⏳ Oczekujące'}
-                  </p>
-                </div>
+        <div className="task-modal-overlay" onClick={() => setShowEventModal(false)}>
+          <div className="task-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="task-modal__header">
+              <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                 {selectedEvent.completed ? <CheckCircle2 color="#10b981" /> : <Clock color="#6b7280" />}
+                 <h2 style={{margin:0}}>{selectedEvent.title}</h2>
               </div>
-            </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', padding: '1rem 1.5rem' }}>
-              <button className="btn btn-danger" onClick={handleDeleteTask}>
-                Usuń
-              </button>
-              {!selectedEvent.completed && (
-                <button className="btn btn-primary" onClick={handleCompleteTask}>
-                  Oznacz jako ukończone
-                </button>
-              )}
+              <button className="task-modal__close" onClick={() => setShowEventModal(false)}>×</button>
+            </header>
+            
+            <div className="task-form">
+                {/* Status Banner */}
+                <div style={{
+                    padding: '12px', 
+                    borderRadius: '8px', 
+                    marginBottom: '20px',
+                    backgroundColor: selectedEvent.completed ? '#ecfdf5' : '#f3f4f6',
+                    color: selectedEvent.completed ? '#065f46' : '#374151',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <span style={{fontWeight:600}}>
+                        {selectedEvent.completed ? 'Zadanie ukończone' : 'Do wykonania'}
+                    </span>
+                    <span style={{fontSize:'13px'}}>
+                        Termin: {selectedEvent.dueDate ? format(new Date(selectedEvent.dueDate), 'd MMMM, HH:mm', { locale: pl }) : 'Brak terminu'}
+                    </span>
+                </div>
+                {/* ... rest of modal ... */}
+
+                <div className="task-form__section">
+                    <label className="task-form__label">Opis</label>
+                    <p style={{whiteSpace: 'pre-wrap', color: '#4b5563', lineHeight: 1.6}}>
+                        {selectedEvent.description || 'Brak opisu'}
+                    </p>
+                </div>
+
+                <div className="task-form__grid">
+                    <div>
+                        <label className="task-form__label">Priorytet</label>
+                        <div className={`task-form__chip active priority-${
+                            selectedEvent.priority === 1 ? 'high' : selectedEvent.priority === 2 ? 'medium' : 'low'
+                        }`}>
+                            {selectedEvent.priority === 1 ? 'Wysoki' : selectedEvent.priority === 2 ? 'Średni' : 'Niski'}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="task-form__label">Powiązany kontakt</label>
+                        {selectedEvent.contact ? (
+                            <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                                <div style={{
+                                    width:24, height:24, borderRadius:'50%', 
+                                    backgroundColor:'#dbeafe', color:'#1e40af', 
+                                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'bold'
+                                }}>
+                                    {selectedEvent.contact.name.charAt(0)}
+                                </div>
+                                <span>{selectedEvent.contact.name}</span>
+                            </div>
+                        ) : <span style={{color:'#9ca3af'}}>Brak</span>}
+                    </div>
+                </div>
+
+                <div className="task-modal__footer" style={{justifyContent:'space-between', marginTop:'20px'}}>
+                    <button className="btn btn-secondary" style={{color:'#ef4444', borderColor:'#fee2e2'}} onClick={handleDeleteTask}>
+                        <Trash2 size={16} /> Usuń
+                    </button>
+                    {!selectedEvent.completed && (
+                        <button className="btn btn-primary" onClick={handleCompleteTask}>
+                            <CheckCircle2 size={16} /> Oznacz jako wykonane
+                        </button>
+                    )}
+                </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal tworzenia zadania */}
+      {/* Create Task Modal */}
       {showTaskModal && (
-        <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-            <div className="modal-header">
-              <h2>Utwórz nowe zadanie</h2>
-              <button className="modal-close" onClick={() => setShowTaskModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleTaskSubmit} className="modal-body">
-              <div className="form-group">
-                <label htmlFor="taskTitle">Tytuł zadania *</label>
+        <div className="task-modal-overlay" onClick={() => setShowTaskModal(false)}>
+          <div className="task-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="task-modal__header">
+              <h2>Nowe zadanie</h2>
+              <button className="task-modal__close" onClick={() => setShowTaskModal(false)}>×</button>
+            </header>
+
+            <form className="task-form" onSubmit={handleTaskSubmit}>
+              <div className="task-form__section">
+                <label className="task-form__label">Tytuł *</label>
                 <input
                   type="text"
-                  id="taskTitle"
                   name="title"
-                  className="form-control"
                   value={taskFormData.title}
                   onChange={handleTaskFormChange}
+                  placeholder="np. Spotkanie z klientem"
                   required
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="taskType">Typ zadania</label>
-                <select
-                  id="taskType"
-                  name="type"
-                  className="form-control"
-                  value={taskFormData.type}
-                  onChange={handleTaskFormChange}
-                >
-                  <option value="todo">Do zrobienia</option>
-                  <option value="call">Telefon</option>
-                  <option value="email">Email</option>
-                  <option value="meeting">Spotkanie</option>
+              <div className="task-form__grid">
+                <label className="task-form__label">
+                  Typ zadania
+                  <div className="task-form__chips">
+                    {['todo', 'call', 'email', 'meeting'].map(type => (
+                       <button
+                         key={type}
+                         type="button"
+                         className={`task-form__chip ${taskFormData.type === type ? 'active' : ''}`}
+                         onClick={() => setTaskFormData(p => ({ ...p, type }))}
+                       >
+                         {type === 'todo' ? 'Do zrobienia' : type === 'call' ? 'Telefon' : type === 'email' ? 'Email' : 'Spotkanie'}
+                       </button>
+                    ))}
+                  </div>
+                </label>
+
+                <label className="task-form__label">
+                  Priorytet
+                  <div className="task-form__chips">
+                    {[
+                        { val: 1, label: 'Wysoki', cls: 'high' },
+                        { val: 2, label: 'Średni', cls: 'medium' },
+                        { val: 3, label: 'Niski', cls: 'low' }
+                    ].map(p => (
+                       <button
+                         key={p.val}
+                         type="button"
+                         className={`task-form__chip priority-${p.cls} ${Number(taskFormData.priority) === p.val ? 'active' : ''}`}
+                         onClick={() => setTaskFormData(prev => ({ ...prev, priority: p.val }))}
+                       >
+                         {p.label}
+                       </button>
+                    ))}
+                  </div>
+                </label>
+              </div>
+
+              <div className="task-form__section">
+                <label className="task-form__label">Kontakt</label>
+                <select name="contactId" value={taskFormData.contactId || ''} onChange={handleTaskFormChange}>
+                    <option value="">-- Wybierz kontakt --</option>
+                    {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="taskDescription">Opis</label>
-                <textarea
-                  id="taskDescription"
-                  name="description"
-                  className="form-control"
-                  rows="4"
-                  value={taskFormData.description}
-                  onChange={handleTaskFormChange}
-                />
+              <div className="task-form__grid">
+                 <label className="task-form__label">
+                    Termin
+                    <input type="datetime-local" name="dueDate" value={taskFormData.dueDate} onChange={handleTaskFormChange} required />
+                 </label>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="taskDueDate">Data i godzina wykonania *</label>
-                <input
-                  type="datetime-local"
-                  id="taskDueDate"
-                  name="dueDate"
-                  className="form-control"
-                  value={taskFormData.dueDate}
-                  onChange={handleTaskFormChange}
-                  required
-                />
+              <div className="task-form__section">
+                 <label className="task-form__label">Opis</label>
+                 <textarea rows="3" name="description" value={taskFormData.description} onChange={handleTaskFormChange} placeholder="Szczegóły..." />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="taskPriority">Priorytet</label>
-                <select
-                  id="taskPriority"
-                  name="priority"
-                  className="form-control"
-                  value={taskFormData.priority}
-                  onChange={handleTaskFormChange}
-                >
-                  <option value="1">Wysoki</option>
-                  <option value="2">Średni</option>
-                  <option value="3">Niski</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="taskContact">Przypisz do kontaktu</label>
-                <select
-                  id="taskContact"
-                  name="contactId"
-                  className="form-control"
-                  value={taskFormData.contactId || ''}
-                  onChange={handleTaskFormChange}
-                >
-                  <option value="">Wybierz kontakt (opcjonalnie)</option>
-                  {contacts.map(contact => (
-                    <option key={contact.id} value={contact.id}>
-                      {contact.name} ({contact.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="modal-footer" style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowTaskModal(false)}>
-                  Anuluj
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Utwórz zadanie
-                </button>
+              <div className="task-modal__footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowTaskModal(false)}>Anuluj</button>
+                <button type="submit" className="btn btn-primary">Utwórz</button>
               </div>
             </form>
           </div>

@@ -17,6 +17,114 @@ public class AIClassificationService {
 
     private final WebClient webClient;
 
+    private static final List<String> UNDELIVERED_PHRASES = List.of(
+        "undeliverable",
+        "undelivered",
+        "niedostarczone",
+        "niedostarczono",
+        "failure notice",
+        "delivery failed",
+        "delivery status notification",
+        "recipient not found",
+        "user unknown",
+        "address rejected",
+        "mailbox full",
+        "quota exceeded",
+        "550 5.1.1",
+        "550 requested action not taken",
+        "access denied",
+        "spam detected",
+        "blocked by filter",
+        "connection timed out",
+        "host unknown",
+        "domain not found",
+        "nie mozna dostarczyc wiadomosci",
+        "blad dostarczenia",
+        "konto zablokowane",
+        "skrzynka przepelniona",
+        "adres nie istnieje",
+        "nieudane doreczenie",
+        "zwrot poczty",
+        "wiadomosc odrzucona",
+        "konto usuniete",
+        "nie pracuje juz w firmie",
+        "zakonczyl wspolprace",
+        "adres nieaktywny",
+        "mail nieobslugiwany",
+        "firma zlikwidowana",
+        "dzialalnosc zawieszona",
+        "osoba odeszla z firmy",
+        "skrzynka wylaczona",
+        "adres wygasl",
+        "no longer with the company",
+        "left the organization",
+        "email no longer active",
+        "account disabled",
+        "zmiana pracy",
+        "mail delivery system",
+        "mailer-daemon",
+        "postmaster",
+        "message not delivered",
+        "returned mail",
+        "delivery failure"
+    );
+
+    private static final List<String> MAYBE_LATER_PHRASES = List.of(
+        "aktualnie nie",
+        "aktualnie nie potrzebujemy",
+        "na ten moment nie",
+        "w tej chwili nie",
+        "w tej chwili nie potrzebujemy",
+        "na chwile obecna nie",
+        "na chwile obecna nie potrzebujemy",
+        "moze pozniej",
+        "może później",
+        "moze w przyszlosci",
+        "może w przyszłości",
+        "prosze o kontakt w przyszlym tygodniu",
+        "wrocmy do tematu za miesiac",
+        "odezwe sie po urlopie",
+        "prosze przypomniec sie",
+        "na razie nie ale prosze o kontakt",
+        "zachowam kontakt",
+        "zapisuje oferte",
+        "bedziemy robic przetarg",
+        "prosze o kontakt w nowym roku",
+        "temat na kolejny kwartal",
+        "prosze o telefon po",
+        "skontaktuje sie w wolnej chwili",
+        "dodaje do bazy dostawcow",
+        "wrocimy do rozmowy",
+        "prosze ponowic kontakt",
+        "bede pamietac",
+        "odezwe sie po analizie",
+        "przeanalizuje i dam znac",
+        "zapoznam sie i wroce",
+        "dziekuje przejrze oferte",
+        "prosze wyslac zobacze",
+        "moze w przyszlosci",
+        "nie wykluczam wspolpracy",
+        "bedziemy w kontakcie",
+        "dziekuje za przypomnienie prosze o",
+        "not right now",
+        "maybe later",
+        "not at this time",
+        "perhaps in the future",
+        "will consider later",
+        "not currently",
+        "check back later",
+        "revisit next quarter",
+        "contact me next year",
+        "maybe next month",
+        "teraz nie",
+        "teraz nie ale",
+        "w przyszlosci moze",
+        "w przyszłości może",
+        "moze kiedys",
+        "być może później",
+        "byc moze pozniej"
+    );
+
     private static final List<String> STRONG_NEGATIVE_PHRASES = List.of(
         "nie jestesmy zainteresowani",
         "nie interesuje nas",
@@ -28,10 +136,6 @@ public class AIClassificationService {
         "rezygnujemy",
         "rezygnuje",
         "dziekujemy ale nie",
-        "na ten moment nie",
-        "aktualnie nie potrzebujemy",
-        "w tej chwili nie",
-        "w tej chwili nie potrzebujemy",
         "prosze nie kontaktowac",
         "nie planujemy",
         "nie szukamy",
@@ -43,8 +147,6 @@ public class AIClassificationService {
         "zaprzestac kontaktu",
         "odmawiamy",
         "odmawiam",
-        "na chwile obecna nie",
-        "na chwile obecna nie potrzebujemy",
         "dzienkujemy ale nie jestesmy zainteresowani",
         "dziekuje nie jestesmy zainteresowani",
         "dziekuje ale nie",
@@ -109,46 +211,7 @@ public class AIClassificationService {
         "closed for business",
         "too expensive",
         "we are not buying",
-        "pass",
-        "nie pracuje juz w firmie",
-        "zakonczyl wspolprace",
-        "adres nieaktywny",
-        "mail nieobslugiwany",
-        "firma zlikwidowana",
-        "dzialalnosc zawieszona",
-        "osoba odeszla z firmy",
-        "skrzynka wylaczona",
-        "adres wygasl",
-        "no longer with the company",
-        "left the organization",
-        "email no longer active",
-        "account disabled",
-        "zmiana pracy",
-        "undeliverable",
-        "failure notice",
-        "delivery status notification",
-        "recipient not found",
-        "user unknown",
-        "address rejected",
-        "mailbox full",
-        "quota exceeded",
-        "550 5.1.1",
-        "550 requested action not taken",
-        "access denied",
-        "spam detected",
-        "blocked by filter",
-        "connection timed out",
-        "host unknown",
-        "domain not found",
-        "nie mozna dostarczyc wiadomosci",
-        "blad dostarczenia",
-        "konto zablokowane",
-        "skrzynka przepelniona",
-        "adres nie istnieje",
-        "nieudane doreczenie",
-        "zwrot poczty",
-        "wiadomosc odrzucona",
-        "konto usuniete"
+        "pass"
     );
 
     private static final List<String> STRONG_POSITIVE_PHRASES = List.of(
@@ -253,41 +316,19 @@ public class AIClassificationService {
         "send the contract",
         "please invoice us",
         "im open to discussing",
-        "lets jump on a call",
-        "prosze o kontakt w przyszlym tygodniu",
-        "wrocmy do tematu za miesiac",
-        "odezwe sie po urlopie",
-        "prosze przypomniec sie",
-        "na razie nie ale prosze o kontakt",
-        "zachowam kontakt",
-        "zapisuje oferte",
-        "bedziemy robic przetarg",
-        "prosze o kontakt w nowym roku",
-        "temat na kolejny kwartal",
-        "prosze o telefon po",
-        "skontaktuje sie w wolnej chwili",
-        "dodaje do bazy dostawcow",
-        "wrocimy do rozmowy",
-        "prosze ponowic kontakt",
-        "bede pamietac",
-        "odezwe sie po analizie",
-        "przeanalizuje i dam znac",
-        "zapoznam sie i wroce",
-        "dziekuje przejrze oferte",
-        "prosze wyslac zobacze",
-        "moze w przyszlosci",
-        "nie wykluczam wspolpracy",
-        "bedziemy w kontakcie",
-        "dziekuje za przypomnienie prosze o"
+        "lets jump on a call"
     );
 
-    private static final List<String> NEUTRAL_AUTO_RESPONSE_PHRASES = List.of(
+    private static final List<String> AUTO_REPLY_PHRASES = List.of(
+        "automatyczna odpowiedź",
+        "automatische antwort",
+        "auto replay",
+        "auto reply",
         "poza biurem",
         "out of office",
         "out-of-office",
         "automatic reply",
         "automatic response",
-        "auto reply",
         "autoreply",
         "autoresponder",
         "nieobecnosc",
@@ -303,10 +344,6 @@ public class AIClassificationService {
         "wakacje",
         "holiday",
         "urlop",
-        "autoresponder",
-        "automatic reply",
-        "automatic response",
-        "auto reply",
         "oo o",
         "currently away",
         "on leave",
@@ -321,6 +358,13 @@ public class AIClassificationService {
         "limited email access",
         "holiday notification",
         "auto-reply",
+        "auto-forwarded",
+        "przekazano do",
+        "zmiana domeny",
+        "nowy adres email"
+    );
+
+    private static final List<String> NEUTRAL_PHRASES = List.of(
         "potwierdzenie otrzymania",
         "potwierdzenie przeczytania",
         "read receipt",
@@ -330,10 +374,6 @@ public class AIClassificationService {
         "delayed mail",
         "message delayed",
         "delivery has failed to these recipients",
-        "auto-forwarded",
-        "przekazano do",
-        "zmiana domeny",
-        "nowy adres email",
         "prosze o chwile cierpliwosci",
         "odpowiem pozniej",
         "wroce do pana",
@@ -408,8 +448,17 @@ public class AIClassificationService {
     }
 
     /**
+     * Rekasyfikuje istniejące emaile z nową logiką autoReply
+     */
+    public String reclassifyEmail(String subject, String content) {
+        String classification = classifyEmail(subject, content);
+        log.info("Reclassified email as: {}", classification);
+        return classification;
+    }
+
+    /**
      * Klasyfikuje email używając darmowego API Groq (Llama 3)
-     * 
+     *
      * Aby to działało, musisz:
      * 1. Zarejestrować się na https://console.groq.com
      * 2. Wygenerować darmowy API key
@@ -455,18 +504,37 @@ public class AIClassificationService {
     private String buildPrompt(String subject, String content) {
         String emailText = (subject + " " + content).substring(0, Math.min(1000, (subject + " " + content).length()));
 
-        return "Jesteś ekspertem w analizie wiadomości email biznesowych. Przeanalizuj poniższą wiadomość i określ intencję nadawcy. Odpowiedz jednym ze słów: positive, negative, neutral.\n\n" +
+        return "Jesteś ekspertem w analizie wiadomości email biznesowych. Przeanalizuj poniższą wiadomość i określ intencję nadawcy. Odpowiedz jednym ze słów: positive, negative, neutral, undelivered, maybeLater, autoReply.\n\n" +
                "ZASADY KLASYFIKACJI:\n\n" +
-               "Ważne: gdy pojawia się jakakolwiek odmowa lub brak zainteresowania, zawsze zwróć NEGATIVE, nawet jeśli wiadomość zawiera grzecznościowe \"dziękujemy\".\n" +
-               "Ważne: odpowiedź musi być dokładnie jednym słowem (positive/negative/neutral) bez dodatkowych znaków.\n\n" +
-               "NEGATIVE - PRIORYTET! Klient NIE jest zainteresowany, jeśli:\n" +
+               "Ważne: odpowiedź musi być dokładnie jednym słowem (positive/negative/neutral/undelivered/maybeLater/autoReply) bez dodatkowych znaków.\n\n" +
+               "UNDELIVERED - NAJWYŻSZY PRIORYTET! Email NIE został dostarczony, jeśli:\n" +
+               "- Zawiera: \"undelivered\", \"niedostarczone\", \"delivery failed\", \"failure notice\"\n" +
+               "- Zawiera: \"recipient not found\", \"user unknown\", \"address rejected\"\n" +
+               "- Zawiera: \"mailbox full\", \"quota exceeded\", \"550 5.1.1\"\n" +
+               "- Zawiera: \"mailer-daemon\", \"postmaster\", \"mail delivery system\"\n" +
+               "- Zawiera: \"osoba odeszła z firmy\", \"nie pracuje już w firmie\", \"account disabled\"\n" +
+               "- To automatyczna odpowiedź systemu mailowego o niepowodzeniu dostawy\n\n" +
+               "AUTOREPLY - BARDZO WYSOKI PRIORYTET! Automatyczna odpowiedź (out of office), jeśli:\n" +
+               "- Zawiera: \"Automatyczna Odpowiedź\", \"Automatic Reply\", \"Auto Reply\", \"Automatische Antwort\"\n" +
+               "- Zawiera: \"Out of Office\", \"OOO\", \"Poza biurem\", \"Na urlopie\"\n" +
+               "- Zawiera: \"jestem poza biurem\", \"I am out of the office\", \"urlop\"\n" +
+               "- Zawiera: \"nieobecny\", \"nieobecna\", \"away\", \"unavailable\"\n" +
+               "- Zawiera: \"wracam\", \"will return\", \"zurück am\"\n" +
+               "- To automatyczna wiadomość ustawiona przez użytkownika podczas nieobecności\n\n" +
+               "NEGATIVE - WYSOKI PRIORYTET! Klient NIE jest zainteresowany, jeśli:\n" +
                "- Pisze: \"nie jesteśmy zainteresowani\", \"nie interesuje nas\", \"brak zainteresowania\"\n" +
                "- Używa: \"nie\", \"niestety\", \"rezygnujemy\", \"dziękujemy, ale nie\"\n" +
-               "- Pisze: \"na chwilę obecną nie\", \"w tym momencie nie\", \"aktualnie nie potrzebujemy\"\n" +
                "- Pisze: \"nie chcemy\", \"nie planujemy\", \"nie szukamy\"\n" +
                "- Prosi o wypisanie z listy mailingowej lub zaprzestanie kontaktu\n" +
                "- Oznacza jako spam lub niechcianą korespondencję\n" +
-               "- Odmawia w jakikolwiek sposób\n\n" +
+               "- Odmawia w sposób kategoryczny i definitywny\n\n" +
+               "MAYBELATER - Klient NIE jest zainteresowany TERAZ, ale może w przyszłości, jeśli:\n" +
+               "- Pisze: \"aktualnie nie\", \"na ten moment nie\", \"w tej chwili nie\"\n" +
+               "- Pisze: \"może później\", \"może w przyszłości\", \"check back later\"\n" +
+               "- Pisze: \"proszę o kontakt w przyszłym tygodniu\", \"odezwę się po urlopie\"\n" +
+               "- Pisze: \"nie wykluczam współpracy\", \"będziemy w kontakcie\"\n" +
+               "- Sugeruje powrót do tematu w przyszłości\n" +
+               "- Mówi \"nie\" ale prosi o późniejszy kontakt\n\n" +
                "POSITIVE - Klient jest zainteresowany, TYLKO jeśli:\n" +
                "- Prosi o kontakt, rozmowę, spotkanie, więcej informacji\n" +
                "- Wyraża WYRAŹNE zainteresowanie ofertą lub produktem\n" +
@@ -476,19 +544,23 @@ public class AIClassificationService {
                "- Zgadza się na dalsze działania\n\n" +
                "NEUTRAL - Wszystkie inne przypadki:\n" +
                "- Pytania techniczne bez wyrażenia zainteresowania\n" +
-               "- Automatyczne odpowiedzi (Out of Office)\n" +
                "- Niejasny kontekst\n" +
                "- Prośby o informacje bez deklaracji zainteresowania\n\n" +
                "PRZYKŁADY:\n" +
+               "\"Delivery failed: user unknown\" = UNDELIVERED\n" +
+               "\"Automatyczna Odpowiedź: Jestem poza biurem\" = AUTOREPLY\n" +
+               "\"Out of Office - I will be back on Monday\" = AUTOREPLY\n" +
+               "\"Automatische Antwort: Ich bin nicht im Büro\" = AUTOREPLY\n" +
                "\"Nie jesteśmy zainteresowani Państwa ofertą\" = NEGATIVE\n" +
                "\"Dziękujemy, ale nie\" = NEGATIVE\n" +
-               "\"Aktualnie nie potrzebujemy\" = NEGATIVE\n" +
+               "\"Aktualnie nie potrzebujemy, proszę o kontakt za miesiąc\" = MAYBELATER\n" +
+               "\"Może w przyszłości\" = MAYBELATER\n" +
                "\"Proszę o kontakt\" = POSITIVE\n" +
                "\"Chętnie poznamy szczegóły\" = POSITIVE\n\n" +
                "Email:\n" +
                "Temat: " + subject + "\n" +
                "Treść: " + content + "\n\n" +
-               "Odpowiedz TYLKO jednym słowem (bez dodatkowych znaków): positive, negative lub neutral";
+               "Odpowiedz TYLKO jednym słowem (bez dodatkowych znaków): positive, negative, neutral, undelivered, maybeLater lub autoReply";
     }
 
     private String callGroqAPI(String prompt) {
@@ -541,6 +613,15 @@ public class AIClassificationService {
 
         if (tokens.length > 0) {
             String first = tokens[0];
+            if (first.startsWith("undelivered")) {
+                return "undelivered";
+            }
+            if (first.startsWith("autoreply")) {
+                return "autoReply";
+            }
+            if (first.startsWith("maybelater")) {
+                return "maybeLater";
+            }
             if (first.startsWith("positive")) {
                 return "positive";
             }
@@ -551,8 +632,15 @@ public class AIClassificationService {
                 return "neutral";
             }
         }
-        
-        if (cleaned.contains("negative")) {
+
+        // Check for keywords in full response
+        if (cleaned.contains("undelivered")) {
+            return "undelivered";
+        } else if (cleaned.contains("autoreply")) {
+            return "autoReply";
+        } else if (cleaned.contains("maybelater")) {
+            return "maybeLater";
+        } else if (cleaned.contains("negative")) {
             return "negative";
         } else if (cleaned.contains("positive")) {
             return "positive";
@@ -624,18 +712,35 @@ public class AIClassificationService {
     private String explicitIntentCheck(String subject, String content) {
         String normalized = normalizeText(subject + " " + content);
 
+        // PRIORITY 1: Check for undelivered emails first
+        for (String phrase : UNDELIVERED_PHRASES) {
+            if (normalized.contains(phrase)) {
+                return "undelivered";
+            }
+        }
+
+        // PRIORITY 2: Check for strong negative responses
         for (String phrase : STRONG_NEGATIVE_PHRASES) {
             if (normalized.contains(phrase)) {
                 return "negative";
             }
         }
 
-        for (String phrase : NEUTRAL_AUTO_RESPONSE_PHRASES) {
+        // PRIORITY 3: Check for "maybe later" responses
+        for (String phrase : MAYBE_LATER_PHRASES) {
             if (normalized.contains(phrase)) {
-                return "neutral";
+                return "maybeLater";
             }
         }
 
+        // PRIORITY 4: Check for automatic replies (out of office, etc.)
+        for (String phrase : AUTO_REPLY_PHRASES) {
+            if (normalized.contains(phrase)) {
+                return "autoReply";
+            }
+        }
+
+        // PRIORITY 5: Check for positive responses
         for (String phrase : STRONG_POSITIVE_PHRASES) {
             if (normalized.contains(phrase)) {
                 return "positive";
@@ -653,5 +758,65 @@ public class AIClassificationService {
         String normalized = Normalizer.normalize(lower, Normalizer.Form.NFD)
             .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
         return normalized;
+    }
+
+    /**
+     * Wyciąga dane kontaktowe ze stopki maila (Enrichment)
+     */
+    public Map<String, String> extractContactDetails(String emailBody) {
+        if (!classificationEnabled || apiKey == null || apiKey.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        try {
+            String prompt = buildEnrichmentPrompt(emailBody);
+            String response = callGroqAPI(prompt);
+            return parseJsonToMap(response);
+        } catch (Exception e) {
+            log.error("Error extracting contact details: {}", e.getMessage());
+            return new HashMap<>();
+        }
+    }
+
+    private String buildEnrichmentPrompt(String content) {
+        String cleanContent = content != null ? content.substring(0, Math.min(2000, content.length())) : "";
+        
+        return "Jesteś ekspertem od parsowania danych. Przeanalizuj poniższą treść emaila i wyciągnij dane kontaktowe nadawcy (zazwyczaj ze stopki/podpisu).\n" +
+               "Szukaj następujących informacji:\n" +
+               "1. phone (numer telefonu)\n" +
+               "2. position (stanowisko/rola w firmie)\n" +
+               "3. company_address (adres fizyczny firmy)\n\n" +
+               "Treść emaila:\n" +
+               "\"\"\"\n" + cleanContent + "\n\"\"\"\n\n" +
+               "Zwróć TYLKO poprawny obiekt JSON w formacie:\n" +
+               "{\n" +
+               "  \"phone\": \"...\",\n" +
+               "  \"position\": \"...\",\n" +
+               "  \"company_address\": \"...\"\n" +
+               "}\n" +
+               "Jeśli nie znajdziesz danej informacji, wpisz null. Nie dodawaj żadnego innego tekstu ani znaczników markdown (```json). Tylko czysty JSON.";
+    }
+
+    private Map<String, String> parseJsonToMap(String jsonString) {
+        Map<String, String> result = new HashMap<>();
+        if (jsonString == null || jsonString.isEmpty()) {
+            return result;
+        }
+
+        try {
+            // Proste czyszczenie jeśli model dodał markdown
+            String cleanJson = jsonString.replaceAll("```json", "").replaceAll("```", "").trim();
+            
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> map = mapper.readValue(cleanJson, Map.class);
+            
+            if (map.get("phone") != null) result.put("phone", map.get("phone").toString());
+            if (map.get("position") != null) result.put("position", map.get("position").toString());
+            if (map.get("company_address") != null) result.put("company_address", map.get("company_address").toString());
+            
+        } catch (Exception e) {
+            log.warn("Failed to parse JSON from AI: {}", jsonString);
+        }
+        return result;
     }
 }

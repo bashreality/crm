@@ -6,8 +6,8 @@ ALTER TABLE emails ADD COLUMN IF NOT EXISTS recipient VARCHAR(255);
 -- Add inReplyTo column (Message-ID of the email being replied to)
 ALTER TABLE emails ADD COLUMN IF NOT EXISTS in_reply_to VARCHAR(255);
 
--- Add references column (References header for email threads)
-ALTER TABLE emails ADD COLUMN IF NOT EXISTS references TEXT;
+-- Add references column (References header for email threads) - Fixed column name
+ALTER TABLE emails ADD COLUMN IF NOT EXISTS references_header TEXT;
 
 -- Update existing records to have NULL values for new columns (already done by ADD COLUMN IF NOT EXISTS)
 

@@ -9,8 +9,8 @@ ALTER TABLE emails ADD COLUMN IF NOT EXISTS message_id VARCHAR(255);
 -- Add in_reply_to column if missing
 ALTER TABLE emails ADD COLUMN IF NOT EXISTS in_reply_to VARCHAR(255);
 
--- Add references column if missing (this is the main fix for the current error)
-ALTER TABLE emails ADD COLUMN IF NOT EXISTS references TEXT;
+-- Add references_header column if missing (this is the main fix for the current error)
+ALTER TABLE emails ADD COLUMN IF NOT EXISTS references_header TEXT;
 
 -- Add indexes if they don't exist
 CREATE INDEX IF NOT EXISTS idx_emails_recipient ON emails(recipient);

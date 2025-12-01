@@ -28,4 +28,6 @@ public interface ScheduledEmailRepository extends JpaRepository<ScheduledEmail, 
     long countScheduledForSequenceBetween(Long sequenceId, LocalDateTime start, LocalDateTime end);
 
     long countByStatus(String status);
+
+    void deleteByStepId(Long stepId);
 }

@@ -1,12 +1,20 @@
 package com.crm.controller;
 
+import com.crm.dto.EmailDto;
+import com.crm.mapper.EmailMapper;
+import com.crm.model.Contact;
+import com.crm.repository.ContactRepository;
 import com.crm.model.Email;
 import com.crm.service.EmailService;
 import com.crm.service.EmailSendingService;
 import com.crm.service.AIReplyService;
+import com.crm.service.AIClassificationService;
 import jakarta.mail.MessagingException;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -14,7 +22,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
+import com.crm.model.EmailAccount;
+import com.crm.repository.EmailAccountRepository;
 
 @RestController
 @RequestMapping("/api/emails")
@@ -25,45 +35,60 @@ public class EmailController {
     private final EmailService emailService;
     private final EmailSendingService emailSendingService;
     private final AIReplyService aiReplyService;
+    private final AIClassificationService aiClassificationService;
+    private final EmailAccountRepository emailAccountRepository;
+    private final ContactRepository contactRepository;
+    private final com.crm.service.ContactService contactService;
+    private final EmailMapper emailMapper;
     
     @GetMapping
-    public ResponseEntity<List<Email>> getAllEmails(
+    public ResponseEntity<List<EmailDto>> getAllEmails(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String company,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long accountId) {
 
-        List<Email> emails;
+        // Użyj zoptymalizowanego zapytania SQL zamiast filtrowania w Javie
+        List<Email> emails = emailService.getEmailsByFilters(accountId, status, company, search);
 
-        // Pobierz wszystkie lub filtruj po koncie
-        if (accountId != null) {
-            emails = emailService.getEmailsByAccountId(accountId);
-        } else {
-            emails = emailService.getAllEmails();
+        // Pobierz kontakty dla nadawców
+        Set<String> senderEmails = new HashSet<>();
+        for (Email email : emails) {
+            // Extract email from "Name <email@example.com>"
+            String sender = email.getSender();
+            String emailAddress = extractEmail(sender);
+            if (emailAddress != null) {
+                senderEmails.add(emailAddress.toLowerCase()); // Convert to lowercase for case-insensitive matching
+            }
         }
 
-        // Zastosuj dodatkowe filtry
-        if (search != null && !search.isEmpty()) {
-            String searchLower = search.toLowerCase();
-            emails = emails.stream()
-                .filter(e -> e.getSender().toLowerCase().contains(searchLower) ||
-                            e.getSubject().toLowerCase().contains(searchLower))
-                .collect(Collectors.toList());
-        }
+        List<Contact> contacts = contactRepository.findByEmailIn(senderEmails);
+        Map<String, Contact> contactMap = contacts.stream()
+                .collect(Collectors.toMap(c -> c.getEmail().toLowerCase(), c -> c));
 
-        if (company != null && !company.isEmpty()) {
-            emails = emails.stream()
-                .filter(e -> e.getCompany().toLowerCase().contains(company.toLowerCase()))
-                .collect(Collectors.toList());
-        }
+        // Mapuj na DTO i dodaj tagi
+        List<EmailDto> emailDtos = emails.stream().map(email -> {
+            EmailDto dto = emailMapper.toDto(email);
+            String emailAddress = extractEmail(email.getSender());
+            if (emailAddress != null) {
+                Contact contact = contactMap.get(emailAddress.toLowerCase());
+                if (contact != null) {
+                    dto.setSenderTags(contact.getTags());
+                    dto.setSenderContactId(contact.getId());
+                }
+            }
+            return dto;
+        }).collect(Collectors.toList());
 
-        if (status != null && !status.isEmpty()) {
-            emails = emails.stream()
-                .filter(e -> e.getStatus().equals(status))
-                .collect(Collectors.toList());
-        }
+        return ResponseEntity.ok(emailDtos);
+    }
 
-        return ResponseEntity.ok(emails);
+    private String extractEmail(String sender) {
+        if (sender == null) return null;
+        if (sender.contains("<") && sender.contains(">")) {
+            return sender.substring(sender.indexOf("<") + 1, sender.indexOf(">"));
+        }
+        return sender.trim();
     }
     
     @GetMapping("/companies")
@@ -102,6 +127,44 @@ public class EmailController {
     }
 
     /**
+     * Wysyła nowy email z wybranego konta
+     */
+    @PostMapping("/send")
+    public ResponseEntity<Map<String, Object>> sendEmail(@RequestBody Map<String, Object> emailData) {
+        try {
+            String to = (String) emailData.get("to");
+            String subject = (String) emailData.get("subject");
+            String body = (String) emailData.get("body");
+            Long accountId = emailData.get("accountId") != null ? ((Number) emailData.get("accountId")).longValue() : null;
+
+            if (to == null || subject == null || body == null || accountId == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "To, subject, body and accountId are required"));
+            }
+
+            EmailAccount account = emailAccountRepository.findById(accountId)
+                    .orElseThrow(() -> new RuntimeException("Email account not found"));
+
+            Long sentEmailId = emailSendingService.sendEmailFromAccount(account, to, subject, body);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("sentEmailId", sentEmailId);
+            response.put("message", "Email sent successfully");
+
+            return ResponseEntity.ok(response);
+        } catch (MessagingException e) {
+            log.error("Failed to send email", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to send email: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error sending email", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal server error: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Ponowna klasyfikacja wszystkich maili z użyciem aktualnej logiki AI.
      */
     @PostMapping("/reclassify")
@@ -125,10 +188,25 @@ public class EmailController {
             Email originalEmail = emailService.getEmailById(id)
                     .orElseThrow(() -> new RuntimeException("Email not found"));
 
+            // 1. Znajdź kontakt i historię
+            String senderEmailAddress = extractEmail(originalEmail.getSender());
+            Contact contact = null;
+            List<Email> history = null;
+            
+            if (senderEmailAddress != null) {
+                contact = contactRepository.findByEmail(senderEmailAddress).orElse(null);
+                if (contact != null) {
+                    history = contactService.getEmailsByContact(contact);
+                }
+            }
+
+            // 2. Generuj odpowiedź z kontekstem
             String suggestion = aiReplyService.generateReplySuggestion(
                     originalEmail.getSubject(),
                     originalEmail.getContent(),
-                    originalEmail.getSender()
+                    originalEmail.getSender(),
+                    contact,
+                    history
             );
 
             Map<String, String> response = new HashMap<>();

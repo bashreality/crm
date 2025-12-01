@@ -15,9 +15,10 @@ import java.util.HashMap;
 @RequiredArgsConstructor
 @Transactional
 public class EmailService {
-    
+
     private final EmailRepository emailRepository;
     private final AIClassificationService aiClassificationService;
+    private final UserContextService userContextService;
     
     public List<Email> getAllEmails() {
         return emailRepository.findAll();
@@ -71,6 +72,17 @@ public class EmailService {
 
     public List<Email> getEmailsByAccountId(Long accountId) {
         return emailRepository.findByAccountId(accountId);
+    }
+
+    /**
+     * Pobiera emaile z zastosowaniem wszystkich filtrów na poziomie bazy danych.
+     * Zoptymalizowana metoda - filtrowanie w SQL zamiast w Javie.
+     * Automatycznie filtruje według aktualnie zalogowanego użytkownika.
+     */
+    public List<Email> getEmailsByFilters(Long accountId, String status, String company, String search) {
+        Long currentUserId = userContextService.getCurrentUserId();
+        Long userIdFilter = userContextService.isCurrentUserAdmin() ? null : currentUserId;
+        return emailRepository.findByFilters(userIdFilter, accountId, status, company, search);
     }
 
     /**

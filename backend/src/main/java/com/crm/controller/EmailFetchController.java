@@ -29,18 +29,12 @@ public class EmailFetchController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // Uruchom pobieranie asynchronicznie
-            CompletableFuture.runAsync(() -> {
-                try {
-                    emailFetchService.fetchEmailsManually();
-                } catch (Exception e) {
-                    log.error("Error during manual email fetch", e);
-                }
-            });
+            // Pobieraj synchronicznie, żeby użytkownik od razu zobaczył nowe maile
+            int newEmails = emailFetchService.fetchEmailsManually();
 
             response.put("success", true);
-            response.put("message", "Pobieranie maili zostało uruchomione w tle");
-            response.put("newEmails", 0); // Zachowaj kompatybilność z frontendem
+            response.put("message", "Pobrano maile");
+            response.put("newEmails", newEmails);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

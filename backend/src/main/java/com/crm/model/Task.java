@@ -42,6 +42,9 @@ public class Task {
     @Column(nullable = false)
     private Integer priority = 3; // 1=High, 2=Medium, 3=Low
 
+    @Column(name = "user_id")
+    private Long userId; // ID użytkownika będącego właścicielem zadania
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -32,6 +32,14 @@ services:
       SPRING_DATASOURCE_USERNAME: crm_user
       SPRING_DATASOURCE_PASSWORD: crm_password
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_FLYWAY_ENABLED: "false"
+      # Secrets - In production, use Docker Secrets or a separate .env file
+      JWT_SECRET: VGhpcyBJcyBBIFZlcnkgU2VjdXJlIFNlY3JldCBLZXkgRm9yIEpXVCBUb2tlbiBHZW5lcmF0aW9uIQ==
+      EMAIL_USERNAME: crm@qprospect.pl
+      EMAIL_PASSWORD: ssd51eGurVa
+      AI_API_KEY: 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
+      WOODPECKER_API_KEY: 555072.7c122c4721c17457976edac80ac6eacc0929c72445da6d5837b115830cf5d01f
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://188.245.95.185:3000,http://188.245.95.185
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,6 +62,8 @@ services:
 
 volumes:
   postgres_data:
+    external: true
+    name: crm-system_postgres_data
 
 networks:
   crm-network:

@@ -2,6 +2,7 @@ package com.crm.service;
 
 import com.crm.model.Email;
 import com.crm.model.EmailAccount;
+import com.crm.model.SequenceExecution;
 import com.crm.repository.EmailRepository;
 import jakarta.mail.*;
 import jakarta.mail.internet.MimeMultipart;
@@ -28,6 +29,11 @@ public class EmailFetchService {
     private final AIClassificationService aiClassificationService;
     private final ContactAutoCreationService contactAutoCreationService;
     private final EmailAccountService emailAccountService;
+    private final ContactService contactService;
+    private final com.crm.repository.ContactRepository contactRepository;
+    private final UserContactService userContactService;
+    private final com.crm.repository.SequenceExecutionRepository sequenceExecutionRepository;
+    private final ScheduledEmailService scheduledEmailService;
 
     @Value("${email.fetch.folder:INBOX}")
     private String folderName;
@@ -45,7 +51,8 @@ public class EmailFetchService {
             return;
         }
 
-        List<EmailAccount> accounts = emailAccountService.getEnabledAccounts();
+        // Use scheduler method to get all enabled accounts without user context
+        List<EmailAccount> accounts = emailAccountService.getAllEnabledAccountsForScheduler();
         log.info("Starting email fetch from {} enabled accounts", accounts.size());
 
         int totalNewEmails = 0;
@@ -56,9 +63,9 @@ public class EmailFetchService {
 
                 // Update last fetch time
                 emailAccountService.updateLastFetchTime(account.getId(), LocalDateTime.now());
-                if (newEmails > 0) {
-                    emailAccountService.incrementEmailCount(account.getId(), newEmails);
-                }
+                // Zsynchronizuj licznik emaili z realnym stanem (obsługa kont z null/0)
+                int totalForAccount = emailRepository.countByAccountId(account.getId()).intValue();
+                emailAccountService.setEmailCount(account.getId(), totalForAccount);
             } catch (Exception e) {
                 log.error("Error fetching emails from {}: {}", account.getEmailAddress(), e.getMessage(), e);
             }
@@ -73,7 +80,8 @@ public class EmailFetchService {
     public int fetchEmailsManually() {
         log.info("Manual email fetch triggered");
 
-        List<EmailAccount> accounts = emailAccountService.getEnabledAccounts();
+        // Use scheduler method to get all enabled accounts without user context
+        List<EmailAccount> accounts = emailAccountService.getAllEnabledAccountsForScheduler();
         int totalNewEmails = 0;
 
         for (EmailAccount account : accounts) {
@@ -82,9 +90,8 @@ public class EmailFetchService {
                 totalNewEmails += newEmails;
 
                 emailAccountService.updateLastFetchTime(account.getId(), LocalDateTime.now());
-                if (newEmails > 0) {
-                    emailAccountService.incrementEmailCount(account.getId(), newEmails);
-                }
+                int totalForAccount = emailRepository.countByAccountId(account.getId()).intValue();
+                emailAccountService.setEmailCount(account.getId(), totalForAccount);
             } catch (Exception e) {
                 log.error("Error fetching emails from {}: {}", account.getEmailAddress(), e.getMessage(), e);
             }
@@ -117,8 +124,9 @@ public class EmailFetchService {
             try {
                 String messageId = getMessageId(message);
 
-                // Sprawdź czy email już istnieje
-                if (emailRepository.findByMessageId(messageId).isEmpty()) {
+                // Sprawdź czy email już istnieje dla tego konta (nie globalnie)
+                // Pozwala to na duplikację emaili gdy wielu użytkowników używa tego samego konta
+                if (emailRepository.findByMessageIdAndAccount_Id(messageId, account.getId()).isEmpty()) {
                     processAndSaveEmail(message, messageId, account);
                     newEmails++;
                 }
@@ -169,6 +177,7 @@ public class EmailFetchService {
         email.setMessageId(messageId);
         email.setSender(from);
         email.setAccount(account);
+        email.setUserId(null); // Email nie jest przypisany do konkretnego użytkownika - będzie dostępny dla wszystkich z konta
         email.setRecipient(account.getEmailAddress()); // Ustawienie odbiorcy
         email.setCompany(extractCompany(from));
         email.setSubject(subject);
@@ -180,15 +189,63 @@ public class EmailFetchService {
         Email savedEmail = emailRepository.save(email);
         log.info("Saved email from {} to {} with status: {}", from, account.getEmailAddress(), status);
 
+        // Jeśli to odpowiedź kontaktu, zatrzymaj sekwencję i przesuń deal
+        handleSequenceReply(extractEmailAddress(from));
+
         // Automatycznie utwórz/zaktualizuj kontakt
         try {
             contactAutoCreationService.createOrUpdateContactFromEmail(savedEmail);
+
+            // Auto-enrich contact with details from email body (signature)
+            String senderEmailAddress = extractEmailAddress(from);
+            contactRepository.findByEmail(senderEmailAddress).ifPresent(contact -> {
+                contactService.autoEnrichContact(contact.getId(), content);
+
+                // Dodaj kontakt do użytkownika na podstawie statusu emaila
+                userContactService.addContactBasedOnEmailStatus(
+                    contact.getId(),
+                    account.getId(),
+                    status
+                );
+            });
+
             log.debug("Contact creation/update completed for email ID: {}", savedEmail.getId());
         } catch (Exception e) {
             log.error("Failed to create/update contact for email ID {} (sender: {}): {}",
                 savedEmail.getId(), from, e.getMessage(), e);
             // Nie rzucamy wyjątku dalej, żeby nie przerywać procesu zapisywania emaila
         }
+    }
+
+    /**
+     * Po otrzymaniu maila sprawdza, czy nadawca jest odbiorcą jakiejś sekwencji.
+     * Jeśli tak – oznacza execution jako "replied", anuluje resztę kroków i przesuwa deal.
+     */
+    private void handleSequenceReply(String senderEmail) {
+        if (senderEmail == null || senderEmail.isBlank()) {
+            return;
+        }
+
+        List<SequenceExecution> executions = sequenceExecutionRepository
+            .findByRecipientEmailIgnoreCaseAndStatusIn(
+                senderEmail,
+                List.of("active", "completed")
+            );
+
+        if (executions.isEmpty()) {
+            return;
+        }
+
+        log.info("Detected reply from {} for {} executions", senderEmail, executions.size());
+        executions.forEach(scheduledEmailService::stopSequenceOnReply);
+    }
+
+    private String extractEmailAddress(String sender) {
+        if (sender == null) return "";
+        if (sender.contains("<") && sender.contains(">")) {
+            return sender.substring(sender.indexOf("<") + 1, sender.indexOf(">"));
+        }
+        return sender.trim();
     }
 
     private String getMessageId(Message message) throws MessagingException {

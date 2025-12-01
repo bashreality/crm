@@ -1,8 +1,16 @@
 package com.crm.service;
 
+import com.crm.model.Contact;
+import com.crm.model.Deal;
+import com.crm.model.Email;
+import com.crm.model.EmailAccount;
+import com.crm.model.PipelineStage;
 import com.crm.model.ScheduledEmail;
 import com.crm.model.SequenceExecution;
+import com.crm.repository.ContactRepository;
+import com.crm.repository.DealRepository;
 import com.crm.repository.EmailRepository;
+import com.crm.repository.PipelineStageRepository;
 import com.crm.repository.ScheduledEmailRepository;
 import com.crm.repository.SequenceExecutionRepository;
 import jakarta.mail.MessagingException;
@@ -14,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +33,9 @@ public class ScheduledEmailService {
     private final SequenceExecutionRepository executionRepository;
     private final EmailSendingService emailSendingService;
     private final EmailRepository emailRepository;
+    private final ContactRepository contactRepository;
+    private final DealRepository dealRepository;
+    private final PipelineStageRepository pipelineStageRepository;
 
     /**
      * Automatycznie wysyła zaplanowane emaile co minutę
@@ -54,6 +66,40 @@ public class ScheduledEmailService {
     }
 
     /**
+     * Proaktywnie sprawdza czy kontakty odpowiedziały i zatrzymuje sekwencje
+     * Uruchamiane co 5 minut
+     */
+    @Scheduled(fixedDelay = 300000) // Co 5 minut
+    @Transactional
+    public void checkForRepliesAndStopSequences() {
+        List<SequenceExecution> activeExecutions = executionRepository.findByStatus("active");
+
+        if (activeExecutions.isEmpty()) {
+            log.debug("No active executions to check for replies");
+            return;
+        }
+
+        log.info("Checking {} active executions for replies", activeExecutions.size());
+        int stoppedCount = 0;
+
+        for (SequenceExecution execution : activeExecutions) {
+            try {
+                if (hasRecipientReplied(execution)) {
+                    log.info("Reply detected for execution {} - stopping sequence", execution.getId());
+                    stopSequenceOnReply(execution);
+                    stoppedCount++;
+                }
+            } catch (Exception e) {
+                log.error("Error checking replies for execution {}", execution.getId(), e);
+            }
+        }
+
+        if (stoppedCount > 0) {
+            log.info("Stopped {} sequences due to replies", stoppedCount);
+        }
+    }
+
+    /**
      * Wysyła pojedynczy zaplanowany email
      */
     @Transactional
@@ -61,6 +107,7 @@ public class ScheduledEmailService {
         log.info("Sending scheduled email {} to {}", scheduledEmail.getId(), scheduledEmail.getRecipientEmail());
 
         SequenceExecution execution = scheduledEmail.getExecution();
+        EmailAccount account = execution != null ? execution.getSequence().getEmailAccount() : null;
         if (execution != null) {
             if (!"active".equalsIgnoreCase(execution.getStatus())) {
                 skipScheduledEmail(scheduledEmail, "Execution no longer active");
@@ -77,18 +124,69 @@ public class ScheduledEmailService {
                 if (Boolean.TRUE.equals(scheduledEmail.getStep().getSkipIfReplied())
                         && hasRecipientReplied(execution)) {
                     skipScheduledEmail(scheduledEmail, "Contact already replied");
-                    markExecutionCompleted(execution);
+                    stopSequenceOnReply(execution);
                     return;
                 }
             }
         }
 
         try {
-            Long sentEmailId = emailSendingService.sendEmail(
-                    scheduledEmail.getRecipientEmail(),
-                    scheduledEmail.getSubject(),
-                    scheduledEmail.getBody()
-            );
+            // Pobierz kontakt odbiorcy dla podstawienia zmiennych
+            String recipientEmail = scheduledEmail.getRecipientEmail();
+            Optional<Contact> contactOpt = contactRepository.findByEmail(recipientEmail);
+
+            String processedSubject = scheduledEmail.getSubject();
+            String processedBody = scheduledEmail.getBody();
+
+            // Jeśli znaleziono kontakt, przetworz zmienne szablonowe
+            if (contactOpt.isPresent()) {
+                Contact contact = contactOpt.get();
+                processedSubject = emailSendingService.processTemplateVariables(processedSubject, contact);
+                processedBody = emailSendingService.processTemplateVariables(processedBody, contact);
+                log.debug("Processed template variables for contact: {}", contact.getEmail());
+            } else {
+                log.warn("Contact not found for email: {}, sending without variable substitution", recipientEmail);
+            }
+
+            // Determine if we should send as a reply to thread
+            Long sentEmailId;
+            if (execution != null && Boolean.TRUE.equals(execution.getIsReplyToThread()) && execution.getLastMessageId() != null) {
+                // Send as reply to maintain thread
+                if (account != null) {
+                    sentEmailId = emailSendingService.sendReplyFromAccount(
+                            account,
+                            recipientEmail,
+                            processedSubject,
+                            processedBody,
+                            execution.getLastMessageId(),
+                            null // References will be built by sendReply
+                    );
+                } else {
+                    sentEmailId = emailSendingService.sendReply(
+                            recipientEmail,
+                            processedSubject,
+                            processedBody,
+                            execution.getLastMessageId(),
+                            null // References will be built by sendReply
+                    );
+                }
+            } else {
+                // Send as new email
+                if (account != null) {
+                    sentEmailId = emailSendingService.sendEmailFromAccount(
+                            account,
+                            recipientEmail,
+                            processedSubject,
+                            processedBody
+                    );
+                } else {
+                    sentEmailId = emailSendingService.sendEmail(
+                            recipientEmail,
+                            processedSubject,
+                            processedBody
+                    );
+                }
+            }
 
             scheduledEmail.setStatus("sent");
             scheduledEmail.setSentAt(LocalDateTime.now());
@@ -96,7 +194,7 @@ public class ScheduledEmailService {
             scheduledEmailRepository.save(scheduledEmail);
 
             if (execution != null && scheduledEmail.getStep() != null) {
-                updateExecutionProgress(scheduledEmail);
+                updateExecutionProgress(scheduledEmail, sentEmailId);
             }
 
             log.info("Successfully sent scheduled email {}", scheduledEmail.getId());
@@ -109,13 +207,36 @@ public class ScheduledEmailService {
      * Aktualizuje postęp wykonania sekwencji po wysłaniu emaila
      */
     @Transactional
-    protected void updateExecutionProgress(ScheduledEmail scheduledEmail) {
+    protected void updateExecutionProgress(ScheduledEmail scheduledEmail, Long sentEmailId) {
         SequenceExecution execution = scheduledEmail.getExecution();
         int stepOrder = scheduledEmail.getStep().getStepOrder();
 
         // Zaktualizuj current step jeśli ten krok jest dalej
         if (stepOrder > execution.getCurrentStep()) {
             execution.setCurrentStep(stepOrder);
+        }
+
+        // Update thread context after sending first email
+        if (sentEmailId != null) {
+            Optional<Email> sentEmailOpt = emailRepository.findById(sentEmailId);
+            if (sentEmailOpt.isPresent()) {
+                Email sentEmail = sentEmailOpt.get();
+
+                // If this is the first email (step 1), set up threading for subsequent emails
+                if (stepOrder == 1 && sentEmail.getMessageId() != null) {
+                    execution.setLastMessageId(sentEmail.getMessageId());
+                    execution.setLastThreadSubject(scheduledEmail.getSubject());
+                    execution.setIsReplyToThread(true);
+                    log.debug("Set up thread context for execution {} - messageId: {}",
+                            execution.getId(), sentEmail.getMessageId());
+                }
+                // Update with the latest message ID for thread continuity
+                else if (sentEmail.getMessageId() != null) {
+                    execution.setLastMessageId(sentEmail.getMessageId());
+                    log.debug("Updated thread context for execution {} - messageId: {}",
+                            execution.getId(), sentEmail.getMessageId());
+                }
+            }
         }
 
         // Sprawdź czy to był ostatni krok
@@ -212,5 +333,96 @@ public class ScheduledEmailService {
         execution.setStatus("completed");
         execution.setCompletedAt(LocalDateTime.now());
         executionRepository.save(execution);
+    }
+
+    /**
+     * Zatrzymuje całą sekwencję po otrzymaniu odpowiedzi od kontaktu
+     * - Oznacza execution jako "replied"
+     * - Anuluje wszystkie pozostałe zaplanowane emaile
+     * - Przesuwa deal do następnego etapu w pipeline
+     */
+    @Transactional
+    protected void stopSequenceOnReply(SequenceExecution execution) {
+        log.info("Stopping sequence execution {} - contact replied", execution.getId());
+
+        // Oznacz wykonanie jako replied
+        execution.setStatus("replied");
+        execution.setCompletedAt(LocalDateTime.now());
+        executionRepository.save(execution);
+
+        // Jeśli execution ma powiązany deal, przesuń go do następnego etapu
+        if (execution.getDealId() != null) {
+            advanceDealOnReply(execution.getDealId());
+        }
+
+        // Anuluj wszystkie pozostałe pending emaile
+        cancelAllRemainingEmails(execution.getId());
+    }
+
+    /**
+     * Anuluje wszystkie pozostałe (pending) emaile dla danego execution
+     */
+    @Transactional
+    protected void cancelAllRemainingEmails(Long executionId) {
+        List<ScheduledEmail> pendingEmails = scheduledEmailRepository.findByExecutionId(executionId)
+                .stream()
+                .filter(email -> "pending".equals(email.getStatus()))
+                .toList();
+
+        if (!pendingEmails.isEmpty()) {
+            log.info("Cancelling {} remaining emails for execution {}", pendingEmails.size(), executionId);
+
+            for (ScheduledEmail email : pendingEmails) {
+                email.setStatus("cancelled");
+                email.setErrorMessage("Sequence stopped - contact replied");
+                scheduledEmailRepository.save(email);
+            }
+        }
+    }
+
+    /**
+     * Przesuwa deal do następnego etapu w pipeline po otrzymaniu odpowiedzi
+     */
+    private void advanceDealOnReply(Long dealId) {
+        try {
+            Deal deal = dealRepository.findById(dealId).orElse(null);
+            if (deal == null) {
+                log.warn("Deal {} not found, cannot advance on reply", dealId);
+                return;
+            }
+
+            PipelineStage currentStage = deal.getStage();
+            if (currentStage == null) {
+                log.warn("Deal {} has no stage, cannot advance to next stage", dealId);
+                return;
+            }
+
+            // Znajdź wszystkie etapy w tym pipeline
+            List<PipelineStage> stages = pipelineStageRepository.findByPipelineIdOrderByPosition(
+                currentStage.getPipeline().getId()
+            );
+
+            // Znajdź aktualny etap i następny
+            for (int i = 0; i < stages.size(); i++) {
+                if (stages.get(i).getId().equals(currentStage.getId())) {
+                    if (i < stages.size() - 1) {
+                        // Jest następny etap - przesuń deal
+                        PipelineStage nextStage = stages.get(i + 1);
+                        deal.setStage(nextStage);
+                        deal.setUpdatedAt(LocalDateTime.now());
+                        dealRepository.save(deal);
+                        log.info("Deal {} automatically advanced from stage '{}' to '{}' due to email reply",
+                            dealId, currentStage.getName(), nextStage.getName());
+                    } else {
+                        log.info("Deal {} is already in the last stage '{}', cannot advance",
+                            dealId, currentStage.getName());
+                    }
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error advancing deal {} on email reply: {}", dealId, e.getMessage(), e);
+            // Don't rethrow - this is a side effect, not the main operation
+        }
     }
 }

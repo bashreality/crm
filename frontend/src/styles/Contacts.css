@@ -1,0 +1,461 @@
+/* Główny Layout */
+.contacts-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Dopasuj do kontenera rodzica */
+  background-color: #f8fafc;
+  overflow: hidden;
+  position: relative; /* Dla pozycjonowania panelu bocznego */
+}
+
+.contacts-topbar {
+  padding: 20px 32px;
+  background-color: white;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.contacts-topbar h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.contacts-sub {
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}
+
+.contacts-topbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Layout Content */
+.contacts-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Sidebar (Filtry) */
+.contacts-sidebar {
+  width: 280px;
+  background-color: white;
+  border-right: 1px solid #e2e8f0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.contacts-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.contacts-field input,
+.contacts-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1e293b;
+  transition: all 0.2s;
+}
+
+.contacts-field input:focus,
+.contacts-field select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+/* Center Content (Lista) */
+.contacts-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  /* Add same background as Dashboard */
+  background: #f8fafc;
+}
+
+/* Container for main content - match Dashboard styling */
+.contacts-center > div {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 20px;
+}
+
+/* Toolbar styling - match Dashboard */
+.contacts-toolbar {
+  padding: 20px 24px;
+  background: white;
+  border-radius: 16px 16px 0 0;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+}
+
+/* Table container styling */
+.contacts-table-container {
+  background: white;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+  border: none;
+  margin: 0;
+}
+
+/* Pagination styling */
+.contacts-pagination {
+  padding: 16px 24px;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0 0 16px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+}
+
+/* Search icon for sidebar */
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+}
+
+.contacts-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.contacts-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f8fafc;
+}
+
+.contacts-table th {
+  padding: 12px 24px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.contacts-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #334155;
+  transition: background-color 0.1s;
+}
+
+.contacts-row {
+  cursor: pointer;
+  position: relative;
+}
+
+.contacts-row:hover {
+  background-color: #f8fafc;
+}
+
+.contacts-row.selected {
+  background-color: #eff6ff;
+}
+
+.contacts-row:hover .row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Kolumny specyficzne */
+.col-checkbox {
+  width: 40px;
+  padding-right: 8px !important;
+}
+
+.col-name {
+  min-width: 200px;
+}
+
+.col-contact {
+  min-width: 200px;
+}
+
+.col-actions {
+  width: 120px;
+  text-align: right;
+}
+
+/* Stylizacja Komórek */
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.contact-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.name-text {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.company-text {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.meta-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.email-link {
+  color: #334155;
+  text-decoration: none;
+}
+
+.email-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Tagi (Chips) */
+.tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  padding: 2px 8px;
+  background-color: #f1f5f9;
+  color: #475569;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+}
+
+/* Hover Actions */
+.row-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  opacity: 0; /* Ukryte domyślnie */
+  transition: opacity 0.2s;
+}
+
+.action-icon-btn {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-icon-btn:hover {
+  background-color: #f1f5f9;
+  color: #2563eb;
+  border-color: #cbd5e1;
+}
+
+/* Floating Action Bar (Bulk Actions) */
+.floating-bar {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1e293b;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 100px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translate(-50%, 100%); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.floating-count {
+  font-weight: 600;
+  padding-right: 16px;
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.floating-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.floating-btn {
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: background-color 0.2s;
+}
+
+.floating-btn:hover {
+  background-color: rgba(255,255,255,0.1);
+  color: white;
+}
+
+/* Right Details Panel */
+.contacts-details {
+  width: 400px;
+  background-color: white;
+  border-left: 1px solid #e2e8f0;
+  padding: 24px;
+  overflow-y: auto;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  box-shadow: -4px 0 15px rgba(0,0,0,0.05);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 50;
+}
+
+.contacts-details.open {
+  transform: translateX(0);
+}
+
+.details-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+/* Activity Indicator */
+.activity-badge {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.activity-badge.recent { color: #16a34a; } /* Green */
+.activity-badge.medium { color: #d97706; } /* Amber */
+.activity-badge.old { color: #dc2626; } /* Red */
+
+/* Pagination */
+.contacts-pagination {
+  padding: 12px 24px;
+  border-top: 1px solid #e2e8f0;
+  background-color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Custom Checkbox */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+}
+
+/* Tags */
+.tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tag-chip:hover {
+  opacity: 0.8;
+}
+
+.add-tag-btn {
+  background: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-tag-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #475569;
+}

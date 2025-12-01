@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
@@ -10,13 +11,17 @@ import Tasks from './pages/Tasks';
 import CalendarTask from './pages/Calendar';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
+import Deals from './pages/Deals';
+import Users from './pages/Users';
+import EmailAccounts from './pages/EmailAccounts';
 import './App.css';
 
 // Komponent ochrony tras - wymaga zalogowania
 const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
 
-  if (!isAuthenticated) {
+  if (!token || !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
@@ -29,6 +34,7 @@ function App() {
   return (
     <Router>
       <div className="App">
+        <Toaster position="top-right" />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -41,11 +47,14 @@ function App() {
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/contacts" element={<Contacts />} />
                     <Route path="/campaigns" element={<Campaigns />} />
+                    <Route path="/deals" element={<Deals />} />
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/sequences" element={<Sequences />} />
                     <Route path="/tasks" element={<Tasks />} />
                     <Route path="/calendar" element={<CalendarTask />} />
                     <Route path="/settings" element={<Settings />} />
+                    <Route path="/users" element={<Users />} />
+                    <Route path="/email-accounts" element={<EmailAccounts />} />
                   </Routes>
                 </>
               </ProtectedRoute>

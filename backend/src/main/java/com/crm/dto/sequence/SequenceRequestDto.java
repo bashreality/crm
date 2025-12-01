@@ -16,6 +16,8 @@ public class SequenceRequestDto {
     private Boolean sendOnWeekends;
     private Integer dailySendingLimit;
     private Integer throttlePerHour;
+    private Long emailAccountId;
+    private Long tagId; // Tag docelowy dla odbiorców sekwencji
     private List<SequenceStepRequestDto> steps;
 }
 

@@ -1,8 +1,10 @@
 package com.crm.service;
 
 import com.crm.dto.sequence.*;
+import com.crm.exception.ValidationException;
 import com.crm.model.*;
 import com.crm.repository.*;
+import com.crm.service.UserContextService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,25 +32,42 @@ public class SequenceService {
     private final SequenceStepRepository stepRepository;
     private final SequenceExecutionRepository executionRepository;
     private final ScheduledEmailRepository scheduledEmailRepository;
+    private final ScheduledEmailService scheduledEmailService;
     private final ContactRepository contactRepository;
+    private final EmailAccountRepository emailAccountRepository;
+    private final TagRepository tagRepository;
+    private final DealRepository dealRepository;
+    private final PipelineStageRepository pipelineStageRepository;
+    private final EmailRepository emailRepository;
+    private final UserContextService userContextService;
 
     public List<SequenceSummaryDto> getAllSequences() {
-        return sequenceRepository.findAll()
+        Long userId = userContextService.getCurrentUserId();
+        log.info("getAllSequences called for userId: {}", userId);
+        return sequenceRepository.findByUserId(userId)
                 .stream()
                 .map(this::mapToSummary)
                 .collect(Collectors.toList());
     }
 
     public List<SequenceSummaryDto> getActiveSequences() {
-        return sequenceRepository.findByActiveTrue()
+        Long userId = userContextService.getCurrentUserId();
+        return sequenceRepository.findByUserIdAndActiveTrue(userId)
                 .stream()
                 .map(this::mapToSummary)
                 .collect(Collectors.toList());
     }
 
     public SequenceDetailsDto getSequenceDetails(Long id) {
+        Long userId = userContextService.getCurrentUserId();
         EmailSequence sequence = sequenceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Sequence not found"));
+
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
         sequence.getSteps().size(); // initialize
         sequence.getSteps().sort(Comparator.comparingInt(SequenceStep::getStepOrder));
         return mapToDetails(sequence);
@@ -56,34 +75,81 @@ public class SequenceService {
 
     @Transactional
     public SequenceDetailsDto createSequence(SequenceRequestDto request) {
+        validateSequenceRequest(request);
         EmailSequence sequence = new EmailSequence();
         applySequenceFields(sequence, request);
+
+        // Set userId to current user
+        Long userId = userContextService.getCurrentUserId();
+        log.info("Current user ID from UserContextService: {}", userId);
+        if (userId != null) {
+            sequence.setUserId(userId);
+        } else {
+            sequence.setUserId(1L); // Fallback for testing
+            log.warn("UserContextService returned null, using fallback userId=1");
+        }
+
         sequence = sequenceRepository.save(sequence);
-        log.info("Created sequence {} (id={})", sequence.getName(), sequence.getId());
+        log.info("### CREATED SEQUENCE {} (id={}) for user {} ###", sequence.getName(), sequence.getId(), sequence.getUserId());
         return mapToDetails(sequence);
     }
 
     @Transactional
     public SequenceDetailsDto updateSequence(Long id, SequenceRequestDto request) {
+        validateSequenceRequest(request);
+        Long userId = userContextService.getCurrentUserId();
         EmailSequence sequence = sequenceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Sequence not found"));
 
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
         applySequenceFields(sequence, request);
         sequence = sequenceRepository.save(sequence);
-        log.info("Updated sequence {} (id={})", sequence.getName(), sequence.getId());
+        log.info("Updated sequence {} (id={}) for user {}", sequence.getName(), sequence.getId(), userId);
         return mapToDetails(sequence);
     }
 
     @Transactional
     public void deleteSequence(Long id) {
-        log.info("Deleting sequence {}", id);
+        Long userId = userContextService.getCurrentUserId();
+        log.info("Deleting sequence {} for user {}", id, userId);
+
+        // Najpierw pobierz sekwencję aby zweryfikować że istnieje
+        EmailSequence sequence = sequenceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Sequence not found"));
+
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
+        // Usuń wszystkie zaplanowane emaile powiązane z krokami tej sekwencji
+        List<SequenceStep> steps = sequence.getSteps();
+        for (SequenceStep step : steps) {
+            scheduledEmailRepository.deleteByStepId(step.getId());
+        }
+
+        // Usuń wszystkie wykonania sekwencji
+        executionRepository.deleteBySequenceId(id);
+
+        // Teraz możemy bezpiecznie usunąć sekwencję (cascade usunie steps)
         sequenceRepository.deleteById(id);
+        log.info("Successfully deleted sequence {} with all related data", id);
     }
 
     @Transactional
     public SequenceStepDto addStep(Long sequenceId, SequenceStepRequestDto request) {
+        Long userId = userContextService.getCurrentUserId();
         EmailSequence sequence = sequenceRepository.findById(sequenceId)
                 .orElseThrow(() -> new RuntimeException("Sequence not found"));
+
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
 
         SequenceStep step = buildStep(sequence, request);
         sequence.getSteps().add(step);
@@ -94,8 +160,15 @@ public class SequenceService {
 
     @Transactional
     public SequenceStepDto updateStep(Long stepId, SequenceStepRequestDto request) {
+        Long userId = userContextService.getCurrentUserId();
         SequenceStep step = stepRepository.findById(stepId)
                 .orElseThrow(() -> new RuntimeException("Step not found"));
+
+        // Check if user owns the parent sequence
+        EmailSequence sequence = step.getSequence();
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
 
         applyStepFields(step, request);
         return mapStep(stepRepository.save(step));
@@ -103,10 +176,35 @@ public class SequenceService {
 
     @Transactional
     public void deleteStep(Long stepId) {
+        Long userId = userContextService.getCurrentUserId();
+        SequenceStep step = stepRepository.findById(stepId)
+                .orElseThrow(() -> new RuntimeException("Step not found"));
+
+        // Check if user owns the parent sequence
+        EmailSequence sequence = step.getSequence();
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
+        // Najpierw usuń powiązane zaplanowane emaile
+        scheduledEmailRepository.deleteByStepId(stepId);
+
+        // Usuń评论 powiązane z wykonaniami sekwencji (opcjonalnie)
+        // Można też zostawić execution i oznaczyć email jako cancelled
+
         stepRepository.deleteById(stepId);
     }
 
     public List<SequenceStepDto> getStepsForSequence(Long sequenceId) {
+        Long userId = userContextService.getCurrentUserId();
+        EmailSequence sequence = sequenceRepository.findById(sequenceId)
+                .orElseThrow(() -> new RuntimeException("Sequence not found"));
+
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
         return stepRepository.findBySequenceIdOrderByStepOrderAsc(sequenceId)
                 .stream()
                 .map(this::mapStep)
@@ -114,10 +212,12 @@ public class SequenceService {
     }
 
     public SequenceDashboardDto getDashboard() {
-        long totalSequences = sequenceRepository.count();
-        long activeSequences = sequenceRepository.findByActiveTrue().size();
+        Long userId = userContextService.getCurrentUserId();
+        long totalSequences = sequenceRepository.findByUserId(userId).size();
+        long activeSequences = sequenceRepository.findByUserIdAndActiveTrue(userId).size();
         long pausedSequences = Math.max(totalSequences - activeSequences, 0);
 
+        // TODO: Add userId filtering to executionRepository and scheduledEmailRepository
         long totalExecutions = executionRepository.count();
         long activeExecutions = executionRepository.countByStatus("active");
         long pausedExecutions = executionRepository.countByStatus("paused");
@@ -141,11 +241,30 @@ public class SequenceService {
      */
     @Transactional
     public SequenceExecution startSequenceForContact(Long sequenceId, Long contactId) {
+        return startSequenceForContact(sequenceId, contactId, null);
+    }
+
+    /**
+     * Rozpoczyna sekwencję dla kontaktu (z opcjonalnym powiązaniem z szansą)
+     */
+    @Transactional
+    public SequenceExecution startSequenceForContact(Long sequenceId, Long contactId, Long dealId) {
+        Long userId = userContextService.getCurrentUserId();
         EmailSequence sequence = sequenceRepository.findById(sequenceId)
                 .orElseThrow(() -> new RuntimeException("Sequence not found"));
 
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
         Contact contact = contactRepository.findById(contactId)
                 .orElseThrow(() -> new RuntimeException("Contact not found"));
+
+        // Check if user owns this contact
+        if (!userId.equals(contact.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
 
         if (Boolean.FALSE.equals(sequence.getActive())) {
             throw new RuntimeException("Cannot start inactive sequence");
@@ -157,11 +276,69 @@ public class SequenceService {
         execution.setRecipientEmail(contact.getEmail());
         execution.setStatus("active");
         execution.setCurrentStep(0);
+        execution.setDealId(dealId); // Opcjonalne powiązanie z szansą
+
+        // Initialize thread context from last known email with this contact
+        initializeThreadContext(execution, contact);
 
         execution = executionRepository.save(execution);
 
         scheduleStepsForExecution(execution);
+
+        // Jeśli sekwencja jest powiązana z szansą, przenieś szansę do następnego etapu
+        if (dealId != null) {
+            log.info("Moving deal {} to next pipeline stage after starting sequence", dealId);
+            moveDealToNextStage(dealId);
+        } else {
+            log.info("No dealId provided - not moving any deal to next stage");
+        }
+
         return execution;
+    }
+
+    /**
+     * Przenosi szansę do następnego etapu w pipeline
+     */
+    private void moveDealToNextStage(Long dealId) {
+        try {
+            Deal deal = dealRepository.findById(dealId).orElse(null);
+            if (deal == null) {
+                log.warn("Deal {} not found, cannot move to next stage", dealId);
+                return;
+            }
+
+            PipelineStage currentStage = deal.getStage();
+            if (currentStage == null) {
+                log.warn("Deal {} has no stage, cannot move to next stage", dealId);
+                return;
+            }
+
+            // Znajdź wszystkie etapy w tym pipeline
+            List<PipelineStage> stages = pipelineStageRepository.findByPipelineIdOrderByPosition(
+                currentStage.getPipeline().getId()
+            );
+
+            // Znajdź aktualny etap i następny
+            for (int i = 0; i < stages.size(); i++) {
+                if (stages.get(i).getId().equals(currentStage.getId())) {
+                    if (i < stages.size() - 1) {
+                        // Jest następny etap
+                        PipelineStage nextStage = stages.get(i + 1);
+                        deal.setStage(nextStage);
+                        deal.setUpdatedAt(LocalDateTime.now());
+                        dealRepository.save(deal);
+                        log.info("Deal {} moved from stage '{}' to '{}'",
+                            dealId, currentStage.getName(), nextStage.getName());
+                    } else {
+                        log.info("Deal {} is already in the last stage '{}'", dealId, currentStage.getName());
+                    }
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error moving deal {} to next stage: {}", dealId, e.getMessage(), e);
+            // Nie przerywa uruchamiania sekwencji - to tylko dodatkowa funkcjonalność
+        }
     }
 
     /**
@@ -169,8 +346,15 @@ public class SequenceService {
      */
     @Transactional
     public SequenceExecution pauseExecution(Long executionId) {
+        Long userId = userContextService.getCurrentUserId();
         SequenceExecution execution = executionRepository.findById(executionId)
                 .orElseThrow(() -> new RuntimeException("Execution not found"));
+
+        // Check if user owns the parent sequence
+        EmailSequence sequence = execution.getSequence();
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
 
         execution.setStatus("paused");
         execution.setPausedAt(LocalDateTime.now());
@@ -190,8 +374,15 @@ public class SequenceService {
      */
     @Transactional
     public SequenceExecution resumeExecution(Long executionId) {
+        Long userId = userContextService.getCurrentUserId();
         SequenceExecution execution = executionRepository.findById(executionId)
                 .orElseThrow(() -> new RuntimeException("Execution not found"));
+
+        // Check if user owns the parent sequence
+        EmailSequence sequence = execution.getSequence();
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
 
         execution.setStatus("active");
         execution.setPausedAt(null);
@@ -211,6 +402,15 @@ public class SequenceService {
     }
 
     public List<SequenceExecution> getExecutionsForSequence(Long sequenceId) {
+        Long userId = userContextService.getCurrentUserId();
+        EmailSequence sequence = sequenceRepository.findById(sequenceId)
+                .orElseThrow(() -> new RuntimeException("Sequence not found"));
+
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
         return executionRepository.findBySequenceId(sequenceId);
     }
 
@@ -219,6 +419,107 @@ public class SequenceService {
     }
 
     /* ====================== PRIVATE HELPERS ====================== */
+
+    /**
+     * Kompleksowa walidacja żądania utworzenia/edycji sekwencji
+     */
+    private void validateSequenceRequest(SequenceRequestDto request) {
+        // 1. Walidacja nazwy
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            throw new ValidationException("Nazwa sekwencji jest wymagana");
+        }
+        if (request.getName().length() > 100) {
+            throw new ValidationException("Nazwa sekwencji nie może przekraczać 100 znaków");
+        }
+
+        // 2. Walidacja okna wysyłki
+        if (request.getSendWindowStart() != null && request.getSendWindowEnd() != null) {
+            if (request.getSendWindowStart().isAfter(request.getSendWindowEnd()) ||
+                request.getSendWindowStart().equals(request.getSendWindowEnd())) {
+                throw new ValidationException("Koniec okna wysyłki musi być późniejszy niż początek (min. 1 godzina różnicy)");
+            }
+        }
+
+        // 3. Walidacja limitów wysyłki
+        if (request.getDailySendingLimit() != null && request.getDailySendingLimit() < 1) {
+            throw new ValidationException("Dzienny limit wysyłki musi być większy od 0");
+        }
+        if (request.getDailySendingLimit() != null && request.getDailySendingLimit() > 10000) {
+            throw new ValidationException("Dzienny limit wysyłki nie może przekraczać 10000");
+        }
+        if (request.getThrottlePerHour() != null && request.getThrottlePerHour() < 1) {
+            throw new ValidationException("Limit wysyłek na godzinę musi być większy od 0");
+        }
+        if (request.getThrottlePerHour() != null && request.getThrottlePerHour() > 1000) {
+            throw new ValidationException("Limit wysyłek na godzinę nie może przekraczać 1000");
+        }
+
+        // 4. Walidacja kroków
+        if (request.getSteps() != null && !request.getSteps().isEmpty()) {
+            for (int i = 0; i < request.getSteps().size(); i++) {
+                SequenceStepRequestDto step = request.getSteps().get(i);
+                String stepPrefix = "Krok " + (i + 1) + ": ";
+
+                // Walidacja typu kroku
+                if (step.getStepType() == null || step.getStepType().trim().isEmpty()) {
+                    throw new ValidationException(stepPrefix + "Typ kroku jest wymagany");
+                }
+
+                // Walidacja dla kroków typu email
+                if ("email".equals(step.getStepType())) {
+                    if (step.getSubject() == null || step.getSubject().trim().isEmpty()) {
+                        throw new ValidationException(stepPrefix + "Temat emaila jest wymagany");
+                    }
+                    if (step.getSubject().length() > 200) {
+                        throw new ValidationException(stepPrefix + "Temat emaila nie może przekraczać 200 znaków");
+                    }
+                    if (step.getBody() == null || step.getBody().trim().isEmpty()) {
+                        throw new ValidationException(stepPrefix + "Treść emaila jest wymagana");
+                    }
+                    if (step.getBody().length() > 50000) {
+                        throw new ValidationException(stepPrefix + "Treść emaila nie może przekraczać 50000 znaków");
+                    }
+                }
+
+                // Walidacja opóźnień
+                Integer totalDelayMinutes =
+                    (step.getDelayDays() != null ? step.getDelayDays() * 24 * 60 : 0) +
+                    (step.getDelayHours() != null ? step.getDelayHours() * 60 : 0) +
+                    (step.getDelayMinutes() != null ? step.getDelayMinutes() : 0);
+
+                if (i > 0 && totalDelayMinutes < 1) {
+                    throw new ValidationException(stepPrefix + "Opóźnienie musi wynosić co najmniej 1 minutę (z wyjątkiem pierwszego kroku)");
+                }
+                if (totalDelayMinutes > 365 * 24 * 60) {
+                    throw new ValidationException(stepPrefix + "Opóźnienie nie może przekraczać 365 dni");
+                }
+
+                // Walidacja waitForReplyHours
+                if (step.getWaitForReplyHours() != null && step.getWaitForReplyHours() < 0) {
+                    throw new ValidationException(stepPrefix + "Czas oczekiwania na odpowiedź nie może być ujemny");
+                }
+                if (step.getWaitForReplyHours() != null && step.getWaitForReplyHours() > 8760) {
+                    throw new ValidationException(stepPrefix + "Czas oczekiwania na odpowiedź nie może przekraczać 365 dni");
+                }
+            }
+        }
+
+        // 5. Walidacja konta email (jeśli podane)
+        if (request.getEmailAccountId() != null) {
+            if (!emailAccountRepository.existsById(request.getEmailAccountId())) {
+                throw new ValidationException("Wybrane konto email nie istnieje");
+            }
+        }
+
+        // 6. Walidacja tagu (jeśli podany)
+        if (request.getTagId() != null) {
+            if (!tagRepository.existsById(request.getTagId())) {
+                throw new ValidationException("Wybrany tag nie istnieje");
+            }
+        }
+
+        log.debug("Validation passed for sequence request: {}", request.getName());
+    }
 
     private void applySequenceFields(EmailSequence sequence, SequenceRequestDto request) {
         sequence.setName(Optional.ofNullable(request.getName()).orElseThrow(() -> new IllegalArgumentException("Sequence name is required")));
@@ -231,6 +532,18 @@ public class SequenceService {
         sequence.setDailySendingLimit(request.getDailySendingLimit());
         sequence.setThrottlePerHour(request.getThrottlePerHour());
 
+        if (request.getEmailAccountId() != null) {
+            emailAccountRepository.findById(request.getEmailAccountId())
+                    .ifPresent(sequence::setEmailAccount);
+        }
+
+        if (request.getTagId() != null) {
+            tagRepository.findById(request.getTagId())
+                    .ifPresent(sequence::setTag);
+        } else {
+            sequence.setTag(null);
+        }
+
         applyStepRequests(sequence, request.getSteps());
     }
 
@@ -240,6 +553,11 @@ public class SequenceService {
             targetSteps = new ArrayList<>();
             sequence.setSteps(targetSteps);
         } else {
+            // Usuń wszystkie istniejące kroki sekwencji wraz z powiązanymi zaplanowanymi emailami
+            for (SequenceStep existingStep : new ArrayList<>(targetSteps)) {
+                scheduledEmailRepository.deleteByStepId(existingStep.getId());
+                stepRepository.delete(existingStep);
+            }
             targetSteps.clear();
         }
 
@@ -283,6 +601,9 @@ public class SequenceService {
         }
 
         LocalDateTime reference = LocalDateTime.now();
+        boolean firstStep = true;
+        boolean forceImmediateFirstStep = execution.getDealId() != null; // szansa -> wyślij pierwszy krok natychmiast
+
         for (SequenceStep step : steps) {
             LocalDateTime scheduled = reference
                     .plusDays(Optional.ofNullable(step.getDelayDays()).orElse(0))
@@ -293,8 +614,18 @@ public class SequenceService {
                 scheduled = scheduled.plusHours(step.getWaitForReplyHours());
             }
 
-            scheduled = alignToSendWindow(scheduled, execution.getSequence());
-            scheduled = enforceSendingPolicies(scheduled, execution.getSequence());
+            boolean sendImmediately = firstStep && (forceImmediateFirstStep || shouldBeSentImmediately(step));
+            if (sendImmediately) {
+                scheduled = LocalDateTime.now();
+            }
+
+            // Dla pierwszego kroku bez opóźnienia nie stosujemy reguł wysyłki
+            if (!sendImmediately) {
+                scheduled = alignToSendWindow(scheduled, execution.getSequence());
+                scheduled = enforceSendingPolicies(scheduled, execution.getSequence());
+            } else {
+                log.info("First step has no delay - will be sent immediately for execution {}", execution.getId());
+            }
 
             ScheduledEmail scheduledEmail = new ScheduledEmail();
             scheduledEmail.setExecution(execution);
@@ -305,10 +636,24 @@ public class SequenceService {
             scheduledEmail.setScheduledFor(scheduled);
             scheduledEmail.setStatus(STATUS_PENDING);
 
-            scheduledEmailRepository.save(scheduledEmail);
-            log.info("Scheduled sequence step {} for execution {} at {}", step.getStepOrder(), execution.getId(), scheduled);
+            scheduledEmail = scheduledEmailRepository.save(scheduledEmail);
 
+            // Jeśli to pierwszy krok bez opóźnienia - wyślij natychmiast
+            if (sendImmediately) {
+                try {
+                    log.info("Sending first step immediately for execution {} - scheduled email ID: {}",
+                             execution.getId(), scheduledEmail.getId());
+                    scheduledEmailService.sendNow(scheduledEmail.getId());
+                } catch (Exception e) {
+                    log.error("Failed to send first step immediately for execution {}: {}",
+                              execution.getId(), e.getMessage(), e);
+                    // Nie przerywamy procesu, email pozostanie w statusie pending i zostanie wysłany przez scheduler
+                }
+            }
+
+            log.info("Scheduled sequence step {} for execution {} at {}", step.getStepOrder(), execution.getId(), scheduled);
             reference = scheduled;
+            firstStep = false;
         }
     }
 
@@ -396,6 +741,16 @@ public class SequenceService {
                 .replace("{{phone}}", Optional.ofNullable(contact.getPhone()).orElse(""));
     }
 
+    /**
+     * Sprawdza czy krok sekwencji ma zerowe opóźnienie i powinien być wysłany natychmiast
+     */
+    private boolean shouldBeSentImmediately(SequenceStep step) {
+        return (step.getDelayDays() == null || step.getDelayDays() == 0) &&
+               (step.getDelayHours() == null || step.getDelayHours() == 0) &&
+               (step.getDelayMinutes() == null || step.getDelayMinutes() == 0) &&
+               (step.getWaitForReplyHours() == null || step.getWaitForReplyHours() == 0);
+    }
+
     private String extractFirstName(String fullName) {
         if (fullName == null || fullName.isBlank()) {
             return "";
@@ -434,6 +789,10 @@ public class SequenceService {
                 .createdAt(sequence.getCreatedAt())
                 .updatedAt(sequence.getUpdatedAt())
                 .nextScheduledSend(nextScheduled)
+                .tagId(sequence.getTag() != null ? sequence.getTag().getId() : null)
+                .tagName(sequence.getTag() != null ? sequence.getTag().getName() : null)
+                .emailAccountId(sequence.getEmailAccount() != null ? sequence.getEmailAccount().getId() : null)
+                .emailAccountName(sequence.getEmailAccount() != null ? sequence.getEmailAccount().getDisplayName() : null)
                 .build();
     }
 
@@ -468,6 +827,38 @@ public class SequenceService {
                 .trackOpens(step.getTrackOpens())
                 .trackClicks(step.getTrackClicks())
                 .build();
+    }
+
+    /**
+     * Initialize thread context from the last known email with this contact.
+     * If we find a previous email conversation, the first sequence email will be sent as a reply.
+     */
+    private void initializeThreadContext(SequenceExecution execution, Contact contact) {
+        try {
+            // Find the last email from or to this contact
+            List<Email> lastEmails = emailRepository.findTop10BySenderContainingIgnoreCaseOrRecipientContainingIgnoreCaseOrderByReceivedAtDesc(
+                    contact.getEmail(), contact.getEmail());
+
+            if (!lastEmails.isEmpty()) {
+                Email lastEmail = lastEmails.get(0);
+
+                // Only use as thread if we have a valid message ID and it's recent (last 90 days)
+                if (lastEmail.getMessageId() != null && lastEmail.getReceivedAt() != null &&
+                        lastEmail.getReceivedAt().isAfter(LocalDateTime.now().minusDays(90))) {
+
+                    execution.setLastMessageId(lastEmail.getMessageId());
+                    execution.setLastThreadSubject(lastEmail.getSubject());
+                    execution.setIsReplyToThread(true);
+
+                    log.debug("Initialized thread context for contact {} - last email: {} ({})",
+                            contact.getEmail(), lastEmail.getSubject(), lastEmail.getReceivedAt());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to initialize thread context for contact {}: {}",
+                    contact.getEmail(), e.getMessage());
+            // Continue without threading - not a critical error
+        }
     }
 
 }

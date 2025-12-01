@@ -51,13 +51,29 @@ public class Email {
     private String content; // Pełna treść emaila dla wyciągania danych kontaktowych
     
     @Column(nullable = false)
-    private String status; // positive, neutral, negative
+    private String status; // positive, neutral, negative, undelivered, maybeLater
     
     @Column(nullable = false)
     private LocalDateTime receivedAt;
-    
+
+    @Column(name = "user_id")
+    private Long userId; // ID użytkownika będącego właścicielem emaila
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    // Tracking fields
+    @Column(name = "tracking_id", unique = true)
+    private String trackingId; // UUID for tracking pixel
+
+    @Column(name = "is_opened")
+    private Boolean isOpened = false;
+
+    @Column(name = "opened_at")
+    private LocalDateTime openedAt;
+
+    @Column(name = "open_count")
+    private Integer openCount = 0;
     
     @PrePersist
     protected void onCreate() {

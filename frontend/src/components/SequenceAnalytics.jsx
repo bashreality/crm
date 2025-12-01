@@ -1,0 +1,237 @@
+import React, { useEffect, useState } from 'react';
+import { analyticsApi } from '../services/api';
+import '../styles/SequenceAnalytics.css';
+
+const SequenceAnalytics = () => {
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedSequence, setSelectedSequence] = useState(null);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
+
+  const loadAnalytics = async () => {
+    setLoading(true);
+    try {
+      const response = await analyticsApi.getGlobalSequenceAnalytics();
+      setAnalytics(response.data);
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatRate = (rate) => {
+    if (!rate && rate !== 0) return '0%';
+    return `${rate.toFixed(1)}%`;
+  };
+
+  if (loading) {
+    return (
+      <div className="analytics-container">
+        <div className="loading">Ładowanie analityki...</div>
+      </div>
+    );
+  }
+
+  if (!analytics) {
+    return (
+      <div className="analytics-container">
+        <div className="error">Nie udało się załadować analityki</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="analytics-container">
+      <div className="analytics-header">
+        <h1>📊 Analityka Sekwencji</h1>
+        <p>Szczegółowe statystyki wydajności twoich kampanii email</p>
+      </div>
+
+      {/* Overall Summary */}
+      <div className="analytics-summary">
+        <div className="summary-card">
+          <div className="summary-icon">🎯</div>
+          <div className="summary-content">
+            <div className="summary-label">Aktywne Sekwencje</div>
+            <div className="summary-value">{analytics.activeSequences} / {analytics.totalSequences}</div>
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <div className="summary-icon">⚡</div>
+          <div className="summary-content">
+            <div className="summary-label">Aktywne Wykonania</div>
+            <div className="summary-value">{analytics.activeExecutions}</div>
+            <div className="summary-sub">z {analytics.totalExecutions} wszystkich</div>
+          </div>
+        </div>
+
+        <div className="summary-card">
+          <div className="summary-icon">📧</div>
+          <div className="summary-content">
+            <div className="summary-label">Wysłane Emaile</div>
+            <div className="summary-value">{analytics.totalEmailsSent}</div>
+            <div className="summary-sub">{analytics.totalEmailsPending} oczekujących</div>
+          </div>
+        </div>
+
+        <div className="summary-card highlight">
+          <div className="summary-icon">👁️</div>
+          <div className="summary-content">
+            <div className="summary-label">Open Rate</div>
+            <div className="summary-value">{formatRate(analytics.overallOpenRate)}</div>
+            <div className="summary-sub">{analytics.emailsOpened} otwarć</div>
+          </div>
+        </div>
+
+        <div className="summary-card highlight">
+          <div className="summary-icon">↩️</div>
+          <div className="summary-content">
+            <div className="summary-label">Reply Rate</div>
+            <div className="summary-value">{formatRate(analytics.overallReplyRate)}</div>
+            <div className="summary-sub">Odpowiedzi kontaktów</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sequence Breakdown */}
+      <div className="analytics-breakdown">
+        <h2>Breakdown po Sekwencjach</h2>
+
+        {analytics.sequenceBreakdown && analytics.sequenceBreakdown.length > 0 ? (
+          <div className="breakdown-grid">
+            {analytics.sequenceBreakdown.map((seq) => (
+              <div
+                key={seq.sequenceId}
+                className="breakdown-card"
+                onClick={() => setSelectedSequence(seq)}
+              >
+                <div className="breakdown-header">
+                  <h3>{seq.sequenceName}</h3>
+                  <span className="sequence-badge">ID: {seq.sequenceId}</span>
+                </div>
+
+                <div className="breakdown-metrics">
+                  <div className="metric-row">
+                    <span className="metric-label">Wykonania:</span>
+                    <span className="metric-value">{seq.totalExecutions}</span>
+                  </div>
+                  <div className="metric-row">
+                    <span className="metric-label">Aktywne:</span>
+                    <span className="metric-value active">{seq.activeExecutions}</span>
+                  </div>
+                  <div className="metric-row">
+                    <span className="metric-label">Ukończone:</span>
+                    <span className="metric-value">{seq.completedExecutions}</span>
+                  </div>
+                  <div className="metric-row">
+                    <span className="metric-label">Odpowiedzi:</span>
+                    <span className="metric-value replied">{seq.repliedExecutions}</span>
+                  </div>
+                </div>
+
+                <div className="breakdown-stats">
+                  <div className="stat-item">
+                    <div className="stat-label">Open Rate</div>
+                    <div className="stat-bar">
+                      <div
+                        className="stat-fill open-rate"
+                        style={{ width: `${Math.min(seq.openRate || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="stat-value">{formatRate(seq.openRate)}</div>
+                  </div>
+
+                  <div className="stat-item">
+                    <div className="stat-label">Reply Rate</div>
+                    <div className="stat-bar">
+                      <div
+                        className="stat-fill reply-rate"
+                        style={{ width: `${Math.min(seq.replyRate || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="stat-value">{formatRate(seq.replyRate)}</div>
+                  </div>
+
+                  <div className="stat-item">
+                    <div className="stat-label">Completion Rate</div>
+                    <div className="stat-bar">
+                      <div
+                        className="stat-fill completion-rate"
+                        style={{ width: `${Math.min(seq.completionRate || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="stat-value">{formatRate(seq.completionRate)}</div>
+                  </div>
+                </div>
+
+                <div className="breakdown-footer">
+                  <span>📨 {seq.totalEmailsSent} wysłanych</span>
+                  <span>👁️ {seq.emailsOpened} otwarć</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="no-data">
+            Brak danych analitycznych. Utwórz i uruchom sekwencje aby zobaczyć statystyki.
+          </div>
+        )}
+      </div>
+
+      {/* Detailed Sequence View */}
+      {selectedSequence && (
+        <div className="modal-overlay" onClick={() => setSelectedSequence(null)}>
+          <div className="sequence-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{selectedSequence.sequenceName}</h2>
+              <button onClick={() => setSelectedSequence(null)}>✕</button>
+            </div>
+
+            <div className="modal-content">
+              <div className="detail-grid">
+                <div className="detail-card">
+                  <h4>Wykonania</h4>
+                  <div className="detail-stats">
+                    <div><span>Wszystkie:</span> {selectedSequence.totalExecutions}</div>
+                    <div><span>Aktywne:</span> {selectedSequence.activeExecutions}</div>
+                    <div><span>Ukończone:</span> {selectedSequence.completedExecutions}</div>
+                    <div><span>Odpowiedzi:</span> {selectedSequence.repliedExecutions}</div>
+                    <div><span>Pauza:</span> {selectedSequence.pausedExecutions}</div>
+                    <div><span>Błędy:</span> {selectedSequence.failedExecutions}</div>
+                  </div>
+                </div>
+
+                <div className="detail-card">
+                  <h4>Emaile</h4>
+                  <div className="detail-stats">
+                    <div><span>Wysłane:</span> {selectedSequence.totalEmailsSent}</div>
+                    <div><span>Oczekujące:</span> {selectedSequence.totalEmailsPending}</div>
+                    <div><span>Błędy:</span> {selectedSequence.totalEmailsFailed}</div>
+                    <div><span>Anulowane:</span> {selectedSequence.totalEmailsCancelled}</div>
+                  </div>
+                </div>
+
+                <div className="detail-card">
+                  <h4>Zaangażowanie</h4>
+                  <div className="detail-stats">
+                    <div><span>Otwarcia:</span> {selectedSequence.emailsOpened}</div>
+                    <div><span>Open Rate:</span> {formatRate(selectedSequence.openRate)}</div>
+                    <div><span>Reply Rate:</span> {formatRate(selectedSequence.replyRate)}</div>
+                    <div><span>Completion Rate:</span> {formatRate(selectedSequence.completionRate)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SequenceAnalytics;

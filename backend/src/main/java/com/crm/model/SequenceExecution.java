@@ -47,6 +47,22 @@ public class SequenceExecution {
     @Column
     private LocalDateTime pausedAt;
 
+    @Column(name = "deal_id")
+    private Long dealId; // ID szansy (deal) powiązanej z tą sekwencją (opcjonalne)
+
+    @Column(name = "user_id")
+    private Long userId; // ID użytkownika będącego właścicielem egzekucji sekwencji
+
+    // Fields for email threading
+    @Column(name = "last_message_id")
+    private String lastMessageId; // ID ostatniej wiadomości w wątku
+
+    @Column(name = "last_thread_subject")
+    private String lastThreadSubject; // Temat ostatniej wiadomości w wątku
+
+    @Column(name = "is_reply_to_thread")
+    private Boolean isReplyToThread = false; // Czy następny email ma być wysłany jako odpowiedź
+
     @PrePersist
     protected void onCreate() {
         if (startedAt == null) {

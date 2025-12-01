@@ -36,6 +36,9 @@ public class Activity {
     @Column(columnDefinition = "TEXT")
     private String metadata; // JSON string for additional data
 
+    @Column(name = "user_id")
+    private Long userId; // ID użytkownika będącego właścicielem aktywności
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

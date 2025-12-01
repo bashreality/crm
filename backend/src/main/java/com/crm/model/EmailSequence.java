@@ -52,11 +52,22 @@ public class EmailSequence {
     @Column(name = "throttle_per_hour")
     private Integer throttlePerHour; // Limit wysyłek na godzinę (null = bez limitu)
 
+    @Column(name = "user_id")
+    private Long userId; // ID użytkownika będącego właścicielem sekwencji
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "email_account_id")
+    private EmailAccount emailAccount; // Konto z którego wysyłamy sekwencję
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "tag_id")
+    private Tag tag; // Tag docelowy - sekwencja będzie wysyłana do kontaktów z tym tagiem
 
     @OneToMany(mappedBy = "sequence", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("stepOrder ASC")

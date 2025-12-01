@@ -21,15 +21,22 @@ const Login = () => {
         password
       });
 
-      if (response.data.success) {
-        // Zapisz informację o zalogowaniu w localStorage
+      if (response.data.accessToken) {
+        // Zapisz token i informacje o użytkowniku
+        localStorage.setItem('token', response.data.accessToken);
         localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        localStorage.setItem('user', JSON.stringify({
+          username: response.data.username,
+          role: response.data.role
+        }));
         
+        // Skonfiguruj domyślny nagłówek dla przyszłych zapytań (opcjonalnie, bo interceptor to robi)
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.accessToken}`;
+
         // Przekieruj do dashboardu
         navigate('/');
       } else {
-        setError(response.data.message || 'Błąd logowania');
+        setError('Nie udało się pobrać tokena logowania');
       }
     } catch (err) {
       console.error('Login error:', err);

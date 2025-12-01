@@ -1,16 +1,22 @@
 package com.crm.controller;
 
+import com.crm.dto.auth.JwtAuthResponse;
+import com.crm.dto.auth.LoginRequest;
 import com.crm.model.AdminUser;
 import com.crm.repository.AdminUserRepository;
+import com.crm.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -18,112 +24,81 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuthController {
 
+    private final AuthenticationManager authenticationManager;
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    /**
-     * Prosty endpoint logowania bez Spring Security
-     * Username: admin
-     * Password: admin123
-     */
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> credentials) {
-        String username = credentials.getOrDefault("username", "").trim();
-        String password = credentials.getOrDefault("password", "");
+    public ResponseEntity<JwtAuthResponse> login(@RequestBody LoginRequest loginRequest) {
+        log.info("Login attempt for user: {}", loginRequest.getUsername());
 
-        log.info("Login attempt for user: {}", username);
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getUsername(),
+                        loginRequest.getPassword()
+                )
+        );
 
-        Map<String, Object> response = new HashMap<>();
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        Optional<AdminUser> userOpt = adminUserRepository.findByUsername(username);
+        String token = jwtTokenProvider.generateToken(authentication);
+        log.info("Successful login for user: {}", loginRequest.getUsername());
 
-        if (userOpt.isPresent() && passwordEncoder.matches(password, userOpt.get().getPasswordHash())) {
-            response.put("success", true);
-            response.put("message", "Zalogowano pomyślnie");
-            response.put("user", Map.of(
-                    "username", username,
-                    "role", "admin"
-            ));
-            log.info("Successful login for user: {}", username);
-            return ResponseEntity.ok(response);
-        }
-
-        response.put("success", false);
-        response.put("message", "Nieprawidłowa nazwa użytkownika lub hasło");
-        log.warn("Failed login attempt for user: {}", username);
-        return ResponseEntity.status(401).body(response);
+        return ResponseEntity.ok(new JwtAuthResponse(token, loginRequest.getUsername(), "ADMIN"));
     }
 
-    /**
-     * Endpoint wylogowania
-     */
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, Object>> logout() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Wylogowano pomyślnie");
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Map<String, String>> logout() {
+        SecurityContextHolder.clearContext();
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
-    /**
-     * Zmiana hasła dla użytkownika administracyjnego
-     */
     @PostMapping("/change-password")
-    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody Map<String, String> payload) {
-        String username = payload.getOrDefault("username", "admin").trim();
-        String currentPassword = payload.getOrDefault("currentPassword", "");
-        String newPassword = payload.getOrDefault("newPassword", "");
-        String confirmPassword = payload.getOrDefault("confirmPassword", "");
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> payload) {
+        String currentPassword = payload.get("currentPassword");
+        String newPassword = payload.get("newPassword");
+        String confirmPassword = payload.get("confirmPassword");
 
-        Map<String, Object> response = new HashMap<>();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
 
-        if (username.isBlank() || currentPassword.isBlank() || newPassword.isBlank()) {
-            response.put("success", false);
-            response.put("message", "Uzupełnij wszystkie pola");
-            return ResponseEntity.badRequest().body(response);
+        if (currentPassword == null || newPassword == null || confirmPassword == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "All fields are required"));
         }
 
         if (!newPassword.equals(confirmPassword)) {
-            response.put("success", false);
-            response.put("message", "Nowe hasło i potwierdzenie nie są takie same");
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.badRequest().body(Map.of("message", "New password and confirmation do not match"));
         }
 
         if (newPassword.length() < 8) {
-            response.put("success", false);
-            response.put("message", "Hasło powinno mieć co najmniej 8 znaków");
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.badRequest().body(Map.of("message", "Password must be at least 8 characters long"));
         }
 
-        Optional<AdminUser> userOpt = adminUserRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            response.put("success", false);
-            response.put("message", "Użytkownik nie istnieje");
-            return ResponseEntity.status(404).body(response);
-        }
+        AdminUser user = adminUserRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        AdminUser user = userOpt.get();
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
-            response.put("success", false);
-            response.put("message", "Aktualne hasło jest nieprawidłowe");
-            return ResponseEntity.status(401).body(response);
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid current password"));
         }
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         adminUserRepository.save(user);
 
-        response.put("success", true);
-        response.put("message", "Hasło zostało zmienione");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
-    /**
-     * Sprawdzenie czy użytkownik jest zalogowany
-     */
     @GetMapping("/check")
     public ResponseEntity<Map<String, Object>> checkAuth() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean authenticated = authentication != null && authentication.isAuthenticated() && 
+                                !authentication.getPrincipal().equals("anonymousUser");
+        
         Map<String, Object> response = new HashMap<>();
-        response.put("authenticated", true);
+        response.put("authenticated", authenticated);
+        if (authenticated) {
+            response.put("username", authentication.getName());
+        }
         return ResponseEntity.ok(response);
     }
 }
