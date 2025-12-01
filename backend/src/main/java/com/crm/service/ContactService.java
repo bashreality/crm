@@ -48,6 +48,9 @@ public class ContactService {
         if (contact.getMeetingCount() == null) {
             contact.setMeetingCount(0);
         }
+        if (contact.getScore() == null) {
+            contact.setScore(0);
+        }
         return contactRepository.save(contact);
     }
     

@@ -32,7 +32,7 @@ services:
       SPRING_DATASOURCE_USERNAME: crm_user
       SPRING_DATASOURCE_PASSWORD: crm_password
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_FLYWAY_ENABLED: "true"
       # Secrets - In production, use Docker Secrets or a separate .env file
       JWT_SECRET: VGhpcyBJcyBBIFZlcnkgU2VjdXJlIFNlY3JldCBLZXkgRm9yIEpXVCBUb2tlbiBHZW5lcmF0aW9uIQ==
       EMAIL_USERNAME: crm@qprospect.pl
