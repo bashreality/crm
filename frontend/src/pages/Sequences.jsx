@@ -79,6 +79,7 @@ const Sequences = () => {
   // AI Analysis - wyświetlane w builderze po wygenerowaniu
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiWebsiteUrl, setAiWebsiteUrl] = useState('');
+  const [showAIFormInBuilder, setShowAIFormInBuilder] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -430,6 +431,74 @@ const Sequences = () => {
     } catch (error) {
       console.error('Error generating AI sequence:', error);
       alert('❌ Błąd generowania sekwencji AI: ' + error.message);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const generateAIStepsInBuilder = async () => {
+    if (!aiModalData.websiteUrl) {
+      alert('Podaj URL strony klienta');
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      const response = await fetch('/api/ai/generate-sequence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          websiteUrl: aiModalData.websiteUrl,
+          goal: aiModalData.goal,
+          additionalContext: aiModalData.additionalContext
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const aiData = await response.json();
+
+      if (aiData.emails && aiData.emails.length > 0) {
+        // Konwertuj emaile AI na kroki sekwencji
+        const aiSteps = aiData.emails.map((email, index) => ({
+          stepOrder: sequenceForm.steps.length + index + 1,
+          stepType: 'email',
+          subject: email.subject,
+          body: email.body,
+          delayDays: Math.floor(email.delay_in_days || 0),
+          delayHours: 0,
+          delayMinutes: 0,
+          waitForReplyHours: index < aiData.emails.length - 1 ? 48 : 0,
+          skipIfReplied: index > 0,
+          trackOpens: true,
+          trackClicks: true
+        }));
+
+        // Zapisz analizę AI
+        setAiAnalysis(aiData.analysis || null);
+        setAiWebsiteUrl(aiModalData.websiteUrl);
+
+        // Dodaj kroki AI do istniejących kroków
+        setSequenceForm(prev => ({
+          ...prev,
+          steps: [...prev.steps, ...aiSteps]
+        }));
+
+        // Zamknij formularz AI w builderze
+        setShowAIFormInBuilder(false);
+
+        alert('✅ Dodano ' + aiData.emails.length + ' kroków AI do sekwencji!');
+      } else {
+        alert('Nie udało się wygenerować kroków. Spróbuj ponownie.');
+      }
+    } catch (error) {
+      console.error('Error generating AI steps:', error);
+      alert('❌ Błąd generowania kroków AI: ' + error.message);
     } finally {
       setAiGenerating(false);
     }
@@ -1071,7 +1140,181 @@ const Sequences = () => {
                   </div>
                 </div>
               )}
-              
+
+              {/* Przycisk do generowania AI w builderze */}
+              {!showAIFormInBuilder && (
+                <button
+                  onClick={() => setShowAIFormInBuilder(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    marginBottom: '20px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                  }}
+                >
+                  <span style={{ fontSize: '18px' }}>🤖</span>
+                  Wygeneruj kroki AI
+                </button>
+              )}
+
+              {/* Formularz AI w builderze */}
+              {showAIFormInBuilder && (
+                <div style={{
+                  padding: '20px',
+                  marginBottom: '20px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '12px',
+                  border: '2px solid #667eea'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '16px'
+                  }}>
+                    <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>🤖</span> Generator AI
+                    </h4>
+                    <button
+                      onClick={() => setShowAIFormInBuilder(false)}
+                      style={{
+                        background: 'rgba(0,0,0,0.1)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        color: '#64748b'
+                      }}
+                      title="Zamknij"
+                    >×</button>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      Link do strony klienta*
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://klient.pl"
+                      value={aiModalData.websiteUrl}
+                      onChange={e => setAiModalData({ ...aiModalData, websiteUrl: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none'
+                      }}
+                    />
+                    <small style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      AI przeanalizuje stronę i wygeneruje treść wiadomości
+                    </small>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      Cel sekwencji
+                    </label>
+                    <select
+                      value={aiModalData.goal}
+                      onChange={e => setAiModalData({ ...aiModalData, goal: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        backgroundColor: '#fff'
+                      }}
+                    >
+                      <option value="meeting">Doprowadź do spotkania</option>
+                      <option value="discovery">Zbadaj potrzebę (Discovery)</option>
+                      <option value="sale">Złóż ofertę</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      Dodatkowy kontekst (opcjonalny)
+                    </label>
+                    <textarea
+                      placeholder="np. Spotkaliśmy się na targach, byli zainteresowani..."
+                      value={aiModalData.additionalContext}
+                      onChange={e => setAiModalData({ ...aiModalData, additionalContext: e.target.value })}
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        resize: 'vertical',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setShowAIFormInBuilder(false)}
+                      style={{
+                        padding: '8px 16px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        backgroundColor: '#fff',
+                        cursor: 'pointer',
+                        color: '#374151'
+                      }}
+                      disabled={aiGenerating}
+                    >
+                      Anuluj
+                    </button>
+                    <button
+                      onClick={generateAIStepsInBuilder}
+                      style={{
+                        padding: '8px 16px',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontWeight: '600'
+                      }}
+                      disabled={aiGenerating || !aiModalData.websiteUrl}
+                    >
+                      {aiGenerating ? '⚡ Generuję...' : '🤖 Wygeneruj kroki'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="builder-form-group">
                 <label>Nazwa Kampanii</label>
                 <input

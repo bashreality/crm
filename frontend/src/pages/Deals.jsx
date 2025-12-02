@@ -10,7 +10,7 @@ import {
   Bot,
   Zap
 } from 'lucide-react';
-import api, { contactsApi, emailAccountsApi, tasksApi, sequencesApi } from '../services/api';
+import api, { contactsApi, emailAccountsApi, tasksApi, sequencesApi, tagsApi } from '../services/api';
 import PipelineColumn from '../components/deals/PipelineColumn';
 import '../styles/Deals.css';
 import '../styles/Tasks.css';
@@ -40,6 +40,7 @@ const Deals = () => {
   const [sharingPipeline, setSharingPipeline] = useState(null);
   const [emailAccounts, setEmailAccounts] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [tags, setTags] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [sharedUsers, setSharedUsers] = useState([]);
@@ -71,6 +72,10 @@ const Deals = () => {
     priority: '3'
   });
   const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const [contactNameFilter, setContactNameFilter] = useState('');
+  const [contactEmailFilterDeal, setContactEmailFilterDeal] = useState('');
+  const [contactCompanyFilterDeal, setContactCompanyFilterDeal] = useState('');
+  const [contactTagFilterDeal, setContactTagFilterDeal] = useState('');
   
   const [editDealForm, setEditDealForm] = useState({
     id: null,
@@ -119,6 +124,7 @@ const Deals = () => {
     fetchAllUsers();
     fetchCurrentUser();
     fetchActiveSequences();
+    fetchTags();
   }, []);
 
   useEffect(() => {
@@ -195,6 +201,23 @@ const Deals = () => {
     }
   };
 
+  const fetchTags = async () => {
+    try {
+      const res = await tagsApi.getAll();
+      setTags(res.data || []);
+    } catch (err) {
+      console.error('Error fetching tags', err);
+    }
+  };
+
+  const handleCloseCreateDealModal = () => {
+    setShowModal(false);
+    setContactNameFilter('');
+    setContactEmailFilterDeal('');
+    setContactCompanyFilterDeal('');
+    setContactTagFilterDeal('');
+  };
+
   const handleCreateDeal = async (e) => {
     e.preventDefault();
     if (!dealForm.title || !dealForm.contactId) {
@@ -219,6 +242,10 @@ const Deals = () => {
       setShowModal(false);
       setDealForm({ title: '', value: '', currency: 'PLN', contactId: '', priority: '3' });
       setContactSearchQuery('');
+      setContactNameFilter('');
+      setContactEmailFilterDeal('');
+      setContactCompanyFilterDeal('');
+      setContactTagFilterDeal('');
       fetchDeals(activePipeline.id);
     } catch (err) {
       console.error(err);
@@ -876,11 +903,11 @@ const Deals = () => {
 
       {/* Create Deal Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => !isSaving && setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => !isSaving && handleCloseCreateDealModal()}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Nowa szansa</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+              <button className="modal-close" onClick={handleCloseCreateDealModal}>×</button>
             </div>
             <form className="modal-body" onSubmit={handleCreateDeal}>
               <div className="form-group">
@@ -924,30 +951,157 @@ const Deals = () => {
               </div>
               <div className="form-group">
                 <label>Klient *</label>
-                <input
-                  type="text"
-                  placeholder="🔍 Szukaj po imieniu, emailu lub firmie..."
-                  value={contactSearchQuery}
-                  onChange={e => setContactSearchQuery(e.target.value)}
-                  style={{ marginBottom: '8px' }}
-                />
+
+                {/* Filtry */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '8px',
+                  marginBottom: '12px',
+                  padding: '12px',
+                  backgroundColor: '#f9fafb',
+                  borderRadius: '6px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                      Imię / Nazwisko
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Jan Kowalski"
+                      value={contactNameFilter}
+                      onChange={e => setContactNameFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        fontSize: '13px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                      Email
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="jan@example.com"
+                      value={contactEmailFilterDeal}
+                      onChange={e => setContactEmailFilterDeal(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        fontSize: '13px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                      Firma
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="ACME Corp"
+                      value={contactCompanyFilterDeal}
+                      onChange={e => setContactCompanyFilterDeal(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        fontSize: '13px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                      Tag
+                    </label>
+                    <select
+                      value={contactTagFilterDeal}
+                      onChange={e => setContactTagFilterDeal(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        fontSize: '13px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px'
+                      }}
+                    >
+                      <option value="">Wszystkie tagi</option>
+                      {tags.map(tag => (
+                        <option key={tag.id} value={tag.id}>{tag.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <small style={{ color: '#6b7280', fontSize: '12px' }}>
+                      Znaleziono: {contacts.filter(c => {
+                        const nameMatch = !contactNameFilter.trim() ||
+                          (c.name && c.name.toLowerCase().includes(contactNameFilter.toLowerCase()));
+                        const emailMatch = !contactEmailFilterDeal.trim() ||
+                          (c.email && c.email.toLowerCase().includes(contactEmailFilterDeal.toLowerCase()));
+                        const companyMatch = !contactCompanyFilterDeal.trim() ||
+                          (c.company && c.company.toLowerCase().includes(contactCompanyFilterDeal.toLowerCase()));
+                        const tagMatch = !contactTagFilterDeal ||
+                          (c.tags && c.tags.some(t => t.id.toString() === contactTagFilterDeal));
+                        return nameMatch && emailMatch && companyMatch && tagMatch;
+                      }).length} kontaktów
+                    </small>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContactNameFilter('');
+                        setContactEmailFilterDeal('');
+                        setContactCompanyFilterDeal('');
+                        setContactTagFilterDeal('');
+                      }}
+                      style={{
+                        fontSize: '12px',
+                        color: '#3b82f6',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Wyczyść filtry
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lista kontaktów */}
                 <select
                   value={dealForm.contactId}
                   onChange={e => setDealForm({...dealForm, contactId: e.target.value})}
                   required
-                  size={5}
-                  style={{ height: 'auto', minHeight: '120px' }}
+                  size={8}
+                  style={{
+                    height: 'auto',
+                    minHeight: '180px',
+                    width: '100%'
+                  }}
                 >
                   <option value="">-- Wybierz klienta --</option>
                   {contacts
                     .filter(c => {
-                      if (!contactSearchQuery.trim()) return true;
-                      const query = contactSearchQuery.toLowerCase();
-                      return (
-                        (c.name && c.name.toLowerCase().includes(query)) ||
-                        (c.email && c.email.toLowerCase().includes(query)) ||
-                        (c.company && c.company.toLowerCase().includes(query))
-                      );
+                      const nameMatch = !contactNameFilter.trim() ||
+                        (c.name && c.name.toLowerCase().includes(contactNameFilter.toLowerCase()));
+                      const emailMatch = !contactEmailFilterDeal.trim() ||
+                        (c.email && c.email.toLowerCase().includes(contactEmailFilterDeal.toLowerCase()));
+                      const companyMatch = !contactCompanyFilterDeal.trim() ||
+                        (c.company && c.company.toLowerCase().includes(contactCompanyFilterDeal.toLowerCase()));
+                      const tagMatch = !contactTagFilterDeal ||
+                        (c.tags && c.tags.some(t => t.id.toString() === contactTagFilterDeal));
+                      return nameMatch && emailMatch && companyMatch && tagMatch;
                     })
                     .map(c => (
                       <option key={c.id} value={c.id}>
@@ -955,19 +1109,9 @@ const Deals = () => {
                       </option>
                     ))}
                 </select>
-                {contactSearchQuery && (
-                  <small style={{ color: '#6b7280', marginTop: '4px', display: 'block' }}>
-                    Znaleziono: {contacts.filter(c => {
-                      const query = contactSearchQuery.toLowerCase();
-                      return (c.name && c.name.toLowerCase().includes(query)) ||
-                             (c.email && c.email.toLowerCase().includes(query)) ||
-                             (c.company && c.company.toLowerCase().includes(query));
-                    }).length} kontaktów
-                  </small>
-                )}
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Anuluj</button>
+                <button type="button" className="btn btn-secondary" onClick={handleCloseCreateDealModal}>Anuluj</button>
                 <button type="submit" className="btn btn-primary" disabled={isSaving}>{isSaving ? 'Tworzenie...' : 'Utwórz'}</button>
               </div>
             </form>

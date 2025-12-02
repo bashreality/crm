@@ -608,15 +608,22 @@ const Contacts = () => {
                        </td>
                        <td>
                          <div className="row-actions">
-                            <button 
-                                className="action-icon-btn" 
+                            <button
+                                className="action-icon-btn"
+                                title="Edytuj kontakt"
+                                onClick={(e) => { e.stopPropagation(); handleOpenEditContact(contact); }}
+                            >
+                                <Edit3 size={16} />
+                            </button>
+                            <button
+                                className="action-icon-btn"
                                 title="Wyślij email"
                                 onClick={(e) => handleQuickEmail(e, contact)}
                             >
                                 <Mail size={16} />
                             </button>
-                            <button 
-                                className="action-icon-btn" 
+                            <button
+                                className="action-icon-btn"
                                 title="Zadzwoń"
                                 onClick={(e) => { e.stopPropagation(); window.location.href=`tel:${contact.phone}`}}
                             >
