@@ -623,3 +623,69 @@ html.dark .contacts-search {
   border-color: var(--color-border);
   color: var(--color-text-main);
 }
+
+/* Additional dark mode fixes for Contacts */
+html.dark .contacts-toolbar h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .contacts-toolbar p {
+  color: var(--color-text-secondary);
+}
+
+html.dark .contacts-table-container {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .contacts-table td {
+  color: var(--color-text-main);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-pagination {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .contacts-section {
+  color: var(--color-text-main);
+}
+
+html.dark .contacts-section h3 {
+  color: var(--color-text-main);
+}
+
+/* Notes section in dark mode */
+html.dark .contacts-details textarea {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .contacts-details textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Notes cards dark mode */
+html.dark div[style*="backgroundColor: #fffbeb"] {
+  background-color: var(--color-bg-elevated) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Sidebar statistics box */
+html.dark div[style*="background: #f9fafb"] {
+  background-color: var(--color-bg-elevated) !important;
+  border-color: var(--color-border) !important;
+}
+
+html.dark div[style*="background: #f9fafb"] span {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Activity timeline */
+html.dark .contacts-timeline-item {
+  color: var(--color-text-main);
+}
+
+html.dark .contacts-timeline-item div[style*="fontWeight:'500'"] {
+  color: var(--color-text-main);
+}

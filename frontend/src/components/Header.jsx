@@ -110,7 +110,7 @@ const Header = ({ onOpenSearch }) => {
             to="/email-templates"
             className={`nav-item ${isActive('/email-templates') ? 'active' : ''}`}
           >
-            📧 Szablony
+            Szablony
           </Link>
         </div>
         
@@ -125,25 +125,24 @@ const Header = ({ onOpenSearch }) => {
               alignItems: 'center',
               gap: '8px',
               padding: '8px 16px',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              backgroundColor: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border)',
               borderRadius: '8px',
-              color: 'white',
+              color: 'var(--color-text-main)',
               cursor: 'pointer',
               fontSize: '14px',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.2)'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.1)'}
           >
             <Search size={16} />
-            <span style={{ opacity: 0.8 }}>Szukaj...</span>
+            <span style={{ opacity: 0.7 }}>Szukaj...</span>
             <kbd style={{
               padding: '2px 6px',
-              backgroundColor: 'rgba(255,255,255,0.15)',
+              backgroundColor: 'var(--color-bg-surface)',
               borderRadius: '4px',
               fontSize: '11px',
-              marginLeft: '8px'
+              marginLeft: '8px',
+              border: '1px solid var(--color-border)'
             }}>⌘K</kbd>
           </button>
 
@@ -157,15 +156,15 @@ const Header = ({ onOpenSearch }) => {
               alignItems: 'center',
               justifyContent: 'center',
               padding: '8px',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
+              width: '36px',
+              height: '36px',
+              backgroundColor: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border)',
               borderRadius: '8px',
-              color: 'white',
+              color: 'var(--color-text-main)',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.2)'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.1)'}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>

@@ -828,3 +828,351 @@ label {
 .tasks-empty__icon {
   font-size: 48px;
 }
+
+/* ===== GLOBAL DARK MODE FOR MODALS ===== */
+html.dark .modal-overlay {
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+html.dark .modal-content {
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+}
+
+html.dark .modal-header {
+  background-color: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .modal-header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .modal-close {
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .modal-close:hover {
+  color: var(--color-text-main);
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-primary);
+}
+
+html.dark .modal-body {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .modal-body h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .modal-footer {
+  background-color: var(--color-bg-elevated);
+  border-top-color: var(--color-border);
+}
+
+/* Sidebar in dark mode */
+html.dark .sidebar {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sidebar h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .filter-group {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+/* Main layout backgrounds */
+html.dark .main-layout {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .contacts-center > div,
+html.dark .sequences-center > div,
+html.dark .tasks-center > div {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .contacts-toolbar,
+html.dark .sequences-toolbar,
+html.dark .tasks-toolbar {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+/* User dropdown in dark mode */
+html.dark .user-dropdown {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .user-name {
+  color: var(--color-text-main);
+}
+
+html.dark .logout-btn {
+  color: var(--color-danger);
+}
+
+html.dark .logout-btn:hover {
+  background-color: var(--color-danger-light);
+}
+
+/* Topbars in dark mode */
+html.dark .contacts-topbar,
+html.dark .sequences-topbar,
+html.dark .tasks-topbar {
+  background-color: var(--color-bg-surface);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-topbar h1,
+html.dark .sequences-topbar h1,
+html.dark .tasks-topbar h1 {
+  color: var(--color-text-main);
+}
+
+/* Empty states in dark mode */
+html.dark .tasks-empty,
+html.dark .tasks-error {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+/* Cards in dark mode */
+html.dark .card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .card-header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .card-title {
+  color: var(--color-text-main);
+}
+
+/* Metric cards in dark mode */
+html.dark .metric-card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .metric-label {
+  color: var(--color-text-secondary);
+}
+
+html.dark .metric-value {
+  color: var(--color-text-main);
+}
+
+/* Task cards in dark mode */
+html.dark .task-card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .task-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .task-card--completed {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.1));
+}
+
+html.dark .task-card--overdue {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.15));
+}
+
+html.dark .task-card__info h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .task-card__contact {
+  color: var(--color-text-secondary);
+}
+
+html.dark .task-card__description {
+  color: var(--color-text-secondary);
+}
+
+html.dark .task-card__due {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+html.dark .task-card__footer {
+  border-top-color: var(--color-border);
+}
+
+/* Sequence tiles in dark mode */
+html.dark .sequence-tile {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sequence-tile:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+html.dark .sequence-tile.selected {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+html.dark .sequence-tile__header h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .sequence-tile p {
+  color: var(--color-text-secondary);
+}
+
+html.dark .sequence-tile__footer span {
+  color: var(--color-text-secondary);
+}
+
+/* ===== ADDITIONAL DARK MODE FIXES ===== */
+
+/* Metric cards */
+html.dark .metric-card {
+  background-color: var(--color-bg-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .metric-label {
+  color: var(--color-text-muted);
+}
+
+html.dark .metric-value {
+  color: var(--color-text-main);
+}
+
+html.dark .metric-trend {
+  color: var(--color-text-secondary);
+}
+
+/* Tasks empty/loading states */
+html.dark .tasks-empty,
+html.dark .tasks-error {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+html.dark .tasks-spinner {
+  border-color: var(--color-border);
+  border-top-color: var(--color-primary);
+}
+
+/* Contacts toolbar */
+html.dark .contacts-toolbar {
+  background-color: var(--color-bg-surface);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-toolbar h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .contacts-toolbar p {
+  color: var(--color-text-secondary);
+}
+
+/* Contacts pagination */
+html.dark .contacts-pagination {
+  background-color: var(--color-bg-surface);
+  border-top-color: var(--color-border);
+}
+
+/* Task modal footer */
+html.dark .task-modal__footer {
+  background-color: var(--color-bg-elevated);
+  border-top-color: var(--color-border);
+}
+
+/* Loading states */
+html.dark .loading {
+  color: var(--color-text-secondary);
+}
+
+html.dark [style*="text-align: center"][style*="padding"] {
+  color: var(--color-text-secondary);
+}
+
+/* Tables in dark mode */
+html.dark .contacts-table {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .contacts-table td {
+  color: var(--color-text-main);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-table-container {
+  background-color: var(--color-bg-surface);
+}
+
+/* Filter inputs */
+html.dark .filter-input,
+html.dark .contacts-search {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .filter-input::placeholder,
+html.dark .contacts-search::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Sidebar filter groups */
+html.dark .filter-group {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .filter-group > div {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}
+
+/* Action icon buttons */
+html.dark .action-icon-btn {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+html.dark .action-icon-btn:hover {
+  background-color: var(--color-bg-surface);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Row actions visibility */
+html.dark .row-actions {
+  color: var(--color-text-secondary);
+}
+
+/* Empty states generic */
+html.dark [class*="empty"] {
+  color: var(--color-text-secondary);
+}
+
+/* Inline styles overrides for loading */
+html.dark div[style*="Ładowanie"],
+html.dark div[style*="Loading"] {
+  color: var(--color-text-secondary) !important;
+}

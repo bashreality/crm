@@ -33,8 +33,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-crm_db}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-crm_user}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
-      FLYWAY_ENABLED: "false"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      FLYWAY_ENABLED: "true"
       # All secrets loaded from .env file
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       EMAIL_USERNAME: ${EMAIL_USERNAME:?EMAIL_USERNAME is required}

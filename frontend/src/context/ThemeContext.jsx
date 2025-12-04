@@ -8,11 +8,7 @@ export const ThemeProvider = ({ children }) => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) return savedTheme;
 
-    // Then check system preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-
+    // Default to light mode
     return 'light';
   });
 

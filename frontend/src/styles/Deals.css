@@ -573,3 +573,61 @@ html.dark .priority-badge {
   background-color: var(--color-bg-elevated);
   color: var(--color-text-secondary);
 }
+
+/* Modal styles in dark mode */
+html.dark .modal-overlay {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+html.dark .modal-content {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+}
+
+html.dark .modal-header {
+  background: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .modal-header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .modal-close {
+  color: var(--color-text-secondary);
+}
+
+html.dark .modal-close:hover {
+  background: var(--color-bg-surface);
+  color: var(--color-text-main);
+}
+
+html.dark .modal-body {
+  background: var(--color-bg-surface);
+}
+
+html.dark .modal-body h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .modal-footer {
+  background: var(--color-bg-elevated);
+  border-top-color: var(--color-border);
+}
+
+html.dark .meta-row {
+  color: var(--color-text-secondary);
+}
+
+html.dark .deal-actions-footer {
+  border-top-color: var(--color-border);
+}
+
+html.dark .action-btn {
+  color: var(--color-text-muted);
+}
+
+html.dark .action-btn:hover {
+  color: var(--color-text-main);
+  background-color: var(--color-bg-surface);
+}

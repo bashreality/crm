@@ -38,11 +38,19 @@ public class EmailTemplateService {
 
     public List<EmailTemplate> getAllTemplates() {
         Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            log.warn("User not authenticated when fetching templates");
+            return List.of();
+        }
         return templateRepository.findByUserId(userId);
     }
 
     public Page<EmailTemplate> getAllTemplates(Pageable pageable) {
         Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            log.warn("User not authenticated when fetching templates");
+            return Page.empty(pageable);
+        }
         return templateRepository.findByUserId(userId, pageable);
     }
 
@@ -60,16 +68,28 @@ public class EmailTemplateService {
 
     public List<EmailTemplate> getTemplatesByCategory(String category) {
         Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            log.warn("User not authenticated when fetching templates by category");
+            return List.of();
+        }
         return templateRepository.findByUserIdAndCategory(userId, category);
     }
 
     public List<EmailTemplate> getFavoriteTemplates() {
         Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            log.warn("User not authenticated when fetching favorite templates");
+            return List.of();
+        }
         return templateRepository.findByUserIdAndIsFavoriteTrue(userId);
     }
 
     public List<EmailTemplate> searchTemplates(String query) {
         Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            log.warn("User not authenticated when searching templates");
+            return List.of();
+        }
         return templateRepository.searchByName(userId, query);
     }
 
@@ -119,6 +139,10 @@ public class EmailTemplateService {
 
     public List<EmailTemplateTheme> getAllThemes() {
         Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            // Return only system themes if not authenticated
+            return themeRepository.findByIsSystemTrue();
+        }
         return themeRepository.findAccessibleByUserId(userId);
     }
 
@@ -338,6 +362,14 @@ public class EmailTemplateService {
         Long userId = userContextService.getCurrentUserId();
         
         Map<String, Object> stats = new HashMap<>();
+        
+        if (userId == null) {
+            stats.put("totalTemplates", 0);
+            stats.put("favoriteTemplates", 0);
+            stats.put("byCategory", new HashMap<>());
+            return stats;
+        }
+        
         stats.put("totalTemplates", templateRepository.findByUserId(userId).size());
         stats.put("favoriteTemplates", templateRepository.findByUserIdAndIsFavoriteTrue(userId).size());
         
