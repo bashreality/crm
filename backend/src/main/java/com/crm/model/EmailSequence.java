@@ -61,11 +61,11 @@ public class EmailSequence {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "email_account_id")
     private EmailAccount emailAccount; // Konto z którego wysyłamy sekwencję
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "tag_id")
     private Tag tag; // Tag docelowy - sekwencja będzie wysyłana do kontaktów z tym tagiem
 
