@@ -116,10 +116,31 @@ const EmailTemplates = () => {
   };
 
   const handleSaveTemplate = async () => {
+    // Validation
+    if (!formData.name || formData.name.trim() === '') {
+      alert('Nazwa szablonu jest wymagana');
+      return;
+    }
+    if (!formData.subject || formData.subject.trim() === '') {
+      alert('Temat wiadomości jest wymagany');
+      return;
+    }
+    if (!formData.htmlContent || formData.htmlContent.trim() === '') {
+      alert('Treść HTML jest wymagana');
+      return;
+    }
+
     try {
       setLoading(true);
       const templateData = {
-        ...formData,
+        name: formData.name,
+        description: formData.description || '',
+        category: formData.category || 'general',
+        subject: formData.subject,
+        previewText: formData.previewText || '',
+        htmlContent: formData.htmlContent,
+        plainTextContent: formData.plainTextContent || '',
+        isFavorite: formData.isFavorite || false,
         theme: formData.themeId ? { id: formData.themeId } : null
       };
 
@@ -134,7 +155,8 @@ const EmailTemplates = () => {
       alert('Szablon zapisany pomyślnie!');
     } catch (error) {
       console.error('Error saving template:', error);
-      alert('Błąd podczas zapisywania szablonu');
+      const errorMsg = error.response?.data?.message || error.message || 'Błąd podczas zapisywania szablonu';
+      alert('Błąd: ' + errorMsg);
     } finally {
       setLoading(false);
     }
@@ -293,9 +315,9 @@ const EmailTemplates = () => {
   };
 
   return (
-    <div className="email-templates-page">
+    <div className="container" style={{ paddingTop: '24px' }}>
       <div className="page-header">
-        <h1>📧 Szablony Email</h1>
+        <h1>Szablony Email</h1>
         <div className="header-actions">
           <button onClick={handleCreateTheme} className="btn btn-secondary">
             🎨 Nowy Motyw
@@ -329,15 +351,18 @@ const EmailTemplates = () => {
         </div>
       </div>
 
-      {/* Themes Section */}
-      <div className="themes-section">
-        <div className="themes-header">
-          <h2>🎨 Motywy graficzne</h2>
-          <span className="themes-count">{themes.length} motywów</span>
-          <button onClick={handleCreateTheme} className="btn btn-sm btn-primary themes-add-btn">
-            + Dodaj motyw
-          </button>
-        </div>
+      {/* Two Column Layout */}
+      <div className="two-column-layout">
+        {/* Themes Column */}
+        <div className="themes-column">
+          <div className="themes-section">
+            <div className="themes-header">
+              <h2>🎨 Motywy graficzne</h2>
+              <span className="themes-count">{themes.length} motywów</span>
+              <button onClick={handleCreateTheme} className="btn btn-sm btn-primary themes-add-btn">
+                + Dodaj motyw
+              </button>
+            </div>
         {themes.length === 0 ? (
           <div className="themes-empty">
             <div className="themes-empty-icon">🎨</div>
@@ -363,35 +388,36 @@ const EmailTemplates = () => {
                   {theme.isSystem && <span className="system-badge">System</span>}
                 </div>
                 <div className="theme-card-actions">
-                  <button 
-                    onClick={() => handleEditTheme(theme)} 
+                  <button
+                    onClick={() => handleEditTheme(theme)}
                     className="btn btn-sm"
                     title="Edytuj motyw"
                   >
                     ✏️ Edytuj
                   </button>
-                  {!theme.isSystem && (
-                    <button 
-                      onClick={() => handleDeleteTheme(theme.id)} 
-                      className="btn btn-sm btn-danger"
-                      title="Usuń motyw"
-                    >
-                      🗑️
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDeleteTheme(theme.id)}
+                    className="btn btn-sm btn-danger"
+                    title={theme.isSystem ? "Nie można usunąć motywu systemowego" : "Usuń motyw"}
+                    disabled={theme.isSystem}
+                  >
+                    🗑️ Usuń
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      {/* Templates Grid */}
-      <div className="templates-section">
-        <div className="templates-header">
-          <h2>📧 Szablony email</h2>
-          <span className="templates-count">{templates.length} szablonów</span>
+          </div>
         </div>
+
+        {/* Templates Column */}
+        <div className="templates-column">
+          <div className="templates-section">
+            <div className="templates-header">
+              <h2>📧 Szablony email</h2>
+              <span className="templates-count">{templates.length} szablonów</span>
+            </div>
         {loading ? (
           <div className="loading">Ładowanie...</div>
         ) : (
@@ -433,6 +459,8 @@ const EmailTemplates = () => {
             ))}
           </div>
         )}
+          </div>
+        </div>
       </div>
 
       {/* Template Editor Modal */}

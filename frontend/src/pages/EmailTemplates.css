@@ -1,8 +1,4 @@
-.email-templates-page {
-  padding: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+/* Removed - now using container class from App.css */
 
 .page-header {
   display: flex;
@@ -788,5 +784,23 @@
 
   .search-group {
     max-width: 100%;
+  }
+}
+/* Two Column Layout */
+.two-column-layout {
+  display: grid;
+  grid-template-columns: 500px 1fr;
+  gap: 80px;
+  align-items: start;
+}
+
+.themes-column,
+.templates-column {
+  min-height: 400px;
+}
+
+@media (max-width: 1200px) {
+  .two-column-layout {
+    grid-template-columns: 1fr;
   }
 }

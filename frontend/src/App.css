@@ -164,7 +164,7 @@ code, pre, .mono {
 }
 
 .container {
-  max-width: 1600px;
+  max-width: 2200px;
   margin: 0 auto;
   padding: 32px 64px; /* Increased horizontal padding */
   width: 100%;
@@ -185,7 +185,7 @@ code, pre, .mono {
 
 .header-content {
   width: 100%;
-  max-width: 1600px;
+  max-width: 2200px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;

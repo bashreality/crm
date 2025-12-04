@@ -784,8 +784,9 @@ const Deals = () => {
   if (loading) return <div className="container loading-screen">Ładowanie systemu CRM...</div>;
 
   return (
-    <div className="deals-board-wrapper">
-      <Toaster position="top-right" />
+    <div className="container" style={{ paddingTop: '24px' }}>
+      <div className="deals-board-wrapper">
+        <Toaster position="top-right" />
       
       <div className="deals-header">
         <div>
@@ -1985,6 +1986,7 @@ const Deals = () => {
         </div>
       )}
 
+      </div>
     </div>
   );
 };
