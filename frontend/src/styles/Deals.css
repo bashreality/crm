@@ -465,3 +465,112 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* ===== DARK MODE SUPPORT ===== */
+html.dark .deals-board-wrapper {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .deals-header h1 {
+  color: var(--color-text-main);
+}
+
+html.dark .kanban-column {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .kanban-column.dragging-over {
+  background-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+html.dark .column-header {
+  background-color: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .stage-name {
+  color: var(--color-text-main);
+}
+
+html.dark .stage-count {
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+html.dark .stage-summary {
+  color: var(--color-text-secondary);
+}
+
+html.dark .probability-bar-container {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .deal-card {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .deal-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .deal-title {
+  color: var(--color-text-main);
+}
+
+html.dark .deal-value {
+  color: var(--color-text-main);
+}
+
+html.dark .deal-contact {
+  color: var(--color-text-secondary);
+}
+
+html.dark .deal-company {
+  color: var(--color-text-muted);
+}
+
+html.dark .deal-footer {
+  border-top-color: var(--color-border);
+}
+
+html.dark .btn-icon:hover {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .empty-state-container,
+html.dark .loading-screen {
+  color: var(--color-text-secondary);
+}
+
+html.dark .search-box input {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .form-group label {
+  color: var(--color-text-main);
+}
+
+html.dark .form-group input,
+html.dark .form-group select,
+html.dark .form-group textarea {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .form-group input:focus,
+html.dark .form-group select:focus,
+html.dark .form-group textarea:focus {
+  border-color: var(--color-primary);
+}
+
+html.dark .priority-badge {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}

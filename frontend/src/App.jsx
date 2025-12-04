@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { ThemeProvider } from './context/ThemeContext';
 import Header from './components/Header';
 import CommandPalette from './components/CommandPalette';
 import Dashboard from './pages/Dashboard';
@@ -48,46 +49,48 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <div className="App">
-        <Toaster position="top-right" />
-        <CommandPalette 
-          isOpen={commandPaletteOpen} 
-          onClose={() => setCommandPaletteOpen(false)} 
-        />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <>
-                  <Header 
-                    currentSection={currentSection} 
-                    setCurrentSection={setCurrentSection}
-                    onOpenSearch={() => setCommandPaletteOpen(true)}
-                  />
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/contacts" element={<Contacts />} />
-                    <Route path="/campaigns" element={<Campaigns />} />
-                    <Route path="/deals" element={<Deals />} />
-                    <Route path="/analytics" element={<Analytics />} />
-                    <Route path="/sequences" element={<Sequences />} />
-                    <Route path="/tasks" element={<Tasks />} />
-                    <Route path="/calendar" element={<CalendarTask />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/users" element={<Users />} />
-                    <Route path="/email-accounts" element={<EmailAccounts />} />
-                    <Route path="/email-templates" element={<EmailTemplates />} />
-                  </Routes>
-                </>
-              </ProtectedRoute>
-            }
+    <ThemeProvider>
+      <Router>
+        <div className="App">
+          <Toaster position="top-right" />
+          <CommandPalette
+            isOpen={commandPaletteOpen}
+            onClose={() => setCommandPaletteOpen(false)}
           />
-        </Routes>
-      </div>
-    </Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <>
+                    <Header
+                      currentSection={currentSection}
+                      setCurrentSection={setCurrentSection}
+                      onOpenSearch={() => setCommandPaletteOpen(true)}
+                    />
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/contacts" element={<Contacts />} />
+                      <Route path="/campaigns" element={<Campaigns />} />
+                      <Route path="/deals" element={<Deals />} />
+                      <Route path="/analytics" element={<Analytics />} />
+                      <Route path="/sequences" element={<Sequences />} />
+                      <Route path="/tasks" element={<Tasks />} />
+                      <Route path="/calendar" element={<CalendarTask />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/users" element={<Users />} />
+                      <Route path="/email-accounts" element={<EmailAccounts />} />
+                      <Route path="/email-templates" element={<EmailTemplates />} />
+                    </Routes>
+                  </>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
 

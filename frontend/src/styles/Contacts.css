@@ -459,3 +459,167 @@ input[type="checkbox"] {
   border-color: #94a3b8;
   color: #475569;
 }
+
+/* ===== DARK MODE SUPPORT ===== */
+html.dark .contacts-shell {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .contacts-topbar {
+  background-color: var(--color-bg-surface);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-topbar h1 {
+  color: var(--color-text-main);
+}
+
+html.dark .contacts-sub {
+  color: var(--color-text-secondary);
+}
+
+html.dark .sidebar {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sidebar h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .filter-label {
+  color: var(--color-text-main);
+}
+
+html.dark .filter-input {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .filter-input:focus {
+  border-color: var(--color-primary);
+}
+
+html.dark .contacts-center {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .contacts-toolbar {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-table {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .contacts-table thead {
+  background-color: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-table th {
+  color: var(--color-text-main);
+}
+
+html.dark .contacts-row {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .contacts-row:hover {
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .contacts-row.selected {
+  background-color: var(--color-primary-light);
+}
+
+html.dark .name-text {
+  color: var(--color-text-main);
+}
+
+html.dark .company-text {
+  color: var(--color-text-secondary);
+}
+
+html.dark .email-link {
+  color: var(--color-accent);
+}
+
+html.dark .tag-chip {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+html.dark .add-tag-btn {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+html.dark .add-tag-btn:hover {
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-main);
+}
+
+html.dark .activity-badge {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+html.dark .contacts-details {
+  background-color: var(--color-bg-surface);
+  border-left-color: var(--color-border);
+}
+
+html.dark .details-close {
+  color: var(--color-text-secondary);
+}
+
+html.dark .details-close:hover {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-main);
+}
+
+html.dark .contact-avatar {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+}
+
+html.dark .contacts-section {
+  border-top-color: var(--color-border);
+}
+
+html.dark .contacts-timeline-item {
+  border-left-color: var(--color-border);
+}
+
+html.dark .contacts-pagination {
+  border-top-color: var(--color-border);
+}
+
+html.dark .floating-bar {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .floating-count {
+  color: var(--color-text-main);
+}
+
+html.dark .floating-btn {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .floating-btn:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+html.dark .contacts-search {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}

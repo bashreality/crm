@@ -562,3 +562,83 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== DARK MODE SUPPORT ===== */
+html.dark .task-modal-overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+html.dark .task-modal {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .task-modal__header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .task-modal__header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .task-modal__header p {
+  color: var(--color-text-secondary);
+}
+
+html.dark .task-modal__close {
+  color: var(--color-text-secondary);
+}
+
+html.dark .task-modal__close:hover {
+  color: var(--color-text-main);
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .task-form__label {
+  color: var(--color-text-main);
+}
+
+html.dark .task-form input,
+html.dark .task-form select,
+html.dark .task-form textarea {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .task-form input:focus,
+html.dark .task-form select:focus,
+html.dark .task-form textarea:focus {
+  border-color: var(--color-primary);
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .task-form__chip {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .task-form__chip:hover {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .task-form__chip.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+html.dark .task-form__quick button {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .task-form__quick button:hover {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .task-modal__footer {
+  border-top-color: var(--color-border);
+}
