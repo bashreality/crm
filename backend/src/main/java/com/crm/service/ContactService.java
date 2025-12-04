@@ -141,8 +141,35 @@ public class ContactService {
         }
     }
     
+    /**
+     * Soft delete a contact (mark as deleted without removing from database)
+     */
     public void deleteContact(Long id) {
+        Contact contact = contactRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + id));
+        contact.softDelete();
+        contactRepository.save(contact);
+        log.info("Soft deleted contact: {}", id);
+    }
+
+    /**
+     * Permanently delete a contact from database
+     */
+    public void hardDeleteContact(Long id) {
         contactRepository.deleteById(id);
+        log.info("Permanently deleted contact: {}", id);
+    }
+
+    /**
+     * Restore a soft-deleted contact
+     */
+    public Contact restoreContact(Long id) {
+        Contact contact = contactRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + id));
+        contact.restore();
+        Contact restored = contactRepository.save(contact);
+        log.info("Restored contact: {}", id);
+        return restored;
     }
     
     public List<Contact> searchContacts(String query) {

@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Deal {
+public class Deal implements SoftDeletable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,17 +25,17 @@ public class Deal {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contact_id", nullable = false)
     @JsonIgnoreProperties({"deals", "emails", "tasks", "notes", "activities"}) // Avoid infinite recursion if relationships exist
     private Contact contact;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pipeline_id", nullable = false)
     @JsonIgnoreProperties({"stages"})
     private Pipeline pipeline;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stage_id", nullable = false)
     private PipelineStage stage;
 
@@ -64,6 +64,9 @@ public class Deal {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @PrePersist
     protected void onCreate() {

@@ -81,4 +81,17 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
 
     @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u, Email e WHERE u.id = :userId AND LOWER(e.sender) LIKE CONCAT('%', LOWER(c.email), '%') AND e.status = :status ORDER BY c.updatedAt DESC")
     Page<Contact> findAccessibleWithEmailStatusByUserId(@Param("userId") Long userId, @Param("status") String status, Pageable pageable);
+
+    // Soft delete aware queries
+    @Query("SELECT c FROM Contact c WHERE c.deletedAt IS NULL")
+    List<Contact> findAllActive();
+
+    @Query("SELECT c FROM Contact c WHERE c.deletedAt IS NOT NULL")
+    List<Contact> findAllDeleted();
+
+    @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u WHERE u.id = :userId AND c.deletedAt IS NULL ORDER BY c.updatedAt DESC")
+    List<Contact> findActiveAccessibleByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u WHERE u.id = :userId AND c.deletedAt IS NOT NULL ORDER BY c.deletedAt DESC")
+    List<Contact> findDeletedAccessibleByUserId(@Param("userId") Long userId);
 }

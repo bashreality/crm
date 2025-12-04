@@ -46,7 +46,7 @@ public class Pipeline {
 
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "pipeline", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "pipeline", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("position ASC")
     @JsonManagedReference
     private List<PipelineStage> stages;

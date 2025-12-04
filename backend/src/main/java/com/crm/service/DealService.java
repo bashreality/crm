@@ -9,6 +9,9 @@ import com.crm.repository.PipelineRepository;
 import com.crm.repository.PipelineStageRepository;
 import com.crm.repository.ContactRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DealService {
 
     private final DealRepository dealRepository;
@@ -24,17 +28,19 @@ public class DealService {
     private final PipelineStageRepository stageRepository;
     private final ContactRepository contactRepository;
 
+    @Cacheable(value = "pipelines")
     public List<Pipeline> getAllPipelines() {
-        return pipelineRepository.findAll();
+        log.debug("Fetching all pipelines from database (cache miss)");
+        return pipelineRepository.findAllWithStages();
     }
 
     public Pipeline getDefaultPipeline() {
-        return pipelineRepository.findByIsDefaultTrue()
+        return pipelineRepository.findByIsDefaultTrueWithStages()
                 .orElseThrow(() -> new RuntimeException("No default pipeline found"));
     }
 
     public List<Deal> getDealsByPipeline(Long pipelineId) {
-        return dealRepository.findByPipelineId(pipelineId);
+        return dealRepository.findByPipelineIdWithRelations(pipelineId);
     }
 
     @Transactional
@@ -102,6 +108,7 @@ public class DealService {
 
     // Pipeline Management
     @Transactional
+    @CacheEvict(value = "pipelines", allEntries = true)
     public Pipeline createPipeline(Pipeline pipeline) {
         pipeline.setCreatedAt(LocalDateTime.now());
         if (pipeline.getActive() == null) {
@@ -126,6 +133,7 @@ public class DealService {
     }
 
     @Transactional
+    @CacheEvict(value = "pipelines", allEntries = true)
     public Pipeline updatePipeline(Long id, Pipeline pipelineData) {
         Pipeline pipeline = pipelineRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pipeline not found"));
@@ -140,6 +148,7 @@ public class DealService {
     }
 
     @Transactional
+    @CacheEvict(value = "pipelines", allEntries = true)
     public void deletePipeline(Long id) {
         Pipeline pipeline = pipelineRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pipeline not found"));

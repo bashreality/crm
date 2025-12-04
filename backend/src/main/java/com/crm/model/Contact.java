@@ -16,7 +16,7 @@ import java.util.Set;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Contact {
+public class Contact implements SoftDeletable {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -74,6 +74,9 @@ public class Contact {
     )
     @JsonIgnoreProperties("contacts")
     private Set<AdminUser> sharedWithUsers = new HashSet<>();
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @PrePersist
     protected void onCreate() {

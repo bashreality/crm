@@ -31,5 +31,11 @@ frontend/.env.production.local
 *.log
 logs/
 
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
 # OS
 Thumbs.db

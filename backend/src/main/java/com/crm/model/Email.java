@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Email {
+public class Email implements SoftDeletable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -74,6 +74,9 @@ public class Email {
 
     @Column(name = "open_count")
     private Integer openCount = 0;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
     
     @PrePersist
     protected void onCreate() {

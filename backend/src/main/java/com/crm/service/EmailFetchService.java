@@ -10,6 +10,7 @@ import jakarta.mail.internet.MimeUtility;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,8 +18,11 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +46,7 @@ public class EmailFetchService {
     private boolean fetchEnabled;
 
     /**
-     * Automatyczne pobieranie maili co 5 minut ze wszystkich aktywnych kont
+     * Automatyczne pobieranie maili co 5 minut ze wszystkich aktywnych kont (async)
      */
     @Scheduled(fixedDelayString = "${email.fetch.interval:300000}")
     public void fetchEmails() {
@@ -53,25 +57,53 @@ public class EmailFetchService {
 
         // Use scheduler method to get all enabled accounts without user context
         List<EmailAccount> accounts = emailAccountService.getAllEnabledAccountsForScheduler();
-        log.info("Starting email fetch from {} enabled accounts", accounts.size());
+        log.info("Starting async email fetch from {} enabled accounts", accounts.size());
 
-        int totalNewEmails = 0;
+        AtomicInteger totalNewEmails = new AtomicInteger(0);
+        List<CompletableFuture<Integer>> futures = new ArrayList<>();
+
         for (EmailAccount account : accounts) {
-            try {
-                int newEmails = fetchEmailsForAccount(account, 50);
-                totalNewEmails += newEmails;
-
-                // Update last fetch time
-                emailAccountService.updateLastFetchTime(account.getId(), LocalDateTime.now());
-                // Zsynchronizuj licznik emaili z realnym stanem (obsługa kont z null/0)
-                int totalForAccount = emailRepository.countByAccountId(account.getId()).intValue();
-                emailAccountService.setEmailCount(account.getId(), totalForAccount);
-            } catch (Exception e) {
-                log.error("Error fetching emails from {}: {}", account.getEmailAddress(), e.getMessage(), e);
-            }
+            CompletableFuture<Integer> future = fetchEmailsForAccountAsync(account, 50);
+            futures.add(future);
         }
 
-        log.info("Email fetch completed. Total new emails: {}", totalNewEmails);
+        // Wait for all async tasks to complete
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenRun(() -> {
+                    futures.forEach(f -> {
+                        try {
+                            totalNewEmails.addAndGet(f.join());
+                        } catch (Exception e) {
+                            log.error("Error in async email fetch: {}", e.getMessage());
+                        }
+                    });
+                    log.info("Async email fetch completed. Total new emails: {}", totalNewEmails.get());
+                })
+                .exceptionally(ex -> {
+                    log.error("Error in async email fetch: {}", ex.getMessage(), ex);
+                    return null;
+                });
+    }
+
+    /**
+     * Async wrapper for fetching emails from a single account
+     */
+    @Async("emailTaskExecutor")
+    public CompletableFuture<Integer> fetchEmailsForAccountAsync(EmailAccount account, int limit) {
+        try {
+            int newEmails = fetchEmailsForAccount(account, limit);
+
+            // Update last fetch time
+            emailAccountService.updateLastFetchTime(account.getId(), LocalDateTime.now());
+            // Sync email count
+            int totalForAccount = emailRepository.countByAccountId(account.getId()).intValue();
+            emailAccountService.setEmailCount(account.getId(), totalForAccount);
+
+            return CompletableFuture.completedFuture(newEmails);
+        } catch (Exception e) {
+            log.error("Error fetching emails from {}: {}", account.getEmailAddress(), e.getMessage(), e);
+            return CompletableFuture.completedFuture(0);
+        }
     }
 
     /**

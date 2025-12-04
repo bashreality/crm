@@ -7,6 +7,8 @@ import com.crm.repository.ContactRepository;
 import com.crm.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +23,9 @@ public class TagService {
     private final TagRepository tagRepository;
     private final ContactRepository contactRepository;
 
+    @Cacheable(value = "tags")
     public List<Tag> getAllTags() {
+        log.debug("Fetching all tags from database (cache miss)");
         return tagRepository.findAll();
     }
 
@@ -31,6 +35,7 @@ public class TagService {
     }
 
     @Transactional
+    @CacheEvict(value = "tags", allEntries = true)
     public Tag createTag(String name, String color) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Nazwa tagu nie może być pusta");
@@ -50,6 +55,7 @@ public class TagService {
     }
 
     @Transactional
+    @CacheEvict(value = "tags", allEntries = true)
     public Tag updateTag(Long id, String name, String color) {
         Tag tag = getTagById(id);
 
@@ -74,6 +80,7 @@ public class TagService {
     }
 
     @Transactional
+    @CacheEvict(value = "tags", allEntries = true)
     public void deleteTag(Long id) {
         Tag tag = getTagById(id);
         tagRepository.delete(tag);

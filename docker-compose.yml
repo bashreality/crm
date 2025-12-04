@@ -5,9 +5,9 @@ services:
     image: postgres:15-alpine
     container_name: crm-postgres
     environment:
-      POSTGRES_DB: crm_db
-      POSTGRES_USER: crm_user
-      POSTGRES_PASSWORD: crm_password
+      POSTGRES_DB: ${POSTGRES_DB:-crm_db}
+      POSTGRES_USER: ${POSTGRES_USER:-crm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     ports:
       - "5432:5432"
     volumes:
@@ -15,7 +15,7 @@ services:
     networks:
       - crm-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crm_user} -d ${POSTGRES_DB:-crm_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,21 +27,23 @@ services:
     container_name: crm-backend
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/crm_db
-      SPRING_DATASOURCE_USERNAME: crm_user
-      SPRING_DATASOURCE_PASSWORD: crm_password
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-crm_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-crm_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_FLYWAY_ENABLED: "false"
-      # Secrets - In production, use Docker Secrets or a separate .env file
-      JWT_SECRET: VGhpcyBJcyBBIFZlcnkgU2VjdXJlIFNlY3JldCBLZXkgRm9yIEpXVCBUb2tlbiBHZW5lcmF0aW9uIQ==
-      EMAIL_USERNAME: crm@qprospect.pl
-      EMAIL_PASSWORD: ssd51eGurVa
-      AI_API_KEY: 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
-      AI_API_URL: https://api.groq.com/openai/v1/chat/completions
-      AI_MODEL: llama-3.3-70b-versatile
-      WOODPECKER_API_KEY: 555072.7c122c4721c17457976edac80ac6eacc0929c72445da6d5837b115830cf5d01f
-      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://188.245.95.185:3000,http://188.245.95.185
+      # All secrets loaded from .env file
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      EMAIL_USERNAME: ${EMAIL_USERNAME:?EMAIL_USERNAME is required}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:?EMAIL_PASSWORD is required}
+      AI_API_KEY: ${AI_API_KEY:?AI_API_KEY is required}
+      AI_API_URL: ${AI_API_URL:-https://api.groq.com/openai/v1/chat/completions}
+      AI_MODEL: ${AI_MODEL:-llama-3.3-70b-versatile}
+      WOODPECKER_API_KEY: ${WOODPECKER_API_KEY:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy

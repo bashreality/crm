@@ -62,6 +62,31 @@ export const contactsApi = {
   delete: (id) => api.delete(`/contacts/${id}`),
   syncFromEmails: () => api.post('/contacts/sync-from-emails'),
   getContactEmails: (contactId) => api.get(`/contacts/${contactId}/emails`),
+  
+  // Lead Scoring
+  updateScore: (id) => api.post(`/contacts/${id}/update-score`),
+  getScoreBreakdown: (id) => api.get(`/contacts/${id}/score-breakdown`),
+  
+  // Import/Export
+  importCSV: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/contacts/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  exportCSV: () => api.get('/contacts/export', { responseType: 'blob' }),
+  
+  // Duplicates
+  findDuplicates: () => api.get('/contacts/duplicates'),
+  findDuplicatesForContact: (id) => api.get(`/contacts/${id}/duplicates`),
+  mergeContacts: (primaryId, secondaryId) => 
+    api.post(`/contacts/merge?primaryId=${primaryId}&secondaryId=${secondaryId}`),
+  
+  // Soft Delete / Restore
+  restore: (id) => api.post(`/contacts/${id}/restore`),
+  getDeleted: () => api.get('/contacts/deleted'),
+  permanentDelete: (id) => api.delete(`/contacts/${id}/permanent`),
 };
 
 // Notes API
