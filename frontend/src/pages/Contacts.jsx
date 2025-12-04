@@ -473,23 +473,21 @@ const Contacts = () => {
   };
 
   return (
-    <div className="contacts-shell">
+    <div className="contacts-shell" style={{ background: 'var(--color-bg-main)', minHeight: '100vh' }}>
       <Toaster position="top-right" />
-      
-      {/* Topbar */}
-      <div className="contacts-topbar">
-        <div>
-          <h1>Kontakty</h1>
-          <p className="contacts-sub">Zarządzaj relacjami z klientami</p>
-        </div>
-        <div className="contacts-topbar-actions">
-          <button className="btn btn-secondary" onClick={() => fetchContacts()}>🔄 Odśwież</button>
-          <button className="btn btn-primary" onClick={() => setShowCreateContactModal(true)}>+ Dodaj kontakt</button>
-        </div>
-      </div>
 
       {/* Main Dashboard Layout - matching Dashboard page */}
       <div className="container" style={{ paddingTop: '24px' }}>
+        {/* Action buttons integrated into background */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          gap: '12px', 
+          marginBottom: '24px' 
+        }}>
+          <button className="btn btn-secondary" onClick={() => fetchContacts()}>🔄 Odśwież</button>
+          <button className="btn btn-primary" onClick={() => setShowCreateContactModal(true)}>+ Dodaj kontakt</button>
+        </div>
         <div className="main-layout">
         {/* Left Sidebar - Filters */}
         <aside className="sidebar">

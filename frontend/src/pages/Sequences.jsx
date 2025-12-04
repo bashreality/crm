@@ -965,14 +965,16 @@ const Sequences = () => {
     <>
       {/* --- Main View --- */}
       {!isBuilderOpen && (
-        <div className="sequences-shell">
-          {/* Topbar */}
-          <div className="sequences-topbar">
-            <div>
-              <h1>Kampanie Drip</h1>
-              <p className="sequences-sub">Planuj automatyczne sekwencje maili i follow-upów.</p>
-            </div>
-            <div className="sequences-topbar-actions">
+        <div className="sequences-shell" style={{ background: 'var(--color-bg-main)', minHeight: '100vh' }}>
+          {/* Main Dashboard Layout - matching Dashboard page */}
+          <div className="container" style={{ paddingTop: '24px' }}>
+            {/* Action buttons integrated into background */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'flex-end', 
+              gap: '12px', 
+              marginBottom: '24px' 
+            }}>
               <button className="btn btn-secondary" onClick={() => refreshSequences()}>
                 🔄 Odśwież
               </button>
@@ -980,10 +982,6 @@ const Sequences = () => {
                 + Nowa Sekwencja
               </button>
             </div>
-          </div>
-
-          {/* Main Dashboard Layout - matching Dashboard page */}
-          <div className="container" style={{ paddingTop: '24px' }}>
             {renderMetrics()}
 
             <div className="sequences-main-layout">

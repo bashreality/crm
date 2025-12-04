@@ -48,36 +48,48 @@
 /* Main Layout */
 .main-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 20px;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
   align-items: start;
 }
 
 /* Sidebar */
 .sidebar {
   background: var(--color-bg-surface);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 24px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--color-border);
   position: sticky;
   top: 88px;
+  min-width: 280px;
 }
 
 .sidebar h3 {
-  margin: 0 0 20px 0;
-  font-size: 16px;
+  margin: 0 0 24px 0;
+  font-size: 18px;
   font-weight: 700;
   color: var(--color-text-main);
 }
 
 .filter-group {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+  display: block;
 }
 
 .filter-input {
   width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
 }
+
 
 /* Email List */
 .email-list {

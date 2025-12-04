@@ -442,13 +442,15 @@ const Tasks = () => {
   };
 
   return (
-    <div className="tasks-shell">
-      <div className="tasks-topbar">
-        <div>
-          <h1>Zadania i follow-upy</h1>
-          <p className="tasks-sub">Zaplanuj kolejne kroki i domknij rozmowy z klientami.</p>
-        </div>
-        <div className="tasks-topbar-actions">
+    <div className="tasks-shell" style={{ background: 'var(--color-bg-main)', minHeight: '100vh' }}>
+      <div className="container" style={{ paddingTop: '24px' }}>
+        {/* Action buttons integrated into background */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          gap: '12px', 
+          marginBottom: '24px' 
+        }}>
           <button className="btn btn-secondary" onClick={() => refreshTasks()}>
             🔄 Odśwież
           </button>
@@ -460,9 +462,6 @@ const Tasks = () => {
             + Nowe zadanie
           </button>
         </div>
-      </div>
-
-      <div className="container" style={{ paddingTop: '24px' }}>
         <section className="tasks-metrics">
         <article className="metric-card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>

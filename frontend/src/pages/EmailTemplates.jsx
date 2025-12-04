@@ -13,6 +13,7 @@ const EmailTemplates = () => {
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState('desktop'); // desktop, tablet, mobile
 
   const [formData, setFormData] = useState({
     name: '',
@@ -180,7 +181,34 @@ const EmailTemplates = () => {
       cssStyles: defaultCssStyles,
       thumbnailUrl: ''
     });
+    setPreviewDevice('desktop');
     setShowThemeEditor(true);
+  };
+
+  const handleEditTheme = (theme) => {
+    setSelectedTheme(theme);
+    setThemeFormData({
+      name: theme.name || '',
+      description: theme.description || '',
+      htmlStructure: theme.htmlStructure || defaultHtmlStructure,
+      cssStyles: theme.cssStyles || defaultCssStyles,
+      thumbnailUrl: theme.thumbnailUrl || ''
+    });
+    setPreviewDevice('desktop');
+    setShowThemeEditor(true);
+  };
+
+  const handleDeleteTheme = async (id) => {
+    if (!window.confirm('Czy na pewno chcesz usunąć ten motyw?')) return;
+
+    try {
+      await emailTemplateService.deleteTheme(id);
+      loadThemes();
+      alert('Motyw usunięty');
+    } catch (error) {
+      console.error('Error deleting theme:', error);
+      alert('Błąd podczas usuwania motywu. Upewnij się, że żaden szablon nie używa tego motywu.');
+    }
   };
 
   const handleSaveTheme = async () => {
@@ -239,6 +267,31 @@ const EmailTemplates = () => {
 .content { padding: 30px; }
 .footer { padding: 20px; background-color: #f0f0f0; text-align: center; }`;
 
+  // Generowanie podglądu motywu w czasie rzeczywistym
+  const generateThemePreviewHtml = () => {
+    const html = themeFormData.htmlStructure || defaultHtmlStructure;
+    const css = themeFormData.cssStyles || defaultCssStyles;
+    
+    // Przykładowa treść do podglądu
+    const sampleContent = `
+      <h1>Witaj, {{firstName}}!</h1>
+      <p>To jest przykładowa treść Twojego emaila. Możesz tutaj dodać tekst, obrazy i linki.</p>
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.</p>
+      <a href="#" style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-top: 15px;">Przycisk CTA</a>
+    `;
+    const sampleLogo = '<img src="https://via.placeholder.com/150x50?text=Logo" alt="Logo" style="max-height: 50px;" />';
+    const sampleFooter = '<p style="margin:0; color: #6b7280; font-size: 12px;">© 2025 Twoja Firma. Wszystkie prawa zastrzeżone.</p>';
+    
+    // Zamiana placeholderów
+    let preview = html
+      .replace('{{CSS_STYLES}}', css)
+      .replace('{{CONTENT}}', sampleContent)
+      .replace('{{LOGO}}', sampleLogo)
+      .replace('{{FOOTER}}', sampleFooter);
+    
+    return preview;
+  };
+
   return (
     <div className="email-templates-page">
       <div className="page-header">
@@ -276,48 +329,111 @@ const EmailTemplates = () => {
         </div>
       </div>
 
-      {/* Templates Grid */}
-      {loading ? (
-        <div className="loading">Ładowanie...</div>
-      ) : (
-        <div className="templates-grid">
-          {templates.map(template => (
-            <div key={template.id} className="template-card">
-              <div className="template-header">
-                <h3>{template.name}</h3>
-                <button
-                  onClick={() => handleToggleFavorite(template.id)}
-                  className={`btn-icon ${template.isFavorite ? 'favorite' : ''}`}
-                >
-                  {template.isFavorite ? '⭐' : '☆'}
-                </button>
-              </div>
-              <div className="template-meta">
-                <span className="category-badge">{template.category}</span>
-                {template.theme && <span className="theme-badge">🎨 {template.theme.name}</span>}
-              </div>
-              <p className="template-description">{template.description}</p>
-              <div className="template-subject">
-                <strong>Temat:</strong> {template.subject}
-              </div>
-              <div className="template-stats">
-                <span>📊 Użyto: {template.usageCount || 0}x</span>
-              </div>
-              <div className="template-actions">
-                <button onClick={() => handlePreview(template.id)} className="btn btn-sm">
-                  👁️ Podgląd
-                </button>
-                <button onClick={() => handleEditTemplate(template)} className="btn btn-sm">
-                  ✏️ Edytuj
-                </button>
-                <button onClick={() => handleDeleteTemplate(template.id)} className="btn btn-sm btn-danger">
-                  🗑️ Usuń
-                </button>
-              </div>
-            </div>
-          ))}
+      {/* Themes Section */}
+      <div className="themes-section">
+        <div className="themes-header">
+          <h2>🎨 Motywy graficzne</h2>
+          <span className="themes-count">{themes.length} motywów</span>
+          <button onClick={handleCreateTheme} className="btn btn-sm btn-primary themes-add-btn">
+            + Dodaj motyw
+          </button>
         </div>
-      )}
+        {themes.length === 0 ? (
+          <div className="themes-empty">
+            <div className="themes-empty-icon">🎨</div>
+            <p>Brak motywów graficznych</p>
+            <button onClick={handleCreateTheme} className="btn btn-primary">
+              + Utwórz pierwszy motyw
+            </button>
+          </div>
+        ) : (
+          <div className="themes-grid">
+            {themes.map(theme => (
+              <div key={theme.id} className="theme-card">
+                <div className="theme-card-preview">
+                  {theme.thumbnailUrl ? (
+                    <img src={theme.thumbnailUrl} alt={theme.name} />
+                  ) : (
+                    <div className="theme-card-placeholder">🎨</div>
+                  )}
+                </div>
+                <div className="theme-card-info">
+                  <h4>{theme.name}</h4>
+                  {theme.description && <p>{theme.description}</p>}
+                  {theme.isSystem && <span className="system-badge">System</span>}
+                </div>
+                <div className="theme-card-actions">
+                  <button 
+                    onClick={() => handleEditTheme(theme)} 
+                    className="btn btn-sm"
+                    title="Edytuj motyw"
+                  >
+                    ✏️ Edytuj
+                  </button>
+                  {!theme.isSystem && (
+                    <button 
+                      onClick={() => handleDeleteTheme(theme.id)} 
+                      className="btn btn-sm btn-danger"
+                      title="Usuń motyw"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Templates Grid */}
+      <div className="templates-section">
+        <div className="templates-header">
+          <h2>📧 Szablony email</h2>
+          <span className="templates-count">{templates.length} szablonów</span>
+        </div>
+        {loading ? (
+          <div className="loading">Ładowanie...</div>
+        ) : (
+          <div className="templates-grid">
+            {templates.map(template => (
+              <div key={template.id} className="template-card">
+                <div className="template-header">
+                  <h3>{template.name}</h3>
+                  <button
+                    onClick={() => handleToggleFavorite(template.id)}
+                    className={`btn-icon ${template.isFavorite ? 'favorite' : ''}`}
+                  >
+                    {template.isFavorite ? '⭐' : '☆'}
+                  </button>
+                </div>
+                <div className="template-meta">
+                  <span className="category-badge">{template.category}</span>
+                  {template.theme && <span className="theme-badge">🎨 {template.theme.name}</span>}
+                </div>
+                <p className="template-description">{template.description}</p>
+                <div className="template-subject">
+                  <strong>Temat:</strong> {template.subject}
+                </div>
+                <div className="template-stats">
+                  <span>📊 Użyto: {template.usageCount || 0}x</span>
+                </div>
+                <div className="template-actions">
+                  <button onClick={() => handlePreview(template.id)} className="btn btn-sm">
+                    👁️ Podgląd
+                  </button>
+                  <button onClick={() => handleEditTemplate(template)} className="btn btn-sm">
+                    ✏️ Edytuj
+                  </button>
+                  <button onClick={() => handleDeleteTemplate(template.id)} className="btn btn-sm btn-danger">
+                    🗑️ Usuń
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Template Editor Modal */}
       {showEditor && (
@@ -458,61 +574,115 @@ const EmailTemplates = () => {
       {/* Theme Editor Modal */}
       {showThemeEditor && (
         <div className="modal-overlay" onClick={() => setShowThemeEditor(false)}>
-          <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content theme-editor-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{selectedTheme ? 'Edytuj Motyw' : 'Nowy Motyw'}</h2>
+              <h2>{selectedTheme ? '✏️ Edytuj Motyw' : '🎨 Nowy Motyw'}</h2>
               <button onClick={() => setShowThemeEditor(false)} className="btn-close">✕</button>
             </div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Nazwa motywu *</label>
-                  <input
-                    type="text"
-                    value={themeFormData.name}
-                    onChange={(e) => setThemeFormData({ ...themeFormData, name: e.target.value })}
-                    placeholder="np. Modern Professional"
-                  />
-                </div>
+            <div className="modal-body theme-editor-body">
+              {/* Lewa kolumna - Edytory */}
+              <div className="theme-editor-left">
+                <div className="theme-editor-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Nazwa motywu *</label>
+                      <input
+                        type="text"
+                        value={themeFormData.name}
+                        onChange={(e) => setThemeFormData({ ...themeFormData, name: e.target.value })}
+                        placeholder="np. Modern Professional"
+                      />
+                    </div>
 
-                <div className="form-group">
-                  <label>URL miniaturki</label>
-                  <input
-                    type="text"
-                    value={themeFormData.thumbnailUrl}
-                    onChange={(e) => setThemeFormData({ ...themeFormData, thumbnailUrl: e.target.value })}
-                    placeholder="https://example.com/thumbnail.png"
-                  />
-                </div>
+                    <div className="form-group">
+                      <label>URL miniaturki</label>
+                      <input
+                        type="text"
+                        value={themeFormData.thumbnailUrl}
+                        onChange={(e) => setThemeFormData({ ...themeFormData, thumbnailUrl: e.target.value })}
+                        placeholder="https://example.com/thumbnail.png"
+                      />
+                    </div>
+                  </div>
 
-                <div className="form-group full-width">
-                  <label>Opis</label>
-                  <textarea
-                    value={themeFormData.description}
-                    onChange={(e) => setThemeFormData({ ...themeFormData, description: e.target.value })}
-                    rows="2"
-                  />
-                </div>
+                  <div className="form-group">
+                    <label>Opis</label>
+                    <textarea
+                      value={themeFormData.description}
+                      onChange={(e) => setThemeFormData({ ...themeFormData, description: e.target.value })}
+                      rows="2"
+                      placeholder="Krótki opis motywu"
+                    />
+                  </div>
 
-                <div className="form-group full-width">
-                  <label>Struktura HTML *</label>
-                  <small>Użyj placeholderów: {'{{CONTENT}}'}, {'{{LOGO}}'}, {'{{FOOTER}}'}, {'{{CSS_STYLES}}'}</small>
-                  <textarea
-                    value={themeFormData.htmlStructure}
-                    onChange={(e) => setThemeFormData({ ...themeFormData, htmlStructure: e.target.value })}
-                    rows="10"
-                    className="code-editor"
-                  />
-                </div>
+                  <div className="form-group">
+                    <div className="editor-label-row">
+                      <label>📄 Struktura HTML *</label>
+                      <span className="editor-hint">Placeholdery: {'{{CONTENT}}'}, {'{{LOGO}}'}, {'{{FOOTER}}'}, {'{{CSS_STYLES}}'}</span>
+                    </div>
+                    <textarea
+                      value={themeFormData.htmlStructure}
+                      onChange={(e) => setThemeFormData({ ...themeFormData, htmlStructure: e.target.value })}
+                      rows="12"
+                      className="code-editor"
+                      placeholder="<!DOCTYPE html>..."
+                    />
+                  </div>
 
-                <div className="form-group full-width">
-                  <label>Style CSS *</label>
-                  <textarea
-                    value={themeFormData.cssStyles}
-                    onChange={(e) => setThemeFormData({ ...themeFormData, cssStyles: e.target.value })}
-                    rows="10"
-                    className="code-editor"
-                  />
+                  <div className="form-group">
+                    <div className="editor-label-row">
+                      <label>🎨 Style CSS *</label>
+                    </div>
+                    <textarea
+                      value={themeFormData.cssStyles}
+                      onChange={(e) => setThemeFormData({ ...themeFormData, cssStyles: e.target.value })}
+                      rows="12"
+                      className="code-editor"
+                      placeholder="body { ... }"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Prawa kolumna - Podgląd na żywo */}
+              <div className="theme-editor-right">
+                <div className="preview-panel">
+                  <div className="preview-header">
+                    <span className="preview-title">👁️ Podgląd na żywo</span>
+                    <div className="preview-device-buttons">
+                      <button 
+                        className={`device-btn ${previewDevice === 'desktop' ? 'active' : ''}`} 
+                        title="Desktop (650px)"
+                        onClick={() => setPreviewDevice('desktop')}
+                      >
+                        🖥️
+                      </button>
+                      <button 
+                        className={`device-btn ${previewDevice === 'tablet' ? 'active' : ''}`} 
+                        title="Tablet (480px)"
+                        onClick={() => setPreviewDevice('tablet')}
+                      >
+                        📱
+                      </button>
+                      <button 
+                        className={`device-btn ${previewDevice === 'mobile' ? 'active' : ''}`} 
+                        title="Mobile (375px)"
+                        onClick={() => setPreviewDevice('mobile')}
+                      >
+                        📲
+                      </button>
+                    </div>
+                  </div>
+                  <div className="preview-frame-container">
+                    <iframe
+                      srcDoc={generateThemePreviewHtml()}
+                      title="Theme Preview"
+                      className={`theme-preview-iframe preview-${previewDevice}`}
+                    />
+                  </div>
+                  <div className="preview-info">
+                    <span>💡 Podgląd aktualizuje się automatycznie podczas edycji</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -521,7 +691,7 @@ const EmailTemplates = () => {
                 Anuluj
               </button>
               <button onClick={handleSaveTheme} className="btn btn-primary" disabled={loading}>
-                {loading ? 'Zapisywanie...' : 'Zapisz Motyw'}
+                {loading ? 'Zapisywanie...' : '💾 Zapisz Motyw'}
               </button>
             </div>
           </div>
