@@ -67,6 +67,12 @@ const emailTemplateService = {
 
   deleteTheme: async (id) => {
     await api.delete(`/email-templates/themes/${id}`);
+  },
+
+  // Newsletter
+  sendNewsletter: async (data) => {
+    const response = await api.post('/email-templates/send-newsletter', data);
+    return response.data;
   }
 };
 

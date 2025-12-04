@@ -225,4 +225,23 @@ public class EmailTemplateController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    // ============ Newsletter Sending ============
+
+    @PostMapping("/send-newsletter")
+    public ResponseEntity<Map<String, Object>> sendNewsletter(@RequestBody Map<String, Object> request) {
+        try {
+            Long templateId = ((Number) request.get("templateId")).longValue();
+            Long tagId = ((Number) request.get("tagId")).longValue();
+            String subject = (String) request.get("subject");
+
+            Map<String, Object> result = templateService.sendNewsletterToTag(templateId, tagId, subject);
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error sending newsletter", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage(), "success", false));
+        }
+    }
 }

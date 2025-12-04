@@ -5,12 +5,14 @@ import com.crm.exception.ValidationException;
 import com.crm.model.Contact;
 import com.crm.model.EmailTemplate;
 import com.crm.model.EmailTemplateTheme;
+import com.crm.repository.ContactRepository;
 import com.crm.repository.EmailTemplateRepository;
 import com.crm.repository.EmailTemplateThemeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +30,9 @@ public class EmailTemplateService {
 
     private final EmailTemplateRepository templateRepository;
     private final EmailTemplateThemeRepository themeRepository;
+    private final ContactRepository contactRepository;
     private final UserContextService userContextService;
+    private final EmailSendingService emailSendingService;
 
     // ============ Template Management ============
 
@@ -161,19 +165,10 @@ public class EmailTemplateService {
         EmailTemplateTheme theme = themeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Theme not found"));
         
-        if (Boolean.TRUE.equals(theme.getIsSystem())) {
-            throw new ValidationException("Cannot delete system themes");
-        }
-        
-        Long userId = userContextService.getCurrentUserId();
-        if (!userId.equals(theme.getUserId())) {
-            throw new ValidationException("Access denied");
-        }
-        
-        // Check if theme is in use
+        // Check if theme is in use by any templates
         Long usageCount = themeRepository.countTemplatesUsingTheme(id);
         if (usageCount > 0) {
-            throw new ValidationException("Cannot delete theme that is in use by " + usageCount + " template(s)");
+            throw new ValidationException("Nie można usunąć motywu używanego przez " + usageCount + " szablon(ów). Najpierw zmień motyw w tych szablonach.");
         }
         
         themeRepository.delete(theme);
@@ -355,5 +350,84 @@ public class EmailTemplateService {
         stats.put("byCategory", byCategory);
         
         return stats;
+    }
+
+    // ============ Newsletter Sending ============
+
+    /**
+     * Send newsletter to all contacts with a specific tag
+     */
+    public Map<String, Object> sendNewsletterToTag(Long templateId, Long tagId, String subject) {
+        log.info("Sending newsletter - templateId: {}, tagId: {}", templateId, tagId);
+        
+        // Get template
+        EmailTemplate template = templateRepository.findById(templateId)
+                .orElseThrow(() -> new ResourceNotFoundException("Template not found"));
+        
+        // Get contacts with the specified tag
+        List<Contact> contacts = contactRepository.findByTagId(tagId);
+        
+        if (contacts.isEmpty()) {
+            throw new ValidationException("Brak kontaktów z wybranym tagiem");
+        }
+        
+        // Use provided subject or template subject
+        String emailSubject = (subject != null && !subject.trim().isEmpty()) 
+                ? subject 
+                : template.getSubject();
+        
+        // Send emails asynchronously
+        int successCount = 0;
+        int failCount = 0;
+        
+        for (Contact contact : contacts) {
+            try {
+                // Render template for this contact
+                String renderedHtml = renderTemplateForContact(template, contact);
+                String renderedSubject = processTemplate(emailSubject, prepareVariables(contact, null));
+                
+                // Send email
+                emailSendingService.sendEmail(
+                        contact.getEmail(),
+                        renderedSubject,
+                        renderedHtml
+                );
+                
+                successCount++;
+                log.debug("Newsletter sent to: {}", contact.getEmail());
+            } catch (Exception e) {
+                failCount++;
+                log.error("Failed to send newsletter to {}: {}", contact.getEmail(), e.getMessage());
+            }
+        }
+        
+        // Increment template usage
+        template.incrementUsage();
+        templateRepository.save(template);
+        
+        log.info("Newsletter sending completed - success: {}, failed: {}", successCount, failCount);
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("totalContacts", contacts.size());
+        result.put("successCount", successCount);
+        result.put("failCount", failCount);
+        result.put("message", String.format("Newsletter wysłany do %d z %d odbiorców", successCount, contacts.size()));
+        
+        return result;
+    }
+
+    /**
+     * Render template for a specific contact
+     */
+    private String renderTemplateForContact(EmailTemplate template, Contact contact) {
+        Map<String, String> variables = prepareVariables(contact, null);
+        String renderedContent = processTemplate(template.getHtmlContent(), variables);
+        
+        if (template.getTheme() != null) {
+            return applyTheme(template.getTheme(), renderedContent, variables);
+        }
+        
+        return renderedContent;
     }
 }

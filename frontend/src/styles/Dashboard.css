@@ -435,3 +435,199 @@
   font-weight: 600 !important;
   color: #111827 !important;
 }
+
+/* ===== DARK MODE SUPPORT ===== */
+html.dark .email-list {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .email-item {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .email-item:hover {
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .email-sender {
+  color: var(--color-text-main);
+}
+
+html.dark .email-company {
+  color: var(--color-text-secondary);
+}
+
+html.dark .email-subject {
+  color: var(--color-text-main);
+}
+
+html.dark .email-preview {
+  color: var(--color-text-secondary);
+}
+
+html.dark .email-tag-empty {
+  color: var(--color-text-muted);
+}
+
+html.dark .chip {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .chip:hover {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .chip-primary {
+  background-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+html.dark .chip-success {
+  background-color: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+html.dark .chip-info {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+html.dark .chip-danger {
+  background-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+html.dark .tag.positive {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+html.dark .tag.neutral {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+html.dark .tag.negative {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+html.dark .tag.undelivered {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+html.dark .emails-pagination {
+  background-color: var(--color-bg-surface);
+  border-top-color: var(--color-border);
+}
+
+html.dark .empty-state {
+  color: var(--color-text-secondary);
+}
+
+html.dark .stat-card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .stat-card:hover {
+  border-color: var(--color-primary);
+}
+
+html.dark .stat-label {
+  color: var(--color-text-muted);
+}
+
+html.dark .sidebar {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sidebar h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .filter-group label {
+  color: var(--color-text-secondary);
+}
+
+html.dark .filter-input {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .filter-input:focus {
+  border-color: var(--color-primary);
+}
+
+/* Dashboard sequences/tasks shell dark mode */
+html.dark .sequences-shell,
+html.dark .tasks-shell {
+  background-color: var(--color-bg-main) !important;
+}
+
+html.dark .sequences-topbar,
+html.dark .tasks-topbar {
+  background-color: var(--color-bg-surface) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+html.dark .sequences-center,
+html.dark .tasks-center {
+  background: var(--color-bg-main) !important;
+}
+
+html.dark .sequences-center > div,
+html.dark .tasks-center > div {
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+html.dark .sequences-toolbar,
+html.dark .tasks-toolbar {
+  background: var(--color-bg-surface) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+html.dark .sequences-content {
+  background: var(--color-bg-surface) !important;
+}
+
+html.dark .tasks-list {
+  background: var(--color-bg-surface) !important;
+}
+
+html.dark .tasks-stats {
+  background: var(--color-bg-elevated) !important;
+  border-color: var(--color-border) !important;
+}
+
+html.dark .stat-row span:first-child {
+  color: var(--color-text-secondary) !important;
+}
+
+html.dark .stat-row span:last-child {
+  color: var(--color-text-main) !important;
+}
+
+html.dark .sequences-list-section {
+  background: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
+}
+
+html.dark .sequences-list-header {
+  background: var(--color-bg-surface) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+html.dark .sequences-list-content {
+  background: var(--color-bg-surface) !important;
+}

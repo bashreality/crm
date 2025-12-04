@@ -907,3 +907,382 @@
   border-top: 1px solid #e5e7eb;
   background: #f9fafb;
 }
+
+/* ===== DARK MODE SUPPORT ===== */
+html.dark .sequences-shell {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .sequences-wrapper {
+  background-color: var(--color-bg-main);
+}
+
+/* Tabs */
+html.dark .sequences-tabs {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .tab-button {
+  color: var(--color-text-secondary);
+}
+
+html.dark .tab-button:hover {
+  color: var(--color-text-main);
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .tab-button.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Metrics */
+html.dark .metric-tile {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .metric-label {
+  color: var(--color-text-secondary);
+}
+
+html.dark .metric-value {
+  color: var(--color-text-main);
+}
+
+/* Sequences List */
+html.dark .sequences-list {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .sequences-list__header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .sequence-tile {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sequence-tile:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+html.dark .sequence-tile.selected {
+  background-color: rgba(99, 102, 241, 0.1);
+  border-color: var(--color-primary);
+}
+
+html.dark .sequence-tile__header h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .sequence-status.inactive {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+html.dark .sequence-tile p {
+  color: var(--color-text-secondary);
+}
+
+html.dark .sequence-tile__footer {
+  border-top-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+html.dark .sequence-tile__footer button:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Details */
+html.dark .sequence-details {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .sequence-details__header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .sequence-details__header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .sequence-details__meta {
+  color: var(--color-text-secondary);
+}
+
+/* Timeline */
+html.dark .timeline::before {
+  background-color: var(--color-border);
+}
+
+html.dark .step-card {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}
+
+html.dark .step-card:hover {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-primary);
+}
+
+html.dark .step-header {
+  background-color: var(--color-bg-surface);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .step-title {
+  color: var(--color-text-main);
+}
+
+html.dark .step-delay {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+html.dark .step-body {
+  color: var(--color-text-secondary);
+}
+
+/* Enhanced Timeline */
+html.dark .connector-line {
+  background: linear-gradient(to bottom, rgba(99, 102, 241, 0.3), rgba(99, 102, 241, 0.5), rgba(99, 102, 241, 0.3));
+}
+
+html.dark .connector-icon {
+  background-color: var(--color-bg-surface);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+html.dark .delay-badge {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(6, 182, 212, 0.2));
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+html.dark .enhanced-step-card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .enhanced-step-card:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .enhanced-step-header {
+  background: linear-gradient(135deg, var(--color-bg-elevated), var(--color-bg-surface));
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .step-type-badge {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+html.dark .step-subject {
+  color: var(--color-text-main);
+}
+
+html.dark .enhanced-step-body {
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+html.dark .enhanced-step-meta {
+  background-color: var(--color-bg-elevated);
+  border-top-color: var(--color-border);
+}
+
+html.dark .meta-badge {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+/* Builder Modal */
+html.dark .builder-modal {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .builder-header {
+  background-color: var(--color-bg-surface);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .builder-header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .builder-sidebar {
+  background-color: var(--color-bg-surface);
+  border-right-color: var(--color-border);
+}
+
+html.dark .builder-form-group label {
+  color: var(--color-text-main);
+}
+
+html.dark .builder-form-group input,
+html.dark .builder-form-group select,
+html.dark .builder-form-group textarea {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .builder-form-group input:focus,
+html.dark .builder-form-group select:focus,
+html.dark .builder-form-group textarea:focus {
+  border-color: var(--color-primary);
+}
+
+html.dark .builder-canvas {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .timeline-add-btn {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+html.dark .timeline-add-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+html.dark .builder-step {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .builder-step:hover {
+  border-color: var(--color-primary);
+}
+
+html.dark .builder-step-header {
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .delay-selector {
+  background-color: rgba(14, 165, 233, 0.15);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+html.dark .delay-selector select,
+html.dark .delay-selector input {
+  color: #38bdf8;
+}
+
+/* Builder Preview */
+html.dark .builder-preview {
+  background-color: var(--color-bg-elevated);
+  border-left-color: var(--color-border);
+}
+
+html.dark .preview-header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .preview-header h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .preview-sample-info {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .preview-email {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .preview-email-header {
+  background-color: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .preview-label {
+  color: var(--color-text-secondary);
+}
+
+html.dark .preview-subject {
+  color: var(--color-text-main);
+}
+
+html.dark .preview-body-text {
+  color: var(--color-text-secondary);
+}
+
+html.dark .preview-tips {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* Modal Dark Mode */
+html.dark .modal-overlay {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+html.dark .modal-content {
+  background-color: var(--color-bg-surface);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+html.dark .modal-header {
+  background: linear-gradient(135deg, var(--color-bg-elevated), var(--color-bg-surface));
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .modal-header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .modal-close {
+  color: var(--color-text-secondary);
+}
+
+html.dark .modal-close:hover {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-main);
+}
+
+html.dark .modal-body {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .modal-footer {
+  background-color: var(--color-bg-elevated);
+  border-top-color: var(--color-border);
+}
+
+/* Buttons */
+html.dark .btn-secondary {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .btn-secondary:hover {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .btn-icon {
+  color: var(--color-text-secondary);
+}
+
+html.dark .btn-icon:hover {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-main);
+}

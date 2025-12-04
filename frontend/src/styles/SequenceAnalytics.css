@@ -345,3 +345,162 @@
 .error {
   color: #ef4444;
 }
+
+/* ===== DARK MODE SUPPORT ===== */
+html.dark .analytics-container {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .analytics-header h1 {
+  color: var(--color-text-main);
+}
+
+html.dark .analytics-header p {
+  color: var(--color-text-secondary);
+}
+
+/* Summary Cards */
+html.dark .summary-card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .summary-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  border-color: var(--color-primary);
+}
+
+html.dark .summary-card.highlight {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(6, 182, 212, 0.1));
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+html.dark .summary-label {
+  color: var(--color-text-secondary);
+}
+
+html.dark .summary-value {
+  color: var(--color-text-main);
+}
+
+html.dark .summary-sub {
+  color: var(--color-text-muted);
+}
+
+/* Breakdown Section */
+html.dark .analytics-breakdown h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .breakdown-card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .breakdown-card:hover {
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.4);
+  border-color: var(--color-primary);
+}
+
+html.dark .breakdown-header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .breakdown-header h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .sequence-badge {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+html.dark .metric-row {
+  color: var(--color-text-secondary);
+}
+
+html.dark .metric-label {
+  color: var(--color-text-secondary);
+}
+
+html.dark .metric-value {
+  color: var(--color-text-main);
+}
+
+html.dark .stat-label {
+  color: var(--color-text-secondary);
+}
+
+html.dark .stat-bar {
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .stat-value {
+  color: var(--color-text-main);
+}
+
+html.dark .breakdown-footer {
+  border-top-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+/* Modal */
+html.dark .modal-overlay {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+html.dark .sequence-detail-modal {
+  background-color: var(--color-bg-surface);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+}
+
+html.dark .modal-header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .modal-header h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .modal-header button {
+  color: var(--color-text-secondary);
+}
+
+html.dark .modal-header button:hover {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-main);
+}
+
+html.dark .modal-content {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .detail-card {
+  background-color: var(--color-bg-elevated);
+  border-color: var(--color-border);
+}
+
+html.dark .detail-card h4 {
+  color: var(--color-text-main);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .detail-stats span:first-child {
+  color: var(--color-text-secondary);
+}
+
+html.dark .detail-stats span:last-child {
+  color: var(--color-text-main);
+}
+
+/* States */
+html.dark .loading,
+html.dark .no-data {
+  color: var(--color-text-muted);
+}
+
+html.dark .error {
+  color: #f87171;
+}
