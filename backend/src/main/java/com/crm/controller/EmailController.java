@@ -17,6 +17,9 @@ import java.util.HashSet;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -243,14 +246,26 @@ public class EmailController {
             // Budujemy nagłówek References dla wątku
             String references = buildReferences(originalEmail);
 
-            // Wysyłamy odpowiedź
-            Long sentEmailId = emailSendingService.sendReply(
-                    originalEmail.getSender(),
-                    subject,
-                    body,
-                    originalEmail.getMessageId(),
-                    references
-            );
+            // Wysyłamy odpowiedź - użyj konta z sygnaturą jeśli dostępne
+            Long sentEmailId;
+            if (originalEmail.getAccount() != null) {
+                sentEmailId = emailSendingService.sendReplyFromAccount(
+                        originalEmail.getAccount(),
+                        originalEmail.getSender(),
+                        subject,
+                        body,
+                        originalEmail.getMessageId(),
+                        references
+                );
+            } else {
+                sentEmailId = emailSendingService.sendReply(
+                        originalEmail.getSender(),
+                        subject,
+                        body,
+                        originalEmail.getMessageId(),
+                        references
+                );
+            }
 
             // Opcjonalnie: aktualizuj status oryginalnego emaila
             originalEmail.setStatus("replied");

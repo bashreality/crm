@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import SignatureEditor from '../components/SignatureEditor';
 import '../styles/EmailAccounts.css';
 
 const EmailAccounts = () => {
@@ -72,7 +73,7 @@ const EmailAccounts = () => {
     setEditingAccount(account);
     setFormData({
       emailAddress: account.emailAddress,
-      password: account.password || '',
+      password: '', // Pozostaw puste - użytkownik wprowadzi nowe tylko jeśli chce zmienić
       displayName: account.displayName || '',
       imapHost: account.imapHost || 'mail.q-prospect.pl',
       imapPort: account.imapPort || 993,
@@ -240,15 +241,20 @@ const EmailAccounts = () => {
               </div>
 
               <div className="form-group">
-                <label>Hasło *</label>
+                <label>Hasło {!editingAccount && '*'}</label>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  required
-                  placeholder="Hasło do konta email"
+                  required={!editingAccount}
+                  placeholder={editingAccount ? "Zostaw puste aby nie zmieniać" : "Hasło do konta email"}
                 />
+                {editingAccount && (
+                  <small className="form-help">
+                    Pozostaw puste jeśli nie chcesz zmieniać hasła
+                  </small>
+                )}
               </div>
 
               <div className="form-group">
@@ -326,17 +332,17 @@ const EmailAccounts = () => {
               </div>
 
               <div className="form-section">
-                <h3>Stopka email (opcjonalnie)</h3>
+                <h3>Stopka email HTML (opcjonalnie)</h3>
                 <div className="form-group">
-                  <label>Stopka email</label>
-                  <textarea
-                    name="signature"
+                  <label>Stopka email z formatowaniem</label>
+                  <SignatureEditor
                     value={formData.signature}
-                    onChange={handleInputChange}
-                    placeholder="Wpisz swoją stopkę email&#10;&#10;Przykład:&#10;Z poważaniem,&#10;Jan Kowalski&#10;Firma ABC&#10;tel: 123 456 789"
-                    rows="6"
+                    onChange={(html) => setFormData({ ...formData, signature: html })}
                   />
-                  <small className="form-help">Stopka będzie automatycznie dodawana do wszystkich wysyłanych emaili z tego konta</small>
+                  <small className="form-help">
+                    Stopka będzie automatycznie dodawana do wszystkich wysyłanych emaili z tego konta.
+                    Możesz formatować tekst, dodawać kolory, linki i obrazy.
+                  </small>
                 </div>
               </div>
 

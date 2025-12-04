@@ -100,12 +100,11 @@ public class EmailSendingService {
         String trackingId = UUID.randomUUID().toString();
         String trackingPixel = String.format("<img src=\"%s/api/track/pixel.png?id=%s\" width=\"1\" height=\"1\" style=\"display:none;\" />", baseUrl, trackingId);
 
-        // Dodaj sygnaturę z konta jeśli istnieje
+        // Dodaj sygnaturę HTML z konta jeśli istnieje
         String fullBody = body;
         if (account.getSignature() != null && !account.getSignature().trim().isEmpty()) {
-            // Dodaj sygnaturę na końcu wiadomości
-            String signatureHtml = "<br/><br/>" + account.getSignature().replace("\n", "<br/>");
-            fullBody = body + signatureHtml;
+            // Dodaj sygnaturę HTML na końcu wiadomości
+            fullBody = body + "<br/><br/>" + account.getSignature();
         }
 
         // Doklej piksel do body
@@ -238,7 +237,13 @@ public class EmailSendingService {
         String trackingId = UUID.randomUUID().toString();
         String trackingPixel = String.format("<img src=\"%s/api/track/pixel.png?id=%s\" width=\"1\" height=\"1\" style=\"display:none;\" />", baseUrl, trackingId);
 
-        String bodyWithTracking = body + trackingPixel;
+        // Dodaj sygnaturę HTML z konta jeśli istnieje
+        String fullBody = body;
+        if (account.getSignature() != null && !account.getSignature().trim().isEmpty()) {
+            fullBody = body + "<br/><br/>" + account.getSignature();
+        }
+
+        String bodyWithTracking = fullBody + trackingPixel;
 
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
         sender.setHost(account.getSmtpHost());

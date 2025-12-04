@@ -9,6 +9,7 @@ import com.crm.model.ScheduledEmail;
 import com.crm.model.SequenceExecution;
 import com.crm.repository.ContactRepository;
 import com.crm.repository.DealRepository;
+import com.crm.repository.EmailAccountRepository;
 import com.crm.repository.EmailRepository;
 import com.crm.repository.PipelineStageRepository;
 import com.crm.repository.ScheduledEmailRepository;
@@ -36,6 +37,7 @@ public class ScheduledEmailService {
     private final ContactRepository contactRepository;
     private final DealRepository dealRepository;
     private final PipelineStageRepository pipelineStageRepository;
+    private final EmailAccountRepository emailAccountRepository;
 
     /**
      * Automatycznie wysyła zaplanowane emaile co minutę
@@ -338,6 +340,32 @@ public class ScheduledEmailService {
             sendScheduledEmail(email);
         } else {
             throw new RuntimeException("Email is not in pending status");
+        }
+    }
+
+    /**
+     * Wysyła testowy email bez zapisywania w bazie (dla testowania sekwencji)
+     */
+    public void sendTestEmail(Long emailAccountId, String recipientEmail, String subject, String body) throws MessagingException {
+        try {
+            if (emailAccountId != null) {
+                EmailAccount account = emailAccountRepository.findById(emailAccountId)
+                        .orElse(null);
+
+                if (account != null) {
+                    emailSendingService.sendEmailFromAccount(account, recipientEmail, subject, body);
+                    log.info("Sent test email to {} with subject: {} from account {}", recipientEmail, subject, account.getEmailAddress());
+                } else {
+                    emailSendingService.sendEmail(recipientEmail, subject, body);
+                    log.warn("Email account {} not found, sending test email without account", emailAccountId);
+                }
+            } else {
+                emailSendingService.sendEmail(recipientEmail, subject, body);
+                log.info("Sent test email to {} with subject: {} (no account specified)", recipientEmail, subject);
+            }
+        } catch (Exception e) {
+            log.error("Failed to send test email to {}: {}", recipientEmail, e.getMessage(), e);
+            throw new MessagingException("Failed to send test email: " + e.getMessage());
         }
     }
 

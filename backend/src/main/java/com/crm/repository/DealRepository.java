@@ -9,6 +9,7 @@ import java.util.List;
 @Repository
 public interface DealRepository extends JpaRepository<Deal, Long> {
     List<Deal> findByPipelineId(Long pipelineId);
+    List<Deal> findByStageId(Long stageId);
     List<Deal> findByContactId(Long contactId);
     List<Deal> findByStatus(String status);
 

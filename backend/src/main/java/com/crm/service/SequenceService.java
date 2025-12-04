@@ -40,6 +40,7 @@ public class SequenceService {
     private final PipelineStageRepository pipelineStageRepository;
     private final EmailRepository emailRepository;
     private final UserContextService userContextService;
+    private final EmailTemplateService emailTemplateService;
 
     public List<SequenceSummaryDto> getAllSequences() {
         Long userId = userContextService.getCurrentUserId();
@@ -605,55 +606,107 @@ public class SequenceService {
         boolean forceImmediateFirstStep = execution.getDealId() != null; // szansa -> wyślij pierwszy krok natychmiast
 
         for (SequenceStep step : steps) {
-            LocalDateTime scheduled = reference
-                    .plusDays(Optional.ofNullable(step.getDelayDays()).orElse(0))
-                    .plusHours(Optional.ofNullable(step.getDelayHours()).orElse(0))
-                    .plusMinutes(Optional.ofNullable(step.getDelayMinutes()).orElse(0));
+            LocalDateTime scheduledTime = calculateScheduledTime(step, reference, execution, firstStep, forceImmediateFirstStep);
+            ScheduledEmail scheduledEmail = createScheduledEmail(step, execution, scheduledTime);
 
-            if (step.getWaitForReplyHours() != null && step.getWaitForReplyHours() > 0) {
-                scheduled = scheduled.plusHours(step.getWaitForReplyHours());
+            handleImmediateSending(scheduledEmail, execution, firstStep && (forceImmediateFirstStep || shouldBeSentImmediately(step)));
+
+            log.info("Scheduled sequence step {} for execution {} at {}", step.getStepOrder(), execution.getId(), scheduledTime);
+            reference = scheduledTime;
+            firstStep = false;
+        }
+    }
+
+    /**
+     * Calculate the scheduled time for a sequence step based on delays and sending policies
+     */
+    private LocalDateTime calculateScheduledTime(SequenceStep step, LocalDateTime reference,
+                                               SequenceExecution execution, boolean isFirstStep,
+                                               boolean forceImmediateFirstStep) {
+        LocalDateTime scheduled = calculateBaseScheduledTime(step, reference);
+
+        boolean sendImmediately = isFirstStep && (forceImmediateFirstStep || shouldBeSentImmediately(step));
+        if (sendImmediately) {
+            scheduled = LocalDateTime.now();
+            log.info("First step has no delay - will be sent immediately for execution {}", execution.getId());
+            return scheduled;
+        }
+
+        // Apply sending window and policy constraints for non-immediate emails
+        scheduled = alignToSendWindow(scheduled, execution.getSequence());
+        scheduled = enforceSendingPolicies(scheduled, execution.getSequence());
+
+        return scheduled;
+    }
+
+    /**
+     * Calculate the base scheduled time including delays
+     */
+    private LocalDateTime calculateBaseScheduledTime(SequenceStep step, LocalDateTime reference) {
+        LocalDateTime scheduled = reference
+                .plusDays(Optional.ofNullable(step.getDelayDays()).orElse(0))
+                .plusHours(Optional.ofNullable(step.getDelayHours()).orElse(0))
+                .plusMinutes(Optional.ofNullable(step.getDelayMinutes()).orElse(0));
+
+        if (step.getWaitForReplyHours() != null && step.getWaitForReplyHours() > 0) {
+            scheduled = scheduled.plusHours(step.getWaitForReplyHours());
+        }
+
+        return scheduled;
+    }
+
+    /**
+     * Create and save a scheduled email for the given step and execution
+     */
+    private ScheduledEmail createScheduledEmail(SequenceStep step, SequenceExecution execution, LocalDateTime scheduledTime) {
+        ScheduledEmail scheduledEmail = new ScheduledEmail();
+        scheduledEmail.setExecution(execution);
+        scheduledEmail.setStep(step);
+        scheduledEmail.setRecipientEmail(execution.getRecipientEmail());
+        
+        // Use template if available, otherwise use step's subject/body
+        if (step.getTemplate() != null) {
+            try {
+                String renderedHtml = emailTemplateService.renderTemplate(
+                    step.getTemplate().getId(),
+                    execution.getContact(),
+                    null
+                );
+                scheduledEmail.setSubject(processTemplate(step.getTemplate().getSubject(), execution.getContact()));
+                scheduledEmail.setBody(renderedHtml);
+                log.info("Using template {} for sequence step {}", step.getTemplate().getId(), step.getId());
+            } catch (Exception e) {
+                log.error("Failed to render template for step {}, falling back to manual content", step.getId(), e);
+                scheduledEmail.setSubject(processTemplate(step.getSubject(), execution.getContact()));
+                scheduledEmail.setBody(processTemplate(step.getBody(), execution.getContact()));
             }
-
-            boolean sendImmediately = firstStep && (forceImmediateFirstStep || shouldBeSentImmediately(step));
-            if (sendImmediately) {
-                scheduled = LocalDateTime.now();
-            }
-
-            // Dla pierwszego kroku bez opóźnienia nie stosujemy reguł wysyłki
-            if (!sendImmediately) {
-                scheduled = alignToSendWindow(scheduled, execution.getSequence());
-                scheduled = enforceSendingPolicies(scheduled, execution.getSequence());
-            } else {
-                log.info("First step has no delay - will be sent immediately for execution {}", execution.getId());
-            }
-
-            ScheduledEmail scheduledEmail = new ScheduledEmail();
-            scheduledEmail.setExecution(execution);
-            scheduledEmail.setStep(step);
-            scheduledEmail.setRecipientEmail(execution.getRecipientEmail());
+        } else {
             scheduledEmail.setSubject(processTemplate(step.getSubject(), execution.getContact()));
             scheduledEmail.setBody(processTemplate(step.getBody(), execution.getContact()));
-            scheduledEmail.setScheduledFor(scheduled);
-            scheduledEmail.setStatus(STATUS_PENDING);
+        }
+        
+        scheduledEmail.setScheduledFor(scheduledTime);
+        scheduledEmail.setStatus(STATUS_PENDING);
 
-            scheduledEmail = scheduledEmailRepository.save(scheduledEmail);
+        return scheduledEmailRepository.save(scheduledEmail);
+    }
 
-            // Jeśli to pierwszy krok bez opóźnienia - wyślij natychmiast
-            if (sendImmediately) {
-                try {
-                    log.info("Sending first step immediately for execution {} - scheduled email ID: {}",
-                             execution.getId(), scheduledEmail.getId());
-                    scheduledEmailService.sendNow(scheduledEmail.getId());
-                } catch (Exception e) {
-                    log.error("Failed to send first step immediately for execution {}: {}",
-                              execution.getId(), e.getMessage(), e);
-                    // Nie przerywamy procesu, email pozostanie w statusie pending i zostanie wysłany przez scheduler
-                }
-            }
+    /**
+     * Handle immediate sending of emails if required
+     */
+    private void handleImmediateSending(ScheduledEmail scheduledEmail, SequenceExecution execution, boolean sendImmediately) {
+        if (!sendImmediately) {
+            return;
+        }
 
-            log.info("Scheduled sequence step {} for execution {} at {}", step.getStepOrder(), execution.getId(), scheduled);
-            reference = scheduled;
-            firstStep = false;
+        try {
+            log.info("Sending first step immediately for execution {} - scheduled email ID: {}",
+                     execution.getId(), scheduledEmail.getId());
+            scheduledEmailService.sendNow(scheduledEmail.getId());
+        } catch (Exception e) {
+            log.error("Failed to send first step immediately for execution {}: {}",
+                      execution.getId(), e.getMessage(), e);
+            // Nie przerywamy procesu, email pozostanie w statusie pending i zostanie wysłany przez scheduler
         }
     }
 
@@ -827,6 +880,70 @@ public class SequenceService {
                 .trackOpens(step.getTrackOpens())
                 .trackClicks(step.getTrackClicks())
                 .build();
+    }
+
+    /**
+     * Testuje sekwencję wysyłając wszystkie maile na podany testowy email (natychmiast, bez opóźnień)
+     */
+    @Transactional
+    public void testSequence(Long sequenceId, String testEmail) {
+        Long userId = userContextService.getCurrentUserId();
+        EmailSequence sequence = sequenceRepository.findById(sequenceId)
+                .orElseThrow(() -> new RuntimeException("Sequence not found"));
+
+        // Check if user owns this sequence
+        if (!userId.equals(sequence.getUserId())) {
+            throw new RuntimeException("Access denied");
+        }
+
+        List<SequenceStep> steps = stepRepository.findBySequenceIdOrderByStepOrderAsc(sequenceId);
+        if (steps.isEmpty()) {
+            throw new RuntimeException("Sequence has no steps to test");
+        }
+
+        // Utwórz tymczasowy kontakt testowy
+        Contact testContact = new Contact();
+        testContact.setName("Test Contact");
+        testContact.setEmail(testEmail);
+        testContact.setCompany("Test Company");
+        testContact.setUserId(userId);
+
+        log.info("Testing sequence {} - sending {} emails to {}", sequenceId, steps.size(), testEmail);
+
+        // Wyślij wszystkie maile z sekwencji natychmiast
+        for (SequenceStep step : steps) {
+            try {
+                String processedSubject = processTemplate(step.getSubject(), testContact);
+                String processedBody = processTemplate(step.getBody(), testContact);
+
+                // Dodaj oznaczenie że to test
+                processedSubject = "[TEST] " + processedSubject;
+                processedBody = "<div style='background: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin-bottom: 20px; border-radius: 5px;'>"
+                        + "<strong>⚠️ To jest testowa wiadomość z sekwencji</strong><br>"
+                        + "Sekwencja: " + sequence.getName() + "<br>"
+                        + "Krok: " + step.getStepOrder() + "/" + steps.size()
+                        + "</div>"
+                        + processedBody;
+
+                // Wyślij email natychmiast
+                scheduledEmailService.sendTestEmail(
+                        sequence.getEmailAccount() != null ? sequence.getEmailAccount().getId() : null,
+                        testEmail,
+                        processedSubject,
+                        processedBody
+                );
+
+                log.info("Sent test email for step {} of sequence {} to {}",
+                         step.getStepOrder(), sequenceId, testEmail);
+
+            } catch (Exception e) {
+                log.error("Failed to send test email for step {} of sequence {}: {}",
+                          step.getStepOrder(), sequenceId, e.getMessage(), e);
+                throw new RuntimeException("Failed to send test email for step " + step.getStepOrder() + ": " + e.getMessage());
+            }
+        }
+
+        log.info("Successfully tested sequence {} - sent {} emails to {}", sequenceId, steps.size(), testEmail);
     }
 
     /**

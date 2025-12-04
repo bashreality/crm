@@ -57,4 +57,8 @@ public class SequenceStep {
 
     @Column(name = "track_clicks", nullable = false)
     private Boolean trackClicks = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id")
+    private EmailTemplate template; // Optional: Use template instead of manual subject/body
 }

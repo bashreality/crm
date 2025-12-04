@@ -141,6 +141,20 @@ public class DealService {
 
     @Transactional
     public void deletePipeline(Long id) {
+        Pipeline pipeline = pipelineRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pipeline not found"));
+
+        // Usuń wszystkie deals powiązane z tym pipeline (poprzez stages)
+        List<PipelineStage> stages = stageRepository.findByPipelineId(id);
+        for (PipelineStage stage : stages) {
+            List<Deal> deals = dealRepository.findByStageId(stage.getId());
+            dealRepository.deleteAll(deals);
+        }
+
+        // Usuń wszystkie stages powiązane z tym pipeline
+        stageRepository.deleteAll(stages);
+
+        // Usuń pipeline
         pipelineRepository.deleteById(id);
     }
 

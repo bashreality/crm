@@ -2,7 +2,7 @@ import React from 'react';
 import { Droppable } from 'react-beautiful-dnd';
 import DealCard from './DealCard';
 
-const PipelineColumn = ({ stage, deals, onEditDeal, onEmailDeal, onTaskDeal, onSequenceDeal }) => {
+const PipelineColumn = ({ stage, deals, onEditDeal, onEmailDeal, onTaskDeal, onSequenceDeal, onDeleteDeal }) => {
   // Ensure deals is an array before filtering
   const dealsArray = Array.isArray(deals) ? deals : [];
   const stageDeals = dealsArray.filter(d => d.stage && d.stage.id === stage.id);
@@ -47,6 +47,7 @@ const PipelineColumn = ({ stage, deals, onEditDeal, onEmailDeal, onTaskDeal, onS
                 onEmail={onEmailDeal}
                 onTask={onTaskDeal}
                 onSequence={onSequenceDeal}
+                onDelete={onDeleteDeal}
               />
             ))}
             {provided.placeholder}

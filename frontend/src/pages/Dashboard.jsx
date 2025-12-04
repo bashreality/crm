@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { emailsApi, emailAccountsApi, analyticsApi, tasksApi, contactsApi, tagsApi } from '../services/api';
@@ -10,6 +10,7 @@ import '../styles/Dashboard.css'; // Import specific dashboard styles
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const replyBodyRef = useRef(null);
   const [emails, setEmails] = useState([]);
   const [companies, setCompanies] = useState([]); // Lista firm z kontaktów
   const [emailAccounts, setEmailAccounts] = useState([]); // Lista kont email
@@ -624,15 +625,31 @@ const Dashboard = () => {
     }
   };
 
-  const handleReply = (email, e) => {
+  const handleReply = async (email, e) => {
     e.stopPropagation(); // Zatrzymaj propagację, aby nie otworzyć modala emaila
+
+    // Sprawdź czy email ma przypisane konto i pobierz stopkę
+    let signature = '';
+    if (email.accountId) {
+      const account = emailAccounts.find(acc => acc.id === email.accountId);
+      if (account && account.signature) {
+        signature = '<br/><br/>' + account.signature;
+      }
+    }
 
     setReplyFormData({
       subject: `Re: ${email.subject}`,
-      body: '',
+      body: signature,
       emailId: email.id
     });
     setShowReplyModal(true);
+
+    // Ustaw HTML stopki w edytorze po otwarciu modala
+    setTimeout(() => {
+      if (replyBodyRef.current) {
+        replyBodyRef.current.innerHTML = signature;
+      }
+    }, 0);
   };
 
   const handleReplyFormChange = (e) => {
@@ -651,6 +668,12 @@ const Dashboard = () => {
         subject: response.data.subject,
         body: response.data.suggestion
       }));
+
+      // Ustaw HTML w edytorze
+      if (replyBodyRef.current) {
+        replyBodyRef.current.innerHTML = response.data.suggestion;
+      }
+
       alert('✅ Sugestia AI została załadowana!');
     } catch (error) {
       console.error('Error getting AI suggestion:', error);
@@ -732,9 +755,9 @@ const Dashboard = () => {
         });
 
         contact = response.data;
-        // Odśwież listę kontaktów
+        // Odśwież listę kontaktów - CZEKAJ na zakończenie
         await fetchContacts();
-        alert('Kontakt został utworzony!');
+        toast.success('Kontakt został utworzony!');
       } catch (error) {
         console.error('Error creating contact:', error);
         alert('Nie udało się utworzyć kontaktu: ' + (error.response?.data?.message || error.message));
@@ -746,32 +769,48 @@ const Dashboard = () => {
     setShowTagModal(true);
   };
 
-  const handleTagAdded = async () => {
-    // Odśwież tylko kontakty - emaile pozostaną bez zmian
-    // Po odświeżeniu kontaktów, zaktualizuj tagi w emailach
-    try {
-      const contactsResponse = await contactsApi.getAll({ showAll: true });
-      setContacts(contactsResponse.data);
+  const handleTagAdded = async (updatedContact) => {
+    // Jeśli dostaliśmy zaktualizowany kontakt z TagModal, użyj go
+    if (updatedContact) {
+      // Zaktualizuj kontakt w liście kontaktów
+      setContacts(prevContacts =>
+        prevContacts.map(c => c.id === updatedContact.id ? updatedContact : c)
+      );
 
-      // Zaktualizuj tagi w emailach na podstawie nowych danych kontaktów
-      const contactMap = new Map();
-      contactsResponse.data.forEach(contact => {
-        if (contact.email) {
-          contactMap.set(contact.email.toLowerCase(), contact);
-        }
-      });
-
-      // Zaktualizuj tagi w istniejących emailach
+      // Zaktualizuj tagi w emailach dla tego kontaktu
       setEmails(prevEmails => prevEmails.map(email => {
         const emailAddress = email.sender.match(/<(.+?)>/)?.[1] || email.sender.trim();
-        const contact = contactMap.get(emailAddress.toLowerCase());
-        if (contact) {
-          return { ...email, senderTags: contact.tags };
+        if (updatedContact.email && updatedContact.email.toLowerCase() === emailAddress.toLowerCase()) {
+          return { ...email, senderTags: updatedContact.tags };
         }
         return email;
       }));
-    } catch (error) {
-      console.error('Error refreshing tags:', error);
+    } else {
+      // Fallback: odśwież wszystkie kontakty (tylko gdy nie mamy updatedContact)
+      try {
+        const contactsResponse = await contactsApi.getAll({ showAll: true });
+        setContacts(contactsResponse.data);
+
+        // Zaktualizuj tagi w emailach na podstawie nowych danych kontaktów
+        const contactMap = new Map();
+        contactsResponse.data.forEach(contact => {
+          if (contact.email) {
+            contactMap.set(contact.email.toLowerCase(), contact);
+          }
+        });
+
+        // Zaktualizuj tagi w istniejących emailach
+        setEmails(prevEmails => prevEmails.map(email => {
+          const emailAddress = email.sender.match(/<(.+?)>/)?.[1] || email.sender.trim();
+          const contact = contactMap.get(emailAddress.toLowerCase());
+          if (contact) {
+            return { ...email, senderTags: contact.tags };
+          }
+          return email;
+        }));
+      } catch (error) {
+        console.error('Error refreshing tags:', error);
+      }
     }
   };
 
@@ -1076,14 +1115,30 @@ const Dashboard = () => {
 
               <div className="form-group">
                 <label htmlFor="replyBody">Treść odpowiedzi *</label>
-                <textarea
+                <div
+                  ref={replyBodyRef}
                   id="replyBody"
-                  name="body"
-                  className="form-control"
-                  rows="10"
-                  value={replyFormData.body}
-                  onChange={handleReplyFormChange}
-                  required
+                  className="form-control html-editor"
+                  contentEditable
+                  onInput={(e) => {
+                    setReplyFormData(prev => ({ ...prev, body: e.currentTarget.innerHTML }));
+                  }}
+                  onBlur={(e) => {
+                    setReplyFormData(prev => ({ ...prev, body: e.currentTarget.innerHTML }));
+                  }}
+                  style={{
+                    minHeight: '200px',
+                    maxHeight: '400px',
+                    overflowY: 'auto',
+                    padding: '0.75rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    backgroundColor: 'white',
+                    direction: 'ltr',
+                    unicodeBidi: 'embed',
+                    textAlign: 'left'
+                  }}
+                  suppressContentEditableWarning
                 />
               </div>
 

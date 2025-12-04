@@ -437,6 +437,21 @@ const Deals = () => {
       setShowEditModal(true);
   };
 
+  const handleDeleteDeal = async (deal) => {
+    if (!confirm(`Czy na pewno chcesz usunąć szansę "${deal.title}"?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/deals/${deal.id}`);
+      toast.success('Szansa usunięta');
+      fetchDeals();
+    } catch (err) {
+      console.error('Error deleting deal:', err);
+      toast.error('Błąd usuwania szansy');
+    }
+  };
+
   const handleEditDealSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -556,7 +571,18 @@ const Deals = () => {
   };
 
   const handleDeletePipeline = async (pipelineId) => {
-    if (!confirm('Czy na pewno chcesz usunąć ten lejek? Wszystkie szanse w tym lejku zostaną usunięte.')) {
+    // Znajdź pipeline i policz szanse
+    const pipeline = pipelines.find(p => p.id === pipelineId);
+    const pipelineDeals = deals.filter(d =>
+      pipeline && pipeline.stages && pipeline.stages.some(s => d.stage && d.stage.id === s.id)
+    );
+    const dealCount = pipelineDeals.length;
+
+    const message = dealCount > 0
+      ? `Czy na pewno chcesz usunąć ten lejek?\n\nZOSTANIE USUNIĘTYCH ${dealCount} ${dealCount === 1 ? 'SZANSA' : dealCount < 5 ? 'SZANSE' : 'SZANS'}!\n\nTej operacji nie można cofnąć.`
+      : 'Czy na pewno chcesz usunąć ten lejek?';
+
+    if (!confirm(message)) {
       return;
     }
 
@@ -824,6 +850,7 @@ const Deals = () => {
                   onEmailDeal={handleEmail}
                   onTaskDeal={handleAddTask}
                   onSequenceDeal={handleSequence}
+                  onDeleteDeal={handleDeleteDeal}
                 />
               ))
             ) : (

@@ -114,6 +114,7 @@
 }
 
 .account-actions .btn-edit,
+.account-actions .btn-toggle,
 .account-actions .btn-delete {
   flex: 1;
   padding: 0.625rem 1rem;
@@ -132,6 +133,15 @@
 
 .account-actions .btn-edit:hover {
   background-color: #2563eb;
+}
+
+.account-actions .btn-toggle {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.account-actions .btn-toggle:hover {
+  background-color: #d97706;
 }
 
 .account-actions .btn-delete {
@@ -243,6 +253,174 @@
   line-height: 1.4;
 }
 
+/* HTML Signature Editor */
+.signature-editor-wrapper {
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.signature-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.signature-toolbar-group {
+  display: flex;
+  gap: 0.25rem;
+  padding-right: 0.5rem;
+  border-right: 1px solid #d1d5db;
+}
+
+.signature-toolbar-group:last-child {
+  border-right: none;
+}
+
+.toolbar-btn {
+  padding: 0.375rem 0.625rem;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar-btn:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.toolbar-btn.active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.toolbar-select {
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.toolbar-select:hover {
+  border-color: #9ca3af;
+}
+
+.toolbar-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.color-picker-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.color-picker-button {
+  padding: 0.375rem 0.625rem;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.2s;
+}
+
+.color-picker-button:hover {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.color-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 0.25rem;
+  border: 1px solid #d1d5db;
+}
+
+.color-picker-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.signature-editor {
+  min-height: 200px;
+  max-height: 400px;
+  padding: 1rem;
+  background-color: white;
+  overflow-y: auto;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+.signature-editor:focus {
+  outline: none;
+}
+
+.signature-editor:empty:before {
+  content: 'Wpisz swoją stopkę email...';
+  color: #9ca3af;
+}
+
+.signature-mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.mode-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  background-color: white;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.mode-btn.active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.mode-btn:hover:not(.active) {
+  background-color: #f3f4f6;
+}
+
+.signature-preview {
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background-color: #f9fafb;
+  min-height: 150px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .accounts-grid {
@@ -257,5 +435,19 @@
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .signature-toolbar {
+    flex-direction: column;
+  }
+
+  .signature-toolbar-group {
+    border-right: none;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 0.5rem;
+  }
+
+  .signature-toolbar-group:last-child {
+    border-bottom: none;
   }
 }

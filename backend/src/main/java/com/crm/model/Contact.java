@@ -57,7 +57,7 @@ public class Contact {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "contact_tags",
         joinColumns = @JoinColumn(name = "contact_id"),

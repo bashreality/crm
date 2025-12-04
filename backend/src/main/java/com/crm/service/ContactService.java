@@ -6,8 +6,11 @@ import com.crm.repository.ContactRepository;
 import com.crm.repository.EmailRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,10 +22,11 @@ import com.crm.exception.ResourceNotFoundException;
 @Transactional
 @Slf4j
 public class ContactService {
-    
+
     private final ContactRepository contactRepository;
     private final EmailRepository emailRepository;
     private final AIClassificationService aiClassificationService;
+    private final UserContactService userContactService;
     
     public List<Contact> getAllContacts() {
         return contactRepository.findAll();
@@ -33,11 +37,19 @@ public class ContactService {
     }
     
     public Contact createContact(Contact contact) {
-        // Sprawdź czy kontakt o danym emailu już istnieje
+        // Sprawdź czy kontakt o danym emailu już istnieje (case-insensitive)
         if (contact.getEmail() != null && !contact.getEmail().isEmpty()) {
-            Optional<Contact> existingContact = contactRepository.findByEmail(contact.getEmail());
+            Optional<Contact> existingContact = contactRepository.findByEmailIgnoreCase(contact.getEmail());
             if (existingContact.isPresent()) {
-                return existingContact.get();
+                Contact existing = existingContact.get();
+                log.info("Contact with email {} already exists (ID: {})", contact.getEmail(), existing.getId());
+
+                // Jeśli kontakt istnieje, dodaj go do user_contacts dla bieżącego użytkownika
+                if (contact.getUserId() != null) {
+                    userContactService.addContactToUser(contact.getUserId(), existing.getId(), "manual");
+                    log.info("Added existing contact {} to user {}", existing.getId(), contact.getUserId());
+                }
+                return existing;
             }
         }
 
@@ -51,7 +63,21 @@ public class ContactService {
         if (contact.getScore() == null) {
             contact.setScore(0);
         }
-        return contactRepository.save(contact);
+
+        Contact savedContact = contactRepository.save(contact);
+        log.info("Created new contact: ID={}, email={}, userId={}",
+                 savedContact.getId(), savedContact.getEmail(), savedContact.getUserId());
+
+        // Dodaj wpis do user_contacts dla właściciela
+        if (savedContact.getUserId() != null) {
+            userContactService.addContactToUser(savedContact.getUserId(), savedContact.getId(), "manual");
+            log.info("Added new contact {} to user {} via user_contacts",
+                     savedContact.getId(), savedContact.getUserId());
+        } else {
+            log.warn("Contact {} created without userId - will not be visible to any user!", savedContact.getId());
+        }
+
+        return savedContact;
     }
     
     public Contact updateContact(Long id, Contact contactDetails) {
@@ -162,6 +188,7 @@ public class ContactService {
         return contactRepository.findAccessibleByUserIdAndCompanyContainingIgnoreCase(userId, company);
     }
 
+    @Cacheable(value = "companies", key = "#userId")
     public List<String> getUniqueCompaniesForUser(Long userId) {
         // Ze względu na współdzielenie, możemy pokazać wszystkie unikalne firmy
         return contactRepository.findDistinctCompanies();
@@ -169,5 +196,22 @@ public class ContactService {
 
     public List<Contact> getContactsWithEmailStatusForUser(Long userId, String status) {
         return contactRepository.findAccessibleWithEmailStatusByUserId(userId, status);
+    }
+
+    // Paginated methods for better performance
+    public Page<Contact> getAllContactsForUser(Long userId, Pageable pageable) {
+        return contactRepository.findAccessibleByUserIdOrderByUpdatedAtDesc(userId, pageable);
+    }
+
+    public Page<Contact> searchContactsForUser(Long userId, String query, Pageable pageable) {
+        return contactRepository.findAccessibleByUserIdAndNameContainingIgnoreCase(userId, query, pageable);
+    }
+
+    public Page<Contact> getContactsByCompanyForUser(Long userId, String company, Pageable pageable) {
+        return contactRepository.findAccessibleByUserIdAndCompanyContainingIgnoreCase(userId, company, pageable);
+    }
+
+    public Page<Contact> getContactsWithEmailStatusForUser(Long userId, String status, Pageable pageable) {
+        return contactRepository.findAccessibleWithEmailStatusByUserId(userId, status, pageable);
     }
 }

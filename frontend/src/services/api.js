@@ -129,6 +129,7 @@ export const sequencesApi = {
     console.log('API: startSequence called with:', { sequenceId, contactId, dealId });
     return api.post(`/sequences/${sequenceId}/start`, { contactId, dealId });
   },
+  testSequence: (sequenceId, testEmail) => api.post(`/sequences/${sequenceId}/test`, { testEmail }),
   pauseExecution: (executionId) => api.post(`/sequences/executions/${executionId}/pause`),
   resumeExecution: (executionId) => api.post(`/sequences/executions/${executionId}/resume`),
   getExecutions: (sequenceId) => api.get(`/sequences/${sequenceId}/executions`),

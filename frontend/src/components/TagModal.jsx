@@ -10,12 +10,14 @@ const TagModal = ({ isOpen, onClose, contact, onTagAdded }) => {
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const [loading, setLoading] = useState(false);
   const [showCreateTag, setShowCreateTag] = useState(false);
+  const [localContact, setLocalContact] = useState(contact);
 
   useEffect(() => {
     if (isOpen) {
       fetchTags();
+      setLocalContact(contact);
     }
-  }, [isOpen]);
+  }, [isOpen, contact]);
 
   const fetchTags = async () => {
     try {
@@ -35,10 +37,15 @@ const TagModal = ({ isOpen, onClose, contact, onTagAdded }) => {
 
     setLoading(true);
     try {
-      await tagsApi.addToContact(contact.id, selectedTagId);
+      const response = await tagsApi.addToContact(localContact.id, selectedTagId);
       toast.success('Tag dodany!');
-      if (onTagAdded) onTagAdded();
-      onClose();
+
+      // Zaktualizuj lokalny stan kontaktu z odpowiedzi backendu
+      setLocalContact(response.data);
+      setSelectedTagId('');
+
+      // Powiadom rodzica o zmianie
+      if (onTagAdded) onTagAdded(response.data);
     } catch (error) {
       console.error('Error adding tag:', error);
       toast.error('Błąd dodawania tagu');
@@ -75,9 +82,14 @@ const TagModal = ({ isOpen, onClose, contact, onTagAdded }) => {
   const handleRemoveTag = async (tagId) => {
     setLoading(true);
     try {
-      await tagsApi.removeFromContact(contact.id, tagId);
+      const response = await tagsApi.removeFromContact(localContact.id, tagId);
       toast.success('Tag usunięty');
-      if (onTagAdded) onTagAdded();
+
+      // Zaktualizuj lokalny stan kontaktu z odpowiedzi backendu
+      setLocalContact(response.data);
+
+      // Powiadom rodzica o zmianie
+      if (onTagAdded) onTagAdded(response.data);
     } catch (error) {
       console.error('Error removing tag:', error);
       toast.error('Błąd usuwania tagu');
@@ -88,7 +100,7 @@ const TagModal = ({ isOpen, onClose, contact, onTagAdded }) => {
 
   if (!isOpen) return null;
 
-  const contactTags = contact?.tags || [];
+  const contactTags = localContact?.tags || [];
 
   return (
     <div className="tag-modal-overlay" onClick={onClose}>

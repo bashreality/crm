@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface PipelineStageRepository extends JpaRepository<PipelineStage, Long> {
     List<PipelineStage> findByPipelineIdOrderByPosition(Long pipelineId);
+    List<PipelineStage> findByPipelineId(Long pipelineId);
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sequencesApi, contactsApi, emailAccountsApi, tagsApi, aiApi } from '../services/api';
+import toast from 'react-hot-toast';
 import './Sequences.css';
 
 const initialSequenceForm = {
@@ -60,6 +61,9 @@ const Sequences = () => {
   const [aiError, setAiError] = useState(null);
   const [showStartModal, setShowStartModal] = useState(false);
   const [showCreateSequenceModal, setShowCreateSequenceModal] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [testingSequence, setTestingSequence] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState([]);
   const [contactSearch, setContactSearch] = useState('');
   const [contactEmailFilter, setContactEmailFilter] = useState('');
@@ -737,6 +741,44 @@ const Sequences = () => {
     return null; // No errors
   };
 
+  const testSequence = async () => {
+    if (!testEmail || !testEmail.includes('@')) {
+      toast.error('Podaj prawidłowy adres email');
+      return;
+    }
+
+    // Sprawdź czy sekwencja ma kroki
+    if (!sequenceForm.steps || sequenceForm.steps.length === 0) {
+      toast.error('Sekwencja nie ma żadnych kroków do przetestowania');
+      return;
+    }
+
+    // Sprawdź czy sekwencja jest zapisana
+    if (!sequenceForm.id) {
+      toast.error('Najpierw zapisz sekwencję przed testowaniem');
+      return;
+    }
+
+    setTestingSequence(true);
+    try {
+      const response = await sequencesApi.testSequence(sequenceForm.id, testEmail.trim());
+
+      if (response.data.success) {
+        toast.success(`Wysłano ${sequenceForm.steps.length} testowych maili na ${testEmail}`);
+        setShowTestModal(false);
+        setTestEmail('');
+      } else {
+        toast.error(response.data.error || 'Nie udało się wysłać testowych maili');
+      }
+    } catch (error) {
+      console.error('Error testing sequence:', error);
+      const errorMsg = error.response?.data?.error || error.message || 'Wystąpił błąd podczas testowania sekwencji';
+      toast.error(errorMsg);
+    } finally {
+      setTestingSequence(false);
+    }
+  };
+
   const saveSequence = async () => {
     // Validate form
     const validationError = validateSequence();
@@ -999,6 +1041,21 @@ const Sequences = () => {
                         <button className="btn btn-secondary" onClick={() => openBuilder(selectedSequence)}>
                           ✏️ Edytuj
                         </button>
+                        {selectedSequence.steps && selectedSequence.steps.length > 0 && (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              // Ustaw dane sekwencji z krokami do testowania
+                              setSequenceForm({
+                                ...selectedSequence.summary,
+                                steps: selectedSequence.steps
+                              });
+                              setShowTestModal(true);
+                            }}
+                          >
+                            🧪 Testuj
+                          </button>
+                        )}
                         <button className="btn btn-primary" onClick={() => setShowStartModal(true)}>
                           ▶️ Uruchom
                         </button>
@@ -2326,6 +2383,53 @@ const Sequences = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Sequence Modal */}
+      {showTestModal && (
+        <div className="modal-overlay" onClick={() => setShowTestModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2>🧪 Testuj Sekwencję</h2>
+              <button className="modal-close" onClick={() => setShowTestModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: '15px', color: '#666' }}>
+                Wszystkie {sequenceForm.steps?.length || 0} maili z sekwencji zostaną wysłane <strong>natychmiast</strong> (bez opóźnień) na podany adres email.
+              </p>
+              <p style={{ marginBottom: '20px', fontSize: '14px', color: '#666', background: '#fff3cd', padding: '10px', borderRadius: '5px' }}>
+                ⚠️ <strong>Uwaga:</strong> Każdy mail będzie oznaczony jako [TEST] i zawierał informację o numerze kroku.
+              </p>
+              <div className="form-group">
+                <label>Email testowy:</label>
+                <input
+                  type="email"
+                  placeholder="twoj@email.com"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  disabled={testingSequence}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowTestModal(false)}
+                disabled={testingSequence}
+              >
+                Anuluj
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={testSequence}
+                disabled={testingSequence || !testEmail}
+              >
+                {testingSequence ? 'Wysyłanie...' : `Wyślij ${sequenceForm.steps?.length || 0} maili testowych`}
+              </button>
             </div>
           </div>
         </div>

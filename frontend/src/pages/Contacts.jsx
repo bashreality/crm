@@ -103,9 +103,17 @@ const Contacts = () => {
     try {
       setLoading(true);
       const response = await contactsApi.getAll({ showAll: true });
-      setContacts(response.data || []);
+      const data = response.data;
+      // Ensure we always set an array
+      if (Array.isArray(data)) {
+        setContacts(data);
+      } else {
+        console.warn('API returned non-array data:', data);
+        setContacts([]);
+      }
     } catch (error) {
       console.error('Error fetching contacts:', error);
+      setContacts([]); // Reset to empty array on error
     } finally {
       setLoading(false);
     }
@@ -318,6 +326,11 @@ const Contacts = () => {
 
   // --- Filtering & Pagination ---
   const filtered = useMemo(() => {
+    // Ensure contacts is an array before filtering
+    if (!Array.isArray(contacts)) {
+      console.warn('contacts is not an array in filtered useMemo:', contacts);
+      return [];
+    }
     const query = search.trim().toLowerCase();
     return contacts.filter((c) => {
       const matchesSearch = !query || [c.name, c.company, c.email].some(f => (f || '').toLowerCase().includes(query));
@@ -391,6 +404,33 @@ const Contacts = () => {
   const handleTagContact = (contact) => {
     setTagContact(contact);
     setShowTagModal(true);
+  };
+
+  const handleTagAdded = (updatedContact) => {
+    if (updatedContact) {
+      // Zaktualizuj kontakt w liście
+      setContacts(prevContacts => {
+        // Ensure prevContacts is an array
+        if (!Array.isArray(prevContacts)) {
+          console.warn('prevContacts is not an array:', prevContacts);
+          return [updatedContact];
+        }
+        return prevContacts.map(c => c.id === updatedContact.id ? updatedContact : c);
+      });
+
+      // Jeśli to jest aktywny kontakt, zaktualizuj go też
+      if (activeContact && activeContact.id === updatedContact.id) {
+        setActiveContact(updatedContact);
+      }
+
+      // Zaktualizuj tagContact jeśli to on
+      if (tagContact && tagContact.id === updatedContact.id) {
+        setTagContact(updatedContact);
+      }
+    } else {
+      // Fallback: odśwież wszystkie kontakty
+      fetchContacts();
+    }
   };
 
   const handleToggleSelection = (contactId) => {
@@ -1135,7 +1175,7 @@ const Contacts = () => {
           setTagContact(null);
         }}
         contact={tagContact}
-        onTagAdded={fetchContacts}
+        onTagAdded={handleTagAdded}
       />
 
       {/* Bulk Actions Modal */}

@@ -117,6 +117,38 @@ public class SequenceController {
 
     // ============ Execution Management ============
 
+    @PostMapping("/{sequenceId}/test")
+    public ResponseEntity<Map<String, Object>> testSequence(@PathVariable Long sequenceId,
+                                                            @RequestBody Map<String, String> request) {
+        log.info("Testing sequence {} with email: {}", sequenceId, request.get("testEmail"));
+
+        try {
+            String testEmail = request.get("testEmail");
+            if (testEmail == null || testEmail.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "testEmail is required"));
+            }
+
+            // Prosta walidacja email
+            if (!testEmail.contains("@")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid email address"));
+            }
+
+            sequenceService.testSequence(sequenceId, testEmail.trim());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Test emails sent successfully to " + testEmail);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to test sequence {}: {}", sequenceId, e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
     @PostMapping("/{sequenceId}/start")
     public ResponseEntity<Map<String, Object>> startSequence(@PathVariable Long sequenceId,
                                                              @RequestBody Map<String, Long> request) {

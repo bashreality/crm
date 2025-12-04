@@ -104,6 +104,12 @@ const Header = ({ onOpenSearch }) => {
           >
             Konta Email
           </Link>
+          <Link
+            to="/email-templates"
+            className={`nav-item ${isActive('/email-templates') ? 'active' : ''}`}
+          >
+            📧 Szablony
+          </Link>
         </div>
         
         {/* Search Button */}

@@ -2,6 +2,8 @@ package com.crm.repository;
 
 import com.crm.model.Contact;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -11,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface ContactRepository extends JpaRepository<Contact, Long> {
     Optional<Contact> findByEmail(String email);
+    Optional<Contact> findByEmailIgnoreCase(String email);
     List<Contact> findByEmailIn(java.util.Collection<String> emails);
     List<Contact> findByCompanyContainingIgnoreCase(String company);
     List<Contact> findByNameContainingIgnoreCase(String name);
@@ -65,4 +68,17 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
 
     @Query("SELECT COUNT(c) FROM Contact c JOIN c.sharedWithUsers u WHERE u.id = :userId")
     Long countAccessibleByUserId(@Param("userId") Long userId);
+
+    // Paginated methods
+    @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u WHERE u.id = :userId ORDER BY c.updatedAt DESC")
+    Page<Contact> findAccessibleByUserIdOrderByUpdatedAtDesc(@Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u WHERE u.id = :userId AND LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY c.updatedAt DESC")
+    Page<Contact> findAccessibleByUserIdAndNameContainingIgnoreCase(@Param("userId") Long userId, @Param("query") String query, Pageable pageable);
+
+    @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u WHERE u.id = :userId AND LOWER(c.company) LIKE LOWER(CONCAT('%', :company, '%')) ORDER BY c.updatedAt DESC")
+    Page<Contact> findAccessibleByUserIdAndCompanyContainingIgnoreCase(@Param("userId") Long userId, @Param("company") String company, Pageable pageable);
+
+    @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u, Email e WHERE u.id = :userId AND LOWER(e.sender) LIKE CONCAT('%', LOWER(c.email), '%') AND e.status = :status ORDER BY c.updatedAt DESC")
+    Page<Contact> findAccessibleWithEmailStatusByUserId(@Param("userId") Long userId, @Param("status") String status, Pageable pageable);
 }

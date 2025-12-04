@@ -8,10 +8,11 @@ import {
   Building2,
   User,
   AlertCircle,
-  Zap
+  Zap,
+  Trash2
 } from 'lucide-react';
 
-const DealCard = ({ deal, index, onEdit, onEmail, onTask, onSequence }) => {
+const DealCard = ({ deal, index, onEdit, onEmail, onTask, onSequence, onDelete }) => {
 
   // Funkcja pomocnicza do określania koloru priorytetu
   const getPriorityColor = (priority) => {
@@ -103,6 +104,13 @@ const DealCard = ({ deal, index, onEdit, onEmail, onTask, onSequence }) => {
                  <Phone size={14} />
                </a>
             )}
+            <button
+              className="action-btn action-btn-danger"
+              onClick={(e) => { e.stopPropagation(); onDelete(deal); }}
+              title="Usuń szansę"
+            >
+              <Trash2 size={14} />
+            </button>
           </div>
         </div>
       )}
