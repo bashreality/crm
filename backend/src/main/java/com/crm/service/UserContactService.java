@@ -62,9 +62,18 @@ public class UserContactService {
             return;
         }
 
+        AdminUser user = adminUserRepository.findById(userId).orElse(null);
+        Contact contact = contactRepository.findById(contactId).orElse(null);
+
+        if (user == null || contact == null) {
+            log.warn("Cannot add contact {} to user {} - user or contact not found", contactId, userId);
+            return;
+        }
+
         UserContact userContact = new UserContact();
-        userContact.setUser(adminUserRepository.findById(userId).orElse(null));
-        userContact.setContact(contactRepository.findById(contactId).orElse(null));
+        userContact.setId(new com.crm.model.UserContactId(userId, contactId));
+        userContact.setUser(user);
+        userContact.setContact(contact);
         userContact.setSource(source);
         userContact.setAddedAt(LocalDateTime.now());
 
