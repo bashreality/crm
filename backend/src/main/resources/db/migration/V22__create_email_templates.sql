@@ -38,16 +38,25 @@ CREATE TABLE IF NOT EXISTS email_templates (
 
 -- Add template reference to sequence_steps
 ALTER TABLE sequence_steps ADD COLUMN IF NOT EXISTS template_id BIGINT;
-ALTER TABLE sequence_steps ADD CONSTRAINT fk_sequence_steps_template 
-    FOREIGN KEY (template_id) REFERENCES email_templates(id) ON DELETE SET NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT constraint_name FROM information_schema.table_constraints
+        WHERE table_name = 'sequence_steps' AND constraint_name = 'fk_sequence_steps_template'
+    ) THEN
+        ALTER TABLE sequence_steps ADD CONSTRAINT fk_sequence_steps_template
+            FOREIGN KEY (template_id) REFERENCES email_templates(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Create indexes
-CREATE INDEX idx_email_templates_user_id ON email_templates(user_id);
-CREATE INDEX idx_email_templates_category ON email_templates(category);
-CREATE INDEX idx_email_templates_theme_id ON email_templates(theme_id);
-CREATE INDEX idx_email_template_themes_user_id ON email_template_themes(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_templates_user_id ON email_templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_templates_category ON email_templates(category);
+CREATE INDEX IF NOT EXISTS idx_email_templates_theme_id ON email_templates(theme_id);
+CREATE INDEX IF NOT EXISTS idx_email_template_themes_user_id ON email_template_themes(user_id);
 
--- Insert system themes
+-- Insert system themes (only if not already present)
 INSERT INTO email_template_themes (name, description, html_structure, css_styles, is_system, created_at, updated_at) VALUES
 ('Modern Professional', 'Clean and professional design with blue accents', 
 '<!DOCTYPE html>
