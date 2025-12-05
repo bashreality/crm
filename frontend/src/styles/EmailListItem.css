@@ -294,6 +294,104 @@
   border-color: #ef4444;
 }
 
+/* Dark mode support */
+html.dark .email-list-item {
+  background: var(--color-bg-surface);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .email-list-item:hover {
+  background: var(--color-bg-elevated);
+  border-left-color: var(--color-primary);
+}
+
+html.dark .email-list-item.selected {
+  background: rgba(99, 102, 241, 0.08);
+  border-left-color: var(--color-primary);
+}
+
+html.dark .email-sender-name {
+  color: var(--color-text-main);
+}
+
+html.dark .email-company {
+  color: var(--color-text-secondary);
+}
+
+html.dark .email-subject {
+  color: var(--color-text-main);
+}
+
+html.dark .email-preview {
+  color: var(--color-text-muted);
+}
+
+html.dark .email-time {
+  color: var(--color-text-secondary);
+}
+
+html.dark .email-tag-more {
+  background-color: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+}
+
+html.dark .action-btn {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+html.dark .action-btn:hover {
+  background: var(--color-bg-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+html.dark .action-task {
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+html.dark .action-task:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: var(--color-primary);
+}
+
+html.dark .action-tag {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+html.dark .action-tag:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+}
+
+html.dark .action-reply {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+html.dark .action-reply:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+}
+
+html.dark .action-status {
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+html.dark .action-status:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: #8b5cf6;
+}
+
+html.dark .action-delete {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+html.dark .action-delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
 /* Responsive - Mobile */
 @media (max-width: 1024px) {
   .email-list-item {

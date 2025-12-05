@@ -532,17 +532,6 @@ const Tasks = () => {
                   onClick={() => setFilter(option.value)}
                 >
                   {option.label}
-                  <span>
-                    {option.value === 'all'
-                      ? stats.total
-                      : option.value === 'pending'
-                      ? stats.pending
-                      : option.value === 'overdue'
-                      ? stats.overdue
-                      : option.value === 'completed'
-                      ? stats.completed
-                      : stats.today}
-                  </span>
                 </button>
               ))}
             </div>
@@ -560,27 +549,6 @@ const Tasks = () => {
             </div>
           </div>
 
-          <div className="filter-group">
-            <label className="filter-label">Statystyki</label>
-            <div className="tasks-stats">
-              <div className="stat-row">
-                <span>Wszystkie zadania:</span>
-                <span>{stats.total}</span>
-              </div>
-              <div className="stat-row">
-                <span>Oczekujące:</span>
-                <span>{stats.pending}</span>
-              </div>
-              <div className="stat-row">
-                <span>Spóźnione:</span>
-                <span>{stats.overdue}</span>
-              </div>
-              <div className="stat-row">
-                <span>Ukończone:</span>
-                <span>{stats.completed}</span>
-              </div>
-            </div>
-          </div>
         </aside>
 
         {/* Main Content - Tasks List */}

@@ -37,7 +37,7 @@ public class EmailTemplate {
     @Column(name = "preview_text", length = 200)
     private String previewText;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "theme_id")
     @JsonIgnoreProperties({"htmlStructure", "cssStyles"})
     private EmailTemplateTheme theme;

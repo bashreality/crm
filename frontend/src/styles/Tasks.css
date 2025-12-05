@@ -679,6 +679,7 @@ html.dark .tasks-filters button {
   background-color: var(--color-bg-elevated);
   border-color: var(--color-border);
   color: var(--color-text-secondary);
+  border-radius: 999px;
 }
 
 html.dark .tasks-filters button span {
