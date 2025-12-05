@@ -140,7 +140,7 @@ public class WorkflowSchedulerService {
      */
     private boolean hasContactReplied(Contact contact, SequenceExecution execution) {
         // Sprawdź czy są emaile od kontaktu po rozpoczęciu sekwencji
-        LocalDateTime sequenceStartDate = execution.getCreatedAt();
+        LocalDateTime sequenceStartDate = execution.getStartedAt();
         if (sequenceStartDate == null) {
             return false;
         }

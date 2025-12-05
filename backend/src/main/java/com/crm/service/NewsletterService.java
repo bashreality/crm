@@ -284,12 +284,11 @@ public class NewsletterService {
             throw new RuntimeException("No email account configured for campaign");
         }
 
-        emailSendingService.sendEmail(
-                account.getId(),
-                contact.getEmail(),
-                subject,
-                body
-        );
+        try {
+            emailSendingService.sendEmailFromAccount(account, contact.getEmail(), subject, body);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send campaign email: " + e.getMessage(), e);
+        }
 
         // Zaktualizuj status
         recipient.markSent();
@@ -333,7 +332,11 @@ public class NewsletterService {
             throw new RuntimeException("No email account configured for campaign");
         }
 
-        emailSendingService.sendEmail(account.getId(), testEmail, subject, body);
+        try {
+            emailSendingService.sendEmailFromAccount(account, testEmail, subject, body);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send test email: " + e.getMessage(), e);
+        }
         log.info("Sent test email for campaign {} to {}", campaignId, testEmail);
     }
 
