@@ -75,6 +75,12 @@ const Header = ({ onOpenSearch }) => {
             Sekwencje
           </Link>
           <Link
+            to="/automations"
+            className={`nav-item ${isActive('/automations') ? 'active' : ''}`}
+          >
+            Automatyzacje
+          </Link>
+          <Link
             to="/tasks"
             className={`nav-item ${isActive('/tasks') ? 'active' : ''}`}
           >

@@ -30,4 +30,21 @@ public interface ScheduledEmailRepository extends JpaRepository<ScheduledEmail, 
     long countByStatus(String status);
 
     void deleteByStepId(Long stepId);
+
+    /**
+     * Znajdź wysłane emaile bez odpowiedzi dla konkretnej sekwencji
+     */
+    @Query("SELECT s FROM ScheduledEmail s WHERE s.execution.sequence.id = :sequenceId " +
+           "AND s.status = 'sent' AND s.sentAt < :cutoffDate " +
+           "AND NOT EXISTS (SELECT 1 FROM Email e WHERE e.sender LIKE CONCAT('%', s.recipientEmail, '%') " +
+           "AND e.receivedAt > s.sentAt)")
+    List<ScheduledEmail> findSentEmailsWithoutReply(Long sequenceId, LocalDateTime cutoffDate);
+
+    /**
+     * Znajdź wszystkie wysłane emaile bez odpowiedzi (wszystkie sekwencje)
+     */
+    @Query("SELECT s FROM ScheduledEmail s WHERE s.status = 'sent' AND s.sentAt < :cutoffDate " +
+           "AND NOT EXISTS (SELECT 1 FROM Email e WHERE e.sender LIKE CONCAT('%', s.recipientEmail, '%') " +
+           "AND e.receivedAt > s.sentAt)")
+    List<ScheduledEmail> findAllSentEmailsWithoutReply(LocalDateTime cutoffDate);
 }

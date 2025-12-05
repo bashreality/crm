@@ -84,4 +84,8 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
     @Query("SELECT COUNT(e) FROM Email e JOIN EmailAccount ea ON e.account.id = ea.id WHERE ea.userId = :userId AND e.status = :status")
     Long countAccessibleByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status);
 
+    /**
+     * Znajdź emaile od nadawcy po określonej dacie (dla sprawdzania odpowiedzi)
+     */
+    List<Email> findBySenderContainingIgnoreCaseAndReceivedAtAfter(String sender, java.time.LocalDateTime afterDate);
 }

@@ -209,4 +209,26 @@ export const tagsApi = {
   getContactsByTag: (tagId) => api.get(`/tags/${tagId}/contacts`),
 };
 
+// Workflows API
+export const workflowsApi = {
+  // Rules
+  getAllRules: () => api.get('/workflows/rules'),
+  getRuleById: (id) => api.get(`/workflows/rules/${id}`),
+  createRule: (data) => api.post('/workflows/rules', data),
+  updateRule: (id, data) => api.put(`/workflows/rules/${id}`, data),
+  deleteRule: (id) => api.delete(`/workflows/rules/${id}`),
+  toggleRule: (id) => api.post(`/workflows/rules/${id}/toggle`),
+  
+  // Executions
+  getExecutions: (params) => api.get('/workflows/executions', { params }),
+  getExecutionsForRule: (ruleId, params) => api.get(`/workflows/rules/${ruleId}/executions`, { params }),
+  
+  // Dashboard
+  getDashboard: () => api.get('/workflows/dashboard'),
+  
+  // Types
+  getTriggerTypes: () => api.get('/workflows/trigger-types'),
+  getActionTypes: () => api.get('/workflows/action-types'),
+};
+
 export default api;

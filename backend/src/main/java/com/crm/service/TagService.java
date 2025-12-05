@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,8 @@ public class TagService {
 
     private final TagRepository tagRepository;
     private final ContactRepository contactRepository;
+    @Lazy
+    private final WorkflowAutomationService workflowAutomationService;
 
     @Cacheable(value = "tags")
     public List<Tag> getAllTags() {
@@ -95,13 +98,27 @@ public class TagService {
         if (contact.getTags() == null) {
             contact.setTags(new java.util.HashSet<>());
         }
+        boolean tagAdded = false;
         if (!contact.getTags().contains(tag)) {
             contact.getTags().add(tag);
             contactRepository.saveAndFlush(contact);
+            tagAdded = true;
         } else {
             log.debug("Tag {} already present on contact {}, skipping insert", tagId, contactId);
         }
-        return contactRepository.findById(contactId).orElse(contact);
+        
+        Contact savedContact = contactRepository.findById(contactId).orElse(contact);
+        
+        // Trigger workflow automation po dodaniu tagu
+        if (tagAdded) {
+            try {
+                workflowAutomationService.handleTagAdded(savedContact, tag);
+            } catch (Exception e) {
+                log.error("Error triggering TAG_ADDED workflow: {}", e.getMessage(), e);
+            }
+        }
+        
+        return savedContact;
     }
 
     @Transactional
@@ -110,8 +127,20 @@ public class TagService {
                 .orElseThrow(() -> new RuntimeException("Kontakt nie znaleziony"));
         Tag tag = getTagById(tagId);
 
+        boolean hadTag = contact.getTags().contains(tag);
         contact.getTags().remove(tag);
-        return contactRepository.save(contact);
+        Contact savedContact = contactRepository.save(contact);
+        
+        // Trigger workflow automation po usunięciu tagu
+        if (hadTag) {
+            try {
+                workflowAutomationService.handleTagRemoved(savedContact, tag);
+            } catch (Exception e) {
+                log.error("Error triggering TAG_REMOVED workflow: {}", e.getMessage(), e);
+            }
+        }
+        
+        return savedContact;
     }
 
     @Transactional
@@ -127,6 +156,14 @@ public class TagService {
                 if (!contact.getTags().contains(tag)) {
                     contact.getTags().add(tag);
                     contactRepository.saveAndFlush(contact);
+                    
+                    // Trigger workflow automation po dodaniu tagu (bulk)
+                    try {
+                        workflowAutomationService.handleTagAdded(contact, tag);
+                    } catch (Exception e) {
+                        log.error("Error triggering TAG_ADDED workflow for contact {}: {}", 
+                                 contactId, e.getMessage());
+                    }
                 } else {
                     log.debug("Tag {} already present on contact {}, skipping insert (bulk)", tagId, contactId);
                 }
@@ -141,8 +178,19 @@ public class TagService {
         for (Long contactId : contactIds) {
             Contact contact = contactRepository.findById(contactId).orElse(null);
             if (contact != null) {
+                boolean hadTag = contact.getTags().contains(tag);
                 contact.getTags().remove(tag);
                 contactRepository.save(contact);
+                
+                // Trigger workflow automation po usunięciu tagu (bulk)
+                if (hadTag) {
+                    try {
+                        workflowAutomationService.handleTagRemoved(contact, tag);
+                    } catch (Exception e) {
+                        log.error("Error triggering TAG_REMOVED workflow for contact {}: {}", 
+                                 contactId, e.getMessage());
+                    }
+                }
             }
         }
     }

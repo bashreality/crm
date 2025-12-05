@@ -1,0 +1,419 @@
+/* Campaigns Page Styles */
+
+.campaigns-container {
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+  background: var(--color-bg-main);
+}
+
+/* Header */
+.campaigns-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.campaigns-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.campaigns-header p {
+  color: var(--color-text-secondary);
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Stats Grid */
+.campaigns-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.campaigns-stats-grid .stat-card {
+  background: var(--color-bg-surface);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--color-border);
+}
+
+.campaigns-stats-grid .stat-card svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.campaigns-stats-grid .stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  line-height: 1;
+}
+
+.campaigns-stats-grid .stat-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* List Container */
+.campaigns-list-container {
+  background: var(--color-bg-surface);
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.campaigns-list-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.campaigns-list-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Empty State */
+.campaigns-container .empty-state {
+  padding: 48px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.campaigns-container .empty-state svg {
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+}
+
+.campaigns-container .empty-state h3 {
+  font-size: 18px;
+  color: var(--color-text-main);
+  margin: 0 0 8px;
+}
+
+.campaigns-container .empty-state p {
+  margin: 0 0 24px;
+}
+
+/* Campaigns Grid */
+.campaigns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+/* Campaign Card */
+.campaign-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.campaign-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.campaign-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.campaign-card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.campaign-description {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.campaign-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.campaign-metrics .metric {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.campaign-metrics .metric svg {
+  color: var(--color-text-muted);
+}
+
+.campaign-tag {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+}
+
+.campaign-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.campaign-card-actions .action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.campaign-card-actions .action-btn:hover {
+  background: var(--color-bg-main);
+}
+
+.campaign-card-actions .action-btn.edit:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.campaign-card-actions .action-btn.prepare:hover,
+.campaign-card-actions .action-btn.start:hover,
+.campaign-card-actions .action-btn.resume:hover {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.campaign-card-actions .action-btn.pause:hover {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.campaign-card-actions .action-btn.stats:hover {
+  color: #8b5cf6;
+  border-color: #8b5cf6;
+}
+
+/* Modal */
+.campaign-modal {
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.campaign-form .form-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.campaign-form .form-section:last-of-type {
+  border-bottom: none;
+}
+
+.campaign-form .form-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.campaign-form .form-group {
+  margin-bottom: 16px;
+}
+
+.campaign-form .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.campaign-form .form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.campaign-form .form-group input,
+.campaign-form .form-group select,
+.campaign-form .form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-main);
+  transition: border-color 0.2s;
+}
+
+.campaign-form .form-group input:focus,
+.campaign-form .form-group select:focus,
+.campaign-form .form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.campaign-form .form-group small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.campaign-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+/* Stats Modal */
+.stats-modal {
+  max-width: 600px;
+}
+
+.stats-modal .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 24px;
+}
+
+.stats-modal .stat-item {
+  text-align: center;
+  padding: 16px;
+  background: var(--color-bg-main);
+  border-radius: 8px;
+}
+
+.stats-modal .stat-item .stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.stats-modal .stat-item .stat-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.stats-modal .stat-item.highlight .stat-value {
+  color: var(--color-success);
+}
+
+.stats-modal .stat-item.danger .stat-value {
+  color: var(--color-danger);
+}
+
+.test-email-section {
+  padding: 20px 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.test-email-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.test-email-form {
+  display: flex;
+  gap: 12px;
+}
+
+.test-email-form input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .campaigns-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .campaigns-container {
+    padding: 16px;
+  }
+
+  .campaigns-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .campaigns-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .campaigns-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-form .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark Mode */
+html.dark .campaign-card {
+  background: var(--color-bg-elevated);
+}
+
+html.dark .campaign-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .stats-modal .stat-item {
+  background: var(--color-bg-elevated);
+}
+

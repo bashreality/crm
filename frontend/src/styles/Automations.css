@@ -1,0 +1,459 @@
+/* Automations Page Styles */
+
+.automations-container {
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+  background: var(--color-bg-main);
+}
+
+/* Header */
+.automations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.automations-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.automations-header p {
+  color: var(--color-text-secondary);
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+/* Stats */
+.automations-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.automations-stats .stat-card {
+  background: var(--color-bg-surface);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--color-border);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.automations-stats .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.automations-stats .stat-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.automations-stats .stat-icon.success {
+  color: var(--color-success);
+}
+
+.automations-stats .stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  line-height: 1;
+}
+
+.automations-stats .stat-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* Rules List */
+.automations-list {
+  background: var(--color-bg-surface);
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.loading-state, .empty-state {
+  padding: 48px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.empty-state svg {
+  color: var(--color-text-muted);
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  color: var(--color-text-main);
+  margin: 0 0 8px;
+}
+
+.empty-state p {
+  margin: 0 0 24px;
+}
+
+/* Automation Card */
+.automation-card {
+  border-bottom: 1px solid var(--color-border);
+  transition: background 0.2s;
+}
+
+.automation-card:last-child {
+  border-bottom: none;
+}
+
+.automation-card:hover {
+  background: var(--color-bg-main);
+}
+
+.automation-card.inactive {
+  opacity: 0.7;
+}
+
+.automation-main {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+  gap: 16px;
+}
+
+.automation-status {
+  flex-shrink: 0;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: block;
+}
+
+.status-dot.active {
+  background: var(--color-success);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.status-dot.inactive {
+  background: var(--color-text-muted);
+}
+
+.automation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.automation-info h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin: 0 0 6px;
+}
+
+.automation-flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.flow-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--color-bg-main);
+  color: var(--color-text-secondary);
+}
+
+.flow-arrow {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.automation-stats {
+  flex-shrink: 0;
+}
+
+.exec-count {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-main);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.automation-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: var(--color-bg-main);
+}
+
+.action-btn.play:hover {
+  color: var(--color-success);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.action-btn.pause:hover {
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.action-btn.edit:hover {
+  color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.action-btn.delete:hover {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Expanded Details */
+.automation-details {
+  padding: 16px 20px 20px 46px;
+  background: var(--color-bg-main);
+  border-top: 1px solid var(--color-border);
+}
+
+.detail-row {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  color: var(--color-text-muted);
+  min-width: 140px;
+}
+
+/* Modal */
+.automation-modal {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.automation-form {
+  padding: 0;
+}
+
+.form-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+}
+
+.form-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-main);
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 150px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.config-field {
+  margin-bottom: 12px;
+}
+
+.config-field label {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.config-field input,
+.config-field select,
+.config-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-main);
+}
+
+/* Modal Footer */
+.automation-modal .modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: var(--color-bg-main);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .automations-container {
+    padding: 16px;
+  }
+
+  .automations-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .automations-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .automation-main {
+    flex-wrap: wrap;
+  }
+
+  .automation-flow {
+    flex-wrap: wrap;
+  }
+
+  .automation-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+}
+
+/* Dark Mode */
+html.dark .automations-container {
+  background: var(--color-bg-main);
+}
+
+html.dark .automation-card:hover {
+  background: var(--color-bg-elevated);
+}
+
+html.dark .automation-details {
+  background: var(--color-bg-elevated);
+}
+
+html.dark .flow-item {
+  background: var(--color-bg-elevated);
+}
+
+html.dark .exec-count {
+  background: var(--color-bg-elevated);
+}
+
+html.dark .form-group input,
+html.dark .form-group select,
+html.dark .form-group textarea,
+html.dark .config-field input,
+html.dark .config-field select,
+html.dark .config-field textarea {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html.dark .automation-modal .modal-footer {
+  background: var(--color-bg-elevated);
+}
+

@@ -17,6 +17,7 @@ import Deals from './pages/Deals';
 import Users from './pages/Users';
 import EmailAccounts from './pages/EmailAccounts';
 import EmailTemplates from './pages/EmailTemplates';
+import Automations from './pages/Automations';
 import './App.css';
 
 // Komponent ochrony tras - wymaga zalogowania
@@ -82,6 +83,7 @@ function App() {
                       <Route path="/users" element={<Users />} />
                       <Route path="/email-accounts" element={<EmailAccounts />} />
                       <Route path="/email-templates" element={<EmailTemplates />} />
+                      <Route path="/automations" element={<Automations />} />
                     </Routes>
                   </>
                 </ProtectedRoute>

@@ -1,7 +1,10 @@
 package com.crm.controller;
 
+import com.crm.model.Contact;
 import com.crm.model.Email;
+import com.crm.repository.ContactRepository;
 import com.crm.repository.EmailRepository;
+import com.crm.service.WorkflowAutomationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -25,6 +28,8 @@ import java.util.Optional;
 public class TrackingController {
 
     private final EmailRepository emailRepository;
+    private final ContactRepository contactRepository;
+    private final WorkflowAutomationService workflowAutomationService;
     
     // 1x1 transparent PNG pixel
     private static final byte[] PIXEL_BYTES = {
@@ -49,7 +54,8 @@ public class TrackingController {
                     Email email = emailOpt.get();
                     
                     // Update stats
-                    if (!Boolean.TRUE.equals(email.getIsOpened())) {
+                    boolean firstOpen = !Boolean.TRUE.equals(email.getIsOpened());
+                    if (firstOpen) {
                         email.setIsOpened(true);
                         email.setOpenedAt(LocalDateTime.now());
                         log.info("Email opened for the first time: {} (Subject: {})", id, email.getSubject());
@@ -57,6 +63,11 @@ public class TrackingController {
                     
                     email.setOpenCount(email.getOpenCount() == null ? 1 : email.getOpenCount() + 1);
                     emailRepository.save(email);
+                    
+                    // Trigger workflow automation on first open
+                    if (firstOpen) {
+                        triggerEmailOpenedWorkflow(email);
+                    }
                 }
             } catch (Exception e) {
                 log.error("Error tracking email open: {}", id, e);
@@ -66,5 +77,37 @@ public class TrackingController {
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
                 .body(PIXEL_BYTES);
+    }
+    
+    /**
+     * Uruchamia workflow automation dla otwarcia emaila
+     */
+    private void triggerEmailOpenedWorkflow(Email email) {
+        try {
+            // Znajdź kontakt na podstawie odbiorcy emaila
+            String recipient = email.getRecipient();
+            if (recipient == null || recipient.isEmpty()) {
+                log.debug("No recipient for email {}, skipping workflow trigger", email.getId());
+                return;
+            }
+            
+            // Wyciągnij adres email z formatu "Name <email@example.com>"
+            String emailAddress = recipient;
+            if (recipient.contains("<") && recipient.contains(">")) {
+                emailAddress = recipient.substring(recipient.indexOf("<") + 1, recipient.indexOf(">"));
+            }
+            
+            Optional<Contact> contactOpt = contactRepository.findByEmailIgnoreCase(emailAddress);
+            if (contactOpt.isPresent()) {
+                Contact contact = contactOpt.get();
+                log.info("Triggering EMAIL_OPENED workflow for contact {} and email {}", 
+                         contact.getId(), email.getId());
+                workflowAutomationService.handleEmailOpened(email, contact);
+            } else {
+                log.debug("No contact found for email address {}", emailAddress);
+            }
+        } catch (Exception e) {
+            log.error("Error triggering email opened workflow: {}", e.getMessage(), e);
+        }
     }
 }

@@ -19,6 +19,7 @@ import {
 import toast, { Toaster } from 'react-hot-toast';
 import api, { contactsApi, tasksApi, emailAccountsApi, tagsApi, sequencesApi, notesApi } from '../services/api';
 import TagModal from '../components/TagModal';
+import { useDebounce } from '../hooks/useDebounce';
 import '../styles/Contacts.css';
 import '../styles/Tasks.css'; // Ensure modals are styled
 
@@ -325,20 +326,23 @@ const Contacts = () => {
   };
 
   // --- Filtering & Pagination ---
+  // Debounce search input for better performance
+  const debouncedSearch = useDebounce(search, 300);
+  
   const filtered = useMemo(() => {
     // Ensure contacts is an array before filtering
     if (!Array.isArray(contacts)) {
       console.warn('contacts is not an array in filtered useMemo:', contacts);
       return [];
     }
-    const query = search.trim().toLowerCase();
+    const query = debouncedSearch.trim().toLowerCase();
     return contacts.filter((c) => {
       const matchesSearch = !query || [c.name, c.company, c.email].some(f => (f || '').toLowerCase().includes(query));
       const matchesCompany = !companyFilter || c.company === companyFilter;
       const matchesTag = !tagFilter || (c.tags || []).some(t => t.id.toString() === tagFilter);
       return matchesSearch && matchesCompany && matchesTag;
     });
-  }, [contacts, search, companyFilter, tagFilter]);
+  }, [contacts, debouncedSearch, companyFilter, tagFilter]);
 
   const paginatedContacts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
