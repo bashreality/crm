@@ -313,7 +313,7 @@
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 96px);
-  overflow: hidden;
+  overflow-y: auto;
   margin: auto;
 }
 
