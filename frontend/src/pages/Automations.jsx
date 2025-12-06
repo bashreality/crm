@@ -18,7 +18,7 @@ import {
   Activity
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { workflowsApi, sequencesApi, tagsApi } from '../services/api';
+import { workflowsApi, sequencesApi, tagsApi, dealsApi } from '../services/api';
 import '../styles/Automations.css';
 
 // Mapowanie typów triggerów na czytelne nazwy
@@ -59,6 +59,7 @@ const Automations = () => {
   const [expandedRuleId, setExpandedRuleId] = useState(null);
   const [sequences, setSequences] = useState([]);
   const [tags, setTags] = useState([]);
+  const [pipelines, setPipelines] = useState([]);
   const [stats, setStats] = useState({ totalRules: 0, totalExecutions: 0 });
 
   // Form state
@@ -81,15 +82,17 @@ const Automations = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [rulesRes, seqRes, tagsRes, dashRes] = await Promise.all([
+      const [rulesRes, seqRes, tagsRes, pipelinesRes, dashRes] = await Promise.all([
         workflowsApi.getAllRules(),
         sequencesApi.getAll(),
         tagsApi.getAll(),
+        dealsApi.getAllPipelines().catch(() => ({ data: [] })),
         workflowsApi.getDashboard().catch(() => ({ data: { totalRules: 0, totalExecutions: 0 } })),
       ]);
       setRules(rulesRes.data || []);
       setSequences(seqRes.data || []);
       setTags(tagsRes.data || []);
+      setPipelines(pipelinesRes.data || []);
       setStats(dashRes.data || { totalRules: 0, totalExecutions: 0 });
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -399,6 +402,78 @@ const Automations = () => {
               placeholder="Treść powiadomienia..."
               rows={3}
             />
+          </div>
+        );
+      case 'CREATE_DEAL':
+        return (
+          <>
+            <div className="config-field">
+              <label>Nazwa szansy</label>
+              <input
+                type="text"
+                value={actionConfig.title || ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  actionConfig: { ...actionConfig, title: e.target.value }
+                })}
+                placeholder="np. Nowa szansa od kontaktu"
+              />
+            </div>
+            <div className="config-field">
+              <label>Wartość (PLN)</label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={actionConfig.value || 0}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  actionConfig: { ...actionConfig, value: parseFloat(e.target.value) }
+                })}
+                placeholder="np. 10000"
+              />
+            </div>
+            <div className="config-field">
+              <label>Lejek sprzedażowy</label>
+              <select
+                value={actionConfig.pipelineId || ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  actionConfig: { ...actionConfig, pipelineId: parseInt(e.target.value) }
+                })}
+              >
+                <option value="">-- Wybierz lejek (lub domyślny) --</option>
+                {pipelines.map(pipeline => (
+                  <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        );
+      case 'MOVE_DEAL':
+        return (
+          <div className="config-field">
+            <label>Przenieś szansę do etapu</label>
+            <p style={{ fontSize: '12px', color: '#6b7280', margin: '8px 0' }}>
+              ⚠️ Uwaga: Wybierz etap - szansa zostanie przeniesiona gdy warunek się spełni
+            </p>
+            <select
+              value={actionConfig.stageId || ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                actionConfig: { ...actionConfig, stageId: parseInt(e.target.value) }
+              })}
+              required
+            >
+              <option value="">-- Wybierz etap --</option>
+              {pipelines.flatMap(pipeline =>
+                (pipeline.stages || []).map(stage => (
+                  <option key={stage.id} value={stage.id}>
+                    {pipeline.name} → {stage.name}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
         );
       default:

@@ -231,4 +231,18 @@ export const workflowsApi = {
   getActionTypes: () => api.get('/workflows/action-types'),
 };
 
+// Deals API
+export const dealsApi = {
+  getAll: () => api.get('/deals'),
+  getById: (id) => api.get(`/deals/${id}`),
+  create: (data) => api.post('/deals', data),
+  update: (id, data) => api.put(`/deals/${id}`, data),
+  delete: (id) => api.delete(`/deals/${id}`),
+
+  // Pipelines
+  getAllPipelines: () => api.get('/pipelines'),
+  getPipelineById: (id) => api.get(`/pipelines/${id}`),
+  getStages: (pipelineId) => api.get(`/pipelines/${pipelineId}/stages`),
+};
+
 export default api;
