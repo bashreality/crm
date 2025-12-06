@@ -768,9 +768,24 @@
   max-width: 900px;
 }
 
-/* Dla em-campaign-modal - bardziej wąski max-width */
+/* Dla em-campaign-modal - szerokie okno */
 .modal-content.em-campaign-modal {
-  max-width: 700px;
+  max-width: 95vw;
+  width: 95vw;
+  height: auto;
+  max-height: 95vh;
+  margin: 10px auto;
+}
+
+/* Modal overlay dla em-campaign-modal i em-theme-editor-modal */
+.modal-overlay:has(.em-campaign-modal),
+.modal-overlay:has(.em-theme-editor-modal) {
+  padding: 0;
+  align-items: flex-start;
+}
+
+.modal-overlay:has(.em-theme-editor-modal) {
+  align-items: stretch;
 }
 
 .modal-header {
