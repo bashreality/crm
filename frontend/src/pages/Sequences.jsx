@@ -2,6 +2,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { sequencesApi, contactsApi, emailAccountsApi, tagsApi, aiApi } from '../services/api';
 import toast from 'react-hot-toast';
+import {
+  Mail,
+  Play,
+  Pause,
+  Clock,
+  Users,
+  TrendingUp,
+  Plus,
+  RefreshCw,
+  Settings,
+  Zap,
+  Target
+} from 'lucide-react';
 import './Sequences.css';
 
 const initialSequenceForm = {
@@ -965,24 +978,68 @@ const Sequences = () => {
     <>
       {/* --- Main View --- */}
       {!isBuilderOpen && (
-        <div className="sequences-shell" style={{ background: 'var(--color-bg-main)', minHeight: '100vh' }}>
-          {/* Main Dashboard Layout - matching Dashboard page */}
-          <div className="container" style={{ paddingTop: '24px' }}>
-            {/* Action buttons integrated into background */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'flex-end', 
-              gap: '12px', 
-              marginBottom: '24px' 
-            }}>
-              <button className="btn btn-secondary" onClick={() => refreshSequences()}>
-                🔄 Odśwież
-              </button>
-              <button className="btn btn-primary" onClick={openCreateSequenceModal}>
-                + Nowa Sekwencja
-              </button>
+        <div className="sequences-shell">
+          <div className="sequences-container">
+            {/* Modern Header */}
+            <div className="sequences-header">
+              <div className="sequences-header-content">
+                <div className="sequences-header-icon">
+                  <Mail size={32} />
+                </div>
+                <div>
+                  <h1>Email Sequences</h1>
+                  <p>Automatyzuj komunikację z klientami</p>
+                </div>
+              </div>
+              <div className="sequences-header-actions">
+                <button className="btn btn-secondary" onClick={() => refreshSequences()}>
+                  <RefreshCw size={16} /> Odśwież
+                </button>
+                <button className="btn btn-primary" onClick={openCreateSequenceModal}>
+                  <Plus size={16} /> Nowa Sekwencja
+                </button>
+              </div>
             </div>
-            {renderMetrics()}
+
+            {/* Stats Grid */}
+            <div className="sequences-stats-grid">
+              <div className="sequences-stat-card">
+                <div className="sequences-stat-icon active">
+                  <Play size={24} />
+                </div>
+                <div className="sequences-stat-content">
+                  <div className="sequences-stat-number">{dashboard?.activeSequences || 0}</div>
+                  <div className="sequences-stat-label">Aktywne sekwencje</div>
+                </div>
+              </div>
+              <div className="sequences-stat-card">
+                <div className="sequences-stat-icon executions">
+                  <Users size={24} />
+                </div>
+                <div className="sequences-stat-content">
+                  <div className="sequences-stat-number">{dashboard?.activeExecutions || 0}</div>
+                  <div className="sequences-stat-label">Aktywne wykonania</div>
+                </div>
+              </div>
+              <div className="sequences-stat-card">
+                <div className="sequences-stat-icon pending">
+                  <Clock size={24} />
+                </div>
+                <div className="sequences-stat-content">
+                  <div className="sequences-stat-number">{dashboard?.pendingScheduledEmails || 0}</div>
+                  <div className="sequences-stat-label">Oczekujące maile</div>
+                </div>
+              </div>
+              <div className="sequences-stat-card">
+                <div className="sequences-stat-icon total">
+                  <Target size={24} />
+                </div>
+                <div className="sequences-stat-content">
+                  <div className="sequences-stat-number">{sequences.length}</div>
+                  <div className="sequences-stat-label">Wszystkie sekwencje</div>
+                </div>
+              </div>
+            </div>
 
             <div className="sequences-main-layout">
               {/* Left Sidebar - Sequences List */}

@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import {
+  Mail,
+  RefreshCw,
+  Download,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Clock,
+  Bot,
+  Eye,
+  LayoutGrid,
+  List
+} from 'lucide-react';
 import { emailsApi, emailAccountsApi, analyticsApi, tasksApi, contactsApi, tagsApi } from '../services/api';
 import api from '../services/api';
 import EmailModal from '../components/EmailModal';
@@ -889,7 +902,38 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="container">
+    <div className="dashboard-container">
+      {/* Modern Header */}
+      <div className="dashboard-header">
+        <div className="dashboard-header-content">
+          <div className="dashboard-header-icon">
+            <Mail size={32} />
+          </div>
+          <div>
+            <h1>Skrzynka odbiorcza</h1>
+            <p>Zarządzaj wiadomościami email i odpowiedziami</p>
+          </div>
+        </div>
+        <div className="dashboard-header-actions">
+          <button
+            className="btn btn-primary"
+            onClick={handleFetchEmails}
+            disabled={fetching}
+          >
+            <RefreshCw size={18} className={fetching ? 'spinning' : ''} />
+            {fetching ? 'Pobieranie...' : 'Pobierz nowe maile'}
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleExportToExcel}
+            disabled={emails.length === 0}
+          >
+            <Download size={18} />
+            Eksport do Excel
+          </button>
+        </div>
+      </div>
+
       {selectedEmail && (
         <EmailModal
           email={selectedEmail}
@@ -1270,6 +1314,82 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Stats Grid - Full Width */}
+      <div className="dashboard-stats-grid">
+        <div
+          className="dashboard-stat-card"
+          onClick={() => handleStatClick('positive')}
+        >
+          <div className="dashboard-stat-icon positive">
+            <CheckCircle size={24} />
+          </div>
+          <div className="dashboard-stat-content">
+            <div className="dashboard-stat-number">{stats.positive}</div>
+            <div className="dashboard-stat-label">Pozytywne odpowiedzi</div>
+          </div>
+        </div>
+        <div
+          className="dashboard-stat-card"
+          onClick={() => handleStatClick('neutral')}
+        >
+          <div className="dashboard-stat-icon neutral">
+            <Eye size={24} />
+          </div>
+          <div className="dashboard-stat-content">
+            <div className="dashboard-stat-number">{stats.neutral}</div>
+            <div className="dashboard-stat-label">Do przejrzenia</div>
+          </div>
+        </div>
+        <div
+          className="dashboard-stat-card"
+          onClick={() => handleStatClick('negative')}
+        >
+          <div className="dashboard-stat-icon negative">
+            <XCircle size={24} />
+          </div>
+          <div className="dashboard-stat-content">
+            <div className="dashboard-stat-number">{stats.negative}</div>
+            <div className="dashboard-stat-label">Odmowy kontaktu</div>
+          </div>
+        </div>
+        <div
+          className="dashboard-stat-card"
+          onClick={() => handleStatClick('undelivered')}
+        >
+          <div className="dashboard-stat-icon undelivered">
+            <AlertCircle size={24} />
+          </div>
+          <div className="dashboard-stat-content">
+            <div className="dashboard-stat-number">{stats.undelivered}</div>
+            <div className="dashboard-stat-label">Niedostarczone</div>
+          </div>
+        </div>
+        <div
+          className="dashboard-stat-card"
+          onClick={() => handleStatClick('maybeLater')}
+        >
+          <div className="dashboard-stat-icon maybe-later">
+            <Clock size={24} />
+          </div>
+          <div className="dashboard-stat-content">
+            <div className="dashboard-stat-number">{stats.maybeLater}</div>
+            <div className="dashboard-stat-label">Może później</div>
+          </div>
+        </div>
+        <div
+          className="dashboard-stat-card"
+          onClick={() => handleStatClick('auto_reply')}
+        >
+          <div className="dashboard-stat-icon auto-reply">
+            <Bot size={24} />
+          </div>
+          <div className="dashboard-stat-content">
+            <div className="dashboard-stat-number">{stats.auto_reply}</div>
+            <div className="dashboard-stat-label">Automatyczna odpowiedź</div>
+          </div>
+        </div>
+      </div>
+
       <div className="main-layout">
         <aside className="sidebar">
           <h3>Filtry</h3>
@@ -1385,92 +1505,27 @@ const Dashboard = () => {
         </aside>
 
         <div className="content-area">
-          <div className="stats-grid">
-            <div 
-              className="stat-card" 
-              onClick={() => handleStatClick('positive')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="stat-number positive">{stats.positive}</div>
-              <div className="stat-label">Pozytywne odpowiedzi</div>
-            </div>
-            <div 
-              className="stat-card"
-              onClick={() => handleStatClick('neutral')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="stat-number neutral">{stats.neutral}</div>
-              <div className="stat-label">Do przejrzenia</div>
-            </div>
-            <div 
-              className="stat-card"
-              onClick={() => handleStatClick('negative')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="stat-number negative">{stats.negative}</div>
-              <div className="stat-label">Odmowy kontaktu</div>
-            </div>
-            <div
-              className="stat-card"
-              onClick={() => handleStatClick('undelivered')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="stat-number negative">{stats.undelivered}</div>
-              <div className="stat-label">Niedostarczone</div>
-            </div>
-            <div
-              className="stat-card"
-              onClick={() => handleStatClick('maybeLater')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="stat-number neutral">{stats.maybeLater}</div>
-              <div className="stat-label">Może później</div>
-            </div>
-            <div
-              className="stat-card"
-              onClick={() => handleStatClick('auto_reply')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="stat-number negative">{stats.auto_reply}</div>
-              <div className="stat-label">Automatyczna odpowiedź</div>
-            </div>
-          </div>
-
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">
+            <div className="dashboard-email-card">
+              <div className="dashboard-email-card-header">
+                <h2 className="dashboard-email-card-title">
                   Lista wiadomości
                   {filters.status && (
-                    <span style={{ marginLeft: '1rem', fontSize: '0.9rem', color: '#666' }}>
-                      (Filtr: {getStatusLabel(filters.status)})
+                    <span className="dashboard-filter-badge">
+                      Filtr: {getStatusLabel(filters.status)}
                     </span>
                   )}
                 </h2>
-                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div className="dashboard-email-card-actions">
                   <button
-                    className="btn btn-primary"
-                    onClick={handleFetchEmails}
-                    disabled={fetching}
-                    style={{ height: 'fit-content' }}
-                  >
-                    {fetching ? '⏳ Pobieranie...' : '📧 Pobierz nowe maile'}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={handleExportToExcel}
-                    disabled={emails.length === 0}
-                  >
-                    📊 Eksport do Excel
-                  </button>
-                  <button
-                    className="btn btn-secondary"
+                    className="btn btn-secondary view-toggle-btn"
                     onClick={() => setCompactView(!compactView)}
                     title={compactView ? "Przełącz na rozszerzony widok" : "Przełącz na kompaktowy widok"}
                   >
-                    {compactView ? '⬜ Rozszerzony' : '⬛ Kompaktowy'}
+                    {compactView ? <LayoutGrid size={16} /> : <List size={16} />}
+                    <span>{compactView ? 'Rozszerzony' : 'Kompaktowy'}</span>
                   </button>
                   {selectedEmails.length > 0 && (
-                    <span style={{ color: '#6366f1', fontWeight: 600 }}>
+                    <span className="dashboard-selected-count">
                       Zaznaczono: {selectedEmails.length}
                     </span>
                   )}
@@ -1636,17 +1691,7 @@ const Dashboard = () => {
 
                       return (
                         <div key={groupKey} style={{ marginBottom: '20px' }}>
-                          <div style={{
-                            padding: '12px 20px',
-                            background: '#f9fafb',
-                            borderBottom: '2px solid #e5e7eb',
-                            fontWeight: 700,
-                            fontSize: '14px',
-                            color: '#374151',
-                            position: 'sticky',
-                            top: 0,
-                            zIndex: 10
-                          }}>
+                          <div className="date-group-header">
                             {groupLabels[groupKey]} ({groupEmails.length})
                           </div>
                           {groupEmails.map((email) => (

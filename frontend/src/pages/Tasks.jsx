@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { tasksApi, contactsApi } from '../services/api';
+import {
+  CheckSquare,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  TrendingUp,
+  Plus,
+  RefreshCw,
+  Search
+} from 'lucide-react';
 import '../styles/Tasks.css';
 
 const emptyTask = {
@@ -442,80 +452,78 @@ const Tasks = () => {
   };
 
   return (
-    <div className="tasks-shell" style={{ background: 'var(--color-bg-main)', minHeight: '100vh' }}>
-      <div className="container" style={{ paddingTop: '24px' }}>
-        {/* Action buttons integrated into background */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'flex-end', 
-          gap: '12px', 
-          marginBottom: '24px' 
-        }}>
-          <button className="btn btn-secondary" onClick={() => refreshTasks()}>
-            🔄 Odśwież
-          </button>
-          <button className="btn btn-primary" onClick={() => {
-            setFormState(emptyTask);
-            setEditingTask(null);
-            setModalOpen(true);
-          }}>
-            + Nowe zadanie
-          </button>
+    <div className="tasks-shell">
+      <div className="tasks-container">
+        {/* Modern Header */}
+        <div className="tasks-header">
+          <div className="tasks-header-content">
+            <div className="tasks-header-icon">
+              <CheckSquare size={32} />
+            </div>
+            <div>
+              <h1>Zadania</h1>
+              <p>Zarządzaj zadaniami i follow-upami</p>
+            </div>
+          </div>
+          <div className="tasks-header-actions">
+            <button className="btn btn-secondary" onClick={() => refreshTasks()}>
+              <RefreshCw size={16} /> Odśwież
+            </button>
+            <button className="btn btn-primary" onClick={() => {
+              setFormState(emptyTask);
+              setEditingTask(null);
+              setModalOpen(true);
+            }}>
+              <Plus size={16} /> Nowe zadanie
+            </button>
+          </div>
         </div>
-        <section className="tasks-metrics">
-        <article className="metric-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span className="metric-label">Aktywne</span>
-            <span style={{ fontSize: '20px' }}>📋</span>
+
+        {/* Stats Grid */}
+        <div className="tasks-stats-grid">
+          <div className="tasks-stat-card">
+            <div className="tasks-stat-icon pending">
+              <Clock size={24} />
+            </div>
+            <div className="tasks-stat-content">
+              <div className="tasks-stat-number">{stats.pending}</div>
+              <div className="tasks-stat-label">Aktywne zadania</div>
+              <div className="tasks-stat-sub">{stats.today} na dziś</div>
+            </div>
           </div>
-          <strong className="metric-value">{stats.pending}</strong>
-          <span className="metric-trend positive">
-            {stats.today} zaplanowane na dziś
-          </span>
-        </article>
-        <article className="metric-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span className="metric-label">Spóźnione</span>
-            <span style={{ fontSize: '20px' }}>⚠️</span>
+          <div className="tasks-stat-card">
+            <div className="tasks-stat-icon overdue">
+              <AlertTriangle size={24} />
+            </div>
+            <div className="tasks-stat-content">
+              <div className="tasks-stat-number">{stats.overdue}</div>
+              <div className="tasks-stat-label">Spóźnione</div>
+              <div className="tasks-stat-sub">{stats.total ? `${Math.round((stats.overdue / stats.total) * 100)}%` : 0} listy</div>
+            </div>
           </div>
-          <strong className="metric-value overdue">{stats.overdue}</strong>
-          <span className="metric-trend">
-            {stats.total ? `${Math.round((stats.overdue / stats.total) * 100)}%` : 0}
-            {' '}listy zadań
-          </span>
-        </article>
-        <article className="metric-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span className="metric-label">Zakończone</span>
-            <span style={{ fontSize: '20px' }}>✅</span>
+          <div className="tasks-stat-card">
+            <div className="tasks-stat-icon completed">
+              <CheckCircle size={24} />
+            </div>
+            <div className="tasks-stat-content">
+              <div className="tasks-stat-number">{stats.completed}</div>
+              <div className="tasks-stat-label">Zakończone</div>
+              <div className="tasks-stat-sub">z {stats.total} łącznie</div>
+            </div>
           </div>
-          <strong className="metric-value completed">{stats.completed}</strong>
-          <span className="metric-trend neutral">
-            Łącznie {stats.total} zadań
-          </span>
-        </article>
-        <article className="metric-card" style={{ gridColumn: 'span 1' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span className="metric-label">Postęp</span>
-            <span style={{ fontSize: '20px' }}>📊</span>
+          <div className="tasks-stat-card">
+            <div className="tasks-stat-icon progress">
+              <TrendingUp size={24} />
+            </div>
+            <div className="tasks-stat-content">
+              <div className="tasks-stat-number">{stats.total ? Math.round((stats.completed / stats.total) * 100) : 0}%</div>
+              <div className="tasks-stat-label">Postęp</div>
+              <div className="tasks-progress-bar">
+                <div className="tasks-progress-fill" style={{ width: `${stats.total ? (stats.completed / stats.total) * 100 : 0}%` }}></div>
+              </div>
+            </div>
           </div>
-          <strong className="metric-value" style={{ color: '#6366f1' }}>
-            {stats.total ? Math.round((stats.completed / stats.total) * 100) : 0}%
-          </strong>
-          <div style={{ width: '100%', height: '8px', backgroundColor: '#e5e7eb', borderRadius: '4px', overflow: 'hidden', marginTop: '12px' }}>
-            <div style={{
-              width: `${stats.total ? (stats.completed / stats.total) * 100 : 0}%`,
-              height: '100%',
-              backgroundColor: '#10b981',
-              transition: 'width 0.3s ease',
-              borderRadius: '4px'
-            }}></div>
-          </div>
-          <span className="metric-trend neutral" style={{ marginTop: '8px', display: 'block' }}>
-            {stats.completed} z {stats.total} ukończonych
-          </span>
-        </article>
-      </section>
+        </div>
 
       <div className="main-layout">
         {/* Left Sidebar - Filters */}

@@ -4,9 +4,10 @@ import com.crm.model.Contact;
 import com.crm.model.Email;
 import com.crm.repository.ContactRepository;
 import com.crm.repository.EmailRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
@@ -18,7 +19,6 @@ import java.util.Optional;
 import com.crm.exception.ResourceNotFoundException;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 @Slf4j
 public class ContactService {
@@ -27,6 +27,21 @@ public class ContactService {
     private final EmailRepository emailRepository;
     private final AIClassificationService aiClassificationService;
     private final UserContactService userContactService;
+    private final WorkflowAutomationService workflowAutomationService;
+
+    @Autowired
+    public ContactService(
+            ContactRepository contactRepository,
+            EmailRepository emailRepository,
+            AIClassificationService aiClassificationService,
+            UserContactService userContactService,
+            @Lazy WorkflowAutomationService workflowAutomationService) {
+        this.contactRepository = contactRepository;
+        this.emailRepository = emailRepository;
+        this.aiClassificationService = aiClassificationService;
+        this.userContactService = userContactService;
+        this.workflowAutomationService = workflowAutomationService;
+    }
     
     public List<Contact> getAllContacts() {
         return contactRepository.findAll();
@@ -75,6 +90,15 @@ public class ContactService {
                      savedContact.getId(), savedContact.getUserId());
         } else {
             log.warn("Contact {} created without userId - will not be visible to any user!", savedContact.getId());
+        }
+
+        // Trigger workflow automation for new contact
+        try {
+            workflowAutomationService.handleContactCreated(savedContact);
+            log.debug("Triggered CONTACT_CREATED workflow for contact {}", savedContact.getId());
+        } catch (Exception e) {
+            log.error("Error triggering CONTACT_CREATED workflow for contact {}: {}",
+                     savedContact.getId(), e.getMessage(), e);
         }
 
         return savedContact;

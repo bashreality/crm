@@ -63,10 +63,10 @@ const Header = ({ onOpenSearch }) => {
             Szanse
           </Link>
           <Link
-            to="/campaigns"
-            className={`nav-item ${isActive('/campaigns') ? 'active' : ''}`}
+            to="/email-marketing"
+            className={`nav-item ${isActive('/email-marketing') ? 'active' : ''}`}
           >
-            Kampanie
+            Marketing
           </Link>
           <Link
             to="/sequences"
@@ -110,46 +110,20 @@ const Header = ({ onOpenSearch }) => {
             to="/email-accounts"
             className={`nav-item ${isActive('/email-accounts') ? 'active' : ''}`}
           >
-            Konta Email
-          </Link>
-          <Link
-            to="/email-templates"
-            className={`nav-item ${isActive('/email-templates') ? 'active' : ''}`}
-          >
-            Szablony
+            Konta
           </Link>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="header-right-section">
           {/* Search Button */}
           <button
             onClick={onOpenSearch}
             className="search-button"
             title="Szukaj (Ctrl+K)"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              backgroundColor: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '8px',
-              color: 'var(--color-text-main)',
-              cursor: 'pointer',
-              fontSize: '14px',
-              transition: 'all 0.2s'
-            }}
           >
             <Search size={16} />
-            <span style={{ opacity: 0.7 }}>Szukaj...</span>
-            <kbd style={{
-              padding: '2px 6px',
-              backgroundColor: 'var(--color-bg-surface)',
-              borderRadius: '4px',
-              fontSize: '11px',
-              marginLeft: '8px',
-              border: '1px solid var(--color-border)'
-            }}>⌘K</kbd>
+            <span className="search-text">Szukaj...</span>
+            <kbd className="search-kbd">⌘K</kbd>
           </button>
 
           {/* Theme Toggle Button */}
@@ -157,38 +131,25 @@ const Header = ({ onOpenSearch }) => {
             onClick={toggleTheme}
             className="theme-toggle-button"
             title={theme === 'dark' ? 'Przełącz na tryb jasny' : 'Przełącz na tryb ciemny'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '8px',
-              width: '36px',
-              height: '36px',
-              backgroundColor: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '8px',
-              color: 'var(--color-text-main)',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-        </div>
 
-        <div className="user-info">
-          <button
-            className="avatar avatar-button"
-            title="Konto i zmiana hasła"
-            onClick={() => navigate('/settings')}
-          >
-            {user.username.substring(0, 2).toUpperCase()}
-          </button>
-          <div className="user-dropdown">
-            <div className="user-name">{user.username}</div>
-            <button onClick={handleLogout} className="logout-btn" title="Wyloguj się">
-              🚪 Wyloguj
+          {/* User Info */}
+          <div className="user-info">
+            <button
+              className="avatar avatar-button"
+              title="Konto i zmiana hasła"
+              onClick={() => navigate('/settings')}
+            >
+              {user.username.substring(0, 2).toUpperCase()}
             </button>
+            <div className="user-dropdown">
+              <div className="user-name">{user.username}</div>
+              <button onClick={handleLogout} className="logout-btn" title="Wyloguj się">
+                🚪 Wyloguj
+              </button>
+            </div>
           </div>
         </div>
       </div>

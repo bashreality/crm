@@ -1,20 +1,25 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  MoreHorizontal, 
-  Trash2, 
-  Send, 
+import {
+  Search,
+  Filter,
+  Mail,
+  Phone,
+  Calendar,
+  MoreHorizontal,
+  Trash2,
+  Send,
   UserPlus,
   X,
   Edit3,
   Building2,
   User,
   StickyNote,
-  Plus
+  Plus,
+  Users,
+  RefreshCw,
+  Tag,
+  Activity,
+  Clock
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import api, { contactsApi, tasksApi, emailAccountsApi, tagsApi, sequencesApi, notesApi } from '../services/api';
@@ -476,33 +481,97 @@ const Contacts = () => {
     }
   };
 
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = contacts.length;
+    const withTags = contacts.filter(c => c.tags && c.tags.length > 0).length;
+    const recentlyActive = contacts.filter(c => {
+      if (!c.updatedAt) return false;
+      const diffDays = Math.floor((Date.now() - new Date(c.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    }).length;
+    const withCompany = contacts.filter(c => c.company).length;
+    return { total, withTags, recentlyActive, withCompany };
+  }, [contacts]);
+
   return (
-    <div className="contacts-shell" style={{ background: 'var(--color-bg-main)', minHeight: '100vh' }}>
+    <div className="contacts-container">
       <Toaster position="top-right" />
 
-      {/* Main Dashboard Layout - matching Dashboard page */}
-      <div className="container" style={{ paddingTop: '24px' }}>
-        {/* Action buttons integrated into background */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'flex-end', 
-          gap: '12px', 
-          marginBottom: '24px' 
-        }}>
-          <button className="btn btn-secondary" onClick={() => fetchContacts()}>🔄 Odśwież</button>
-          <button className="btn btn-primary" onClick={() => setShowCreateContactModal(true)}>+ Dodaj kontakt</button>
+      {/* Modern Header */}
+      <div className="contacts-header">
+        <div className="contacts-header-content">
+          <div className="contacts-header-icon">
+            <Users size={32} />
+          </div>
+          <div>
+            <h1>Kontakty</h1>
+            <p>Zarządzaj bazą kontaktów i relacjami z klientami</p>
+          </div>
         </div>
-        <div className="main-layout">
+        <div className="contacts-header-actions">
+          <button className="btn btn-secondary" onClick={() => fetchContacts()}>
+            <RefreshCw size={18} />
+            Odśwież
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowCreateContactModal(true)}>
+            <Plus size={18} />
+            Dodaj kontakt
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="contacts-stats-grid">
+        <div className="contacts-stat-card">
+          <div className="contacts-stat-icon total">
+            <Users size={24} />
+          </div>
+          <div className="contacts-stat-content">
+            <div className="contacts-stat-number">{stats.total}</div>
+            <div className="contacts-stat-label">Wszystkich kontaktów</div>
+          </div>
+        </div>
+        <div className="contacts-stat-card">
+          <div className="contacts-stat-icon tagged">
+            <Tag size={24} />
+          </div>
+          <div className="contacts-stat-content">
+            <div className="contacts-stat-number">{stats.withTags}</div>
+            <div className="contacts-stat-label">Z tagami</div>
+          </div>
+        </div>
+        <div className="contacts-stat-card">
+          <div className="contacts-stat-icon active">
+            <Activity size={24} />
+          </div>
+          <div className="contacts-stat-content">
+            <div className="contacts-stat-number">{stats.recentlyActive}</div>
+            <div className="contacts-stat-label">Aktywnych (7 dni)</div>
+          </div>
+        </div>
+        <div className="contacts-stat-card">
+          <div className="contacts-stat-icon company">
+            <Building2 size={24} />
+          </div>
+          <div className="contacts-stat-content">
+            <div className="contacts-stat-number">{stats.withCompany}</div>
+            <div className="contacts-stat-label">Z firmą</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Layout */}
+      <div className="contacts-main-layout">
         {/* Left Sidebar - Filters */}
-        <aside className="sidebar">
+        <aside className="contacts-sidebar">
           <h3>Filtry kontaktów</h3>
 
-          <div className="filter-group">
-            <label className="filter-label">Szukaj</label>
-            <div className="filter-input" style={{ position: 'relative' }}>
-               <Search className="search-icon" size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
+          <div className="contacts-filter-group">
+            <label>Szukaj</label>
+            <div className="contacts-search-wrapper">
+               <Search size={16} />
                <input
-                 style={{ paddingLeft: '40px', width: '100%' }}
                  placeholder="Szukaj kontaktów..."
                  value={search}
                  onChange={e => setSearch(e.target.value)}
@@ -510,10 +579,9 @@ const Contacts = () => {
             </div>
           </div>
 
-          <div className="filter-group">
-            <label className="filter-label">Firma</label>
+          <div className="contacts-filter-group">
+            <label>Firma</label>
             <select
-                className="filter-input"
                 value={companyFilter}
                 onChange={e => setCompanyFilter(e.target.value)}
             >
@@ -522,10 +590,9 @@ const Contacts = () => {
             </select>
           </div>
 
-          <div className="filter-group">
-            <label className="filter-label">Tagi</label>
+          <div className="contacts-filter-group">
+            <label>Tagi</label>
             <select
-                className="filter-input"
                 value={tagFilter}
                 onChange={e => setTagFilter(e.target.value)}
             >
@@ -537,24 +604,24 @@ const Contacts = () => {
         </aside>
 
         {/* Main Content */}
-        <section className="contacts-center">
-          {/* Toolbar - simplified */}
-          <div className="contacts-toolbar">
-            <div>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#111827' }}>
-                Lista kontaktów
-              </h3>
-              <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#6b7280' }}>
-                Wyświetlono {filtered.length} z {contacts.length} kontaktów
-              </p>
-            </div>
+        <section className="contacts-content">
+          {/* Card Container */}
+          <div className="contacts-card">
+            {/* Toolbar */}
+            <div className="contacts-card-header">
+              <div>
+                <h3>Lista kontaktów</h3>
+                <p>Wyświetlono {filtered.length} z {contacts.length} kontaktów</p>
+              </div>
 
-            <div style={{display:'flex', gap: '12px', alignItems: 'center'}}>
-              <span style={{ fontSize: '14px', color: '#6b7280' }}>
-                {selectedIds.size > 0 && `${selectedIds.size} zaznaczonych`}
-              </span>
+              <div className="contacts-card-actions">
+                {selectedIds.size > 0 && (
+                  <span className="contacts-selected-count">
+                    {selectedIds.size} zaznaczonych
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
           {/* Data Grid */}
           <div className="contacts-table-container">
@@ -687,7 +754,8 @@ const Contacts = () => {
                 </button>
              </div>
           </div>
-        </section>
+         </div>
+       </section>
 
         {/* Right Slide-Over Panel */}
         <aside className={`contacts-details ${detailsOpen ? 'open' : ''}`}>
@@ -841,7 +909,6 @@ const Contacts = () => {
                 </div>
             )}
         </aside>
-        </div>
       </div>
 
       {/* Floating Bulk Actions Bar */}

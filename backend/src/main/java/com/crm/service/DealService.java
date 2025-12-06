@@ -8,10 +8,11 @@ import com.crm.repository.DealRepository;
 import com.crm.repository.PipelineRepository;
 import com.crm.repository.PipelineStageRepository;
 import com.crm.repository.ContactRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,7 +20,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class DealService {
 
@@ -27,6 +27,21 @@ public class DealService {
     private final PipelineRepository pipelineRepository;
     private final PipelineStageRepository stageRepository;
     private final ContactRepository contactRepository;
+    private final WorkflowAutomationService workflowAutomationService;
+
+    @Autowired
+    public DealService(
+            DealRepository dealRepository,
+            PipelineRepository pipelineRepository,
+            PipelineStageRepository stageRepository,
+            ContactRepository contactRepository,
+            @Lazy WorkflowAutomationService workflowAutomationService) {
+        this.dealRepository = dealRepository;
+        this.pipelineRepository = pipelineRepository;
+        this.stageRepository = stageRepository;
+        this.contactRepository = contactRepository;
+        this.workflowAutomationService = workflowAutomationService;
+    }
 
     @Cacheable(value = "pipelines")
     public List<Pipeline> getAllPipelines() {
@@ -82,23 +97,56 @@ public class DealService {
         Deal deal = dealRepository.findById(dealId)
                 .orElseThrow(() -> new RuntimeException("Deal not found"));
         
-        PipelineStage stage = stageRepository.findById(stageId)
+        PipelineStage oldStage = deal.getStage();
+        PipelineStage newStage = stageRepository.findById(stageId)
                 .orElseThrow(() -> new RuntimeException("Stage not found"));
         
-        deal.setStage(stage);
+        // Skip if stage hasn't changed
+        if (oldStage != null && oldStage.getId().equals(newStage.getId())) {
+            return deal;
+        }
+        
+        deal.setStage(newStage);
+        
+        String oldStatus = deal.getStatus();
+        boolean wasWon = "won".equals(oldStatus);
+        boolean wasLost = "lost".equals(oldStatus);
         
         // Check if stage implies won/lost
-        if ("Closed Won".equalsIgnoreCase(stage.getName())) {
+        if ("Closed Won".equalsIgnoreCase(newStage.getName()) ||
+            "Zamknięte (Wygrana)".equalsIgnoreCase(newStage.getName())) {
             deal.setStatus("won");
             deal.setWonAt(LocalDateTime.now());
-        } else if ("Closed Lost".equalsIgnoreCase(stage.getName())) {
+        } else if ("Closed Lost".equalsIgnoreCase(newStage.getName()) ||
+                   "Zamknięte (Przegrana)".equalsIgnoreCase(newStage.getName())) {
             deal.setStatus("lost");
             deal.setLostAt(LocalDateTime.now());
         } else {
             deal.setStatus("open");
         }
         
-        return dealRepository.save(deal);
+        Deal savedDeal = dealRepository.save(deal);
+        
+        // Trigger workflow automations
+        try {
+            // Always trigger stage changed
+            workflowAutomationService.handleDealStageChanged(savedDeal, oldStage, newStage);
+            log.debug("Triggered DEAL_STAGE_CHANGED workflow for deal {}", savedDeal.getId());
+            
+            // Trigger won/lost if status changed
+            if ("won".equals(savedDeal.getStatus()) && !wasWon) {
+                workflowAutomationService.handleDealWon(savedDeal);
+                log.debug("Triggered DEAL_WON workflow for deal {}", savedDeal.getId());
+            } else if ("lost".equals(savedDeal.getStatus()) && !wasLost) {
+                workflowAutomationService.handleDealLost(savedDeal);
+                log.debug("Triggered DEAL_LOST workflow for deal {}", savedDeal.getId());
+            }
+        } catch (Exception e) {
+            log.error("Error triggering deal workflow for deal {}: {}",
+                     savedDeal.getId(), e.getMessage(), e);
+        }
+        
+        return savedDeal;
     }
 
     @Transactional

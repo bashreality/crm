@@ -6,7 +6,7 @@ import Header from './components/Header';
 import CommandPalette from './components/CommandPalette';
 import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
-import Campaigns from './pages/Campaigns';
+import EmailMarketing from './pages/EmailMarketing';
 import Analytics from './pages/Analytics';
 import Sequences from './pages/Sequences';
 import Tasks from './pages/Tasks';
@@ -16,7 +16,6 @@ import Settings from './pages/Settings';
 import Deals from './pages/Deals';
 import Users from './pages/Users';
 import EmailAccounts from './pages/EmailAccounts';
-import EmailTemplates from './pages/EmailTemplates';
 import Automations from './pages/Automations';
 import './App.css';
 
@@ -73,7 +72,7 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/contacts" element={<Contacts />} />
-                      <Route path="/campaigns" element={<Campaigns />} />
+                      <Route path="/email-marketing" element={<EmailMarketing />} />
                       <Route path="/deals" element={<Deals />} />
                       <Route path="/analytics" element={<Analytics />} />
                       <Route path="/sequences" element={<Sequences />} />
@@ -82,7 +81,6 @@ function App() {
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/users" element={<Users />} />
                       <Route path="/email-accounts" element={<EmailAccounts />} />
-                      <Route path="/email-templates" element={<EmailTemplates />} />
                       <Route path="/automations" element={<Automations />} />
                     </Routes>
                   </>

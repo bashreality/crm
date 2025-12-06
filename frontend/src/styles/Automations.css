@@ -1,4 +1,4 @@
-/* Automations Page Styles */
+/* ===== AUTOMATIONS PAGE - Modern Design ===== */
 
 .automations-container {
   padding: 24px 32px;
@@ -8,12 +8,32 @@
   background: var(--color-bg-main);
 }
 
-/* Header */
+/* ===== PAGE HEADER ===== */
 .automations-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.automations-header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.automations-header-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
 .automations-header h1 {
@@ -21,6 +41,7 @@
   font-weight: 700;
   color: var(--color-text-main);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .automations-header p {
@@ -29,41 +50,58 @@
   font-size: 14px;
 }
 
-/* Stats */
+/* ===== STATS GRID ===== */
 .automations-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .automations-stats .stat-card {
   background: var(--color-bg-surface);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
   border: 1px solid var(--color-border);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease;
 }
 
 .automations-stats .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-primary);
 }
 
-.automations-stats .stat-icon {
-  color: var(--color-primary);
+.stat-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.automations-stats .stat-icon.success {
-  color: var(--color-success);
+.stat-icon-wrapper.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.stat-icon-wrapper.executions {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  color: white;
+}
+
+.stat-icon-wrapper.total {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
 }
 
 .automations-stats .stat-value {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--color-text-main);
   line-height: 1;
@@ -75,7 +113,7 @@
   margin-top: 4px;
 }
 
-/* Rules List */
+/* ===== RULES LIST ===== */
 .automations-list {
   background: var(--color-bg-surface);
   border-radius: 16px;
@@ -84,7 +122,7 @@
 }
 
 .loading-state, .empty-state {
-  padding: 48px;
+  padding: 60px;
   text-align: center;
   color: var(--color-text-secondary);
 }
@@ -95,16 +133,17 @@
 }
 
 .empty-state h3 {
-  font-size: 18px;
+  font-size: 20px;
   color: var(--color-text-main);
   margin: 0 0 8px;
 }
 
 .empty-state p {
   margin: 0 0 24px;
+  font-size: 14px;
 }
 
-/* Automation Card */
+/* ===== AUTOMATION CARD ===== */
 .automation-card {
   border-bottom: 1px solid var(--color-border);
   transition: background 0.2s;
@@ -115,7 +154,7 @@
 }
 
 .automation-card:hover {
-  background: var(--color-bg-main);
+  background: var(--color-bg-elevated);
 }
 
 .automation-card.inactive {
@@ -125,7 +164,7 @@
 .automation-main {
   display: flex;
   align-items: center;
-  padding: 16px 20px;
+  padding: 18px 24px;
   cursor: pointer;
   gap: 16px;
 }
@@ -142,8 +181,8 @@
 }
 
 .status-dot.active {
-  background: var(--color-success);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
 .status-dot.inactive {
@@ -159,13 +198,13 @@
   font-size: 15px;
   font-weight: 600;
   color: var(--color-text-main);
-  margin: 0 0 6px;
+  margin: 0 0 8px;
 }
 
 .automation-flow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 13px;
 }
 
@@ -173,15 +212,29 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
   background: var(--color-bg-main);
   color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.flow-item.trigger {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.flow-item.action {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
 }
 
 .flow-arrow {
   color: var(--color-text-muted);
   font-weight: 600;
+  font-size: 16px;
 }
 
 .automation-stats {
@@ -192,22 +245,23 @@
   font-size: 13px;
   color: var(--color-text-muted);
   background: var(--color-bg-main);
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
 }
 
 .automation-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
 .action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
   display: flex;
@@ -221,29 +275,38 @@
 }
 
 .action-btn.play:hover {
-  color: var(--color-success);
+  color: #10b981;
+  border-color: #10b981;
   background: rgba(16, 185, 129, 0.1);
 }
 
 .action-btn.pause:hover {
-  color: var(--color-warning);
+  color: #f59e0b;
+  border-color: #f59e0b;
   background: rgba(245, 158, 11, 0.1);
 }
 
 .action-btn.edit:hover {
   color: var(--color-primary);
+  border-color: var(--color-primary);
   background: rgba(99, 102, 241, 0.1);
 }
 
 .action-btn.delete:hover {
-  color: var(--color-danger);
+  color: #ef4444;
+  border-color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
 }
 
-/* Expanded Details */
+.action-btn.expand {
+  border: none;
+  background: transparent;
+}
+
+/* ===== EXPANDED DETAILS ===== */
 .automation-details {
-  padding: 16px 20px 20px 46px;
-  background: var(--color-bg-main);
+  padding: 16px 24px 20px 50px;
+  background: var(--color-bg-elevated);
   border-top: 1px solid var(--color-border);
 }
 
@@ -251,7 +314,7 @@
   display: flex;
   gap: 12px;
   font-size: 13px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .detail-row:last-child {
@@ -260,18 +323,130 @@
 
 .detail-label {
   color: var(--color-text-muted);
-  min-width: 140px;
+  min-width: 160px;
+  font-weight: 500;
 }
 
-/* Modal */
-.automation-modal {
+/* ===== BUTTONS ===== */
+.btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+.btn-secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-main);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-surface);
+  border-color: var(--color-primary);
+}
+
+/* ===== MODAL STYLES ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--color-bg-surface);
+  border-radius: 16px;
+  width: 100%;
   max-width: 600px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--color-border);
 }
 
-.automation-form {
+.automation-modal {
+  max-width: 650px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--color-text-main);
+  font-weight: 700;
+}
+
+.modal-close {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--color-text-muted);
   padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-main);
+  border-color: var(--color-primary);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+}
+
+/* ===== FORM STYLES ===== */
+.automation-form {
+  overflow-y: auto;
+  flex: 1;
 }
 
 .form-section {
@@ -303,9 +478,9 @@
 .form-group label {
   display: block;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin-bottom: 8px;
 }
 
 .form-group input[type="text"],
@@ -313,13 +488,18 @@
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 14px;
-  background: var(--color-bg-surface);
+  background: var(--color-bg-elevated);
   color: var(--color-text-main);
   transition: border-color 0.2s;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--color-text-muted);
 }
 
 .form-group input:focus,
@@ -327,6 +507,7 @@
 .form-group textarea:focus {
   outline: none;
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .form-row {
@@ -343,8 +524,9 @@
 .checkbox-group label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
+  font-weight: 500;
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -354,39 +536,44 @@
 }
 
 .config-field {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .config-field label {
   display: block;
   font-size: 13px;
   color: var(--color-text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  font-weight: 500;
 }
 
 .config-field input,
 .config-field select,
 .config-field textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   font-size: 14px;
-  background: var(--color-bg-surface);
+  background: var(--color-bg-elevated);
   color: var(--color-text-main);
 }
 
-/* Modal Footer */
-.automation-modal .modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  background: var(--color-bg-main);
+.config-field input:focus,
+.config-field select:focus,
+.config-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-/* Responsive */
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+  .automations-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .automations-container {
     padding: 16px;
@@ -404,6 +591,7 @@
 
   .automation-main {
     flex-wrap: wrap;
+    padding: 16px;
   }
 
   .automation-flow {
@@ -413,7 +601,7 @@
   .automation-actions {
     width: 100%;
     justify-content: flex-end;
-    margin-top: 8px;
+    margin-top: 12px;
   }
 
   .form-row {
@@ -421,9 +609,13 @@
   }
 }
 
-/* Dark Mode */
+/* ===== DARK MODE ===== */
 html.dark .automations-container {
   background: var(--color-bg-main);
+}
+
+html.dark .stat-card {
+  background: var(--color-bg-surface);
 }
 
 html.dark .automation-card:hover {
@@ -436,6 +628,14 @@ html.dark .automation-details {
 
 html.dark .flow-item {
   background: var(--color-bg-elevated);
+}
+
+html.dark .flow-item.trigger {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+html.dark .flow-item.action {
+  background: rgba(16, 185, 129, 0.15);
 }
 
 html.dark .exec-count {
@@ -453,7 +653,14 @@ html.dark .config-field textarea {
   color: var(--color-text-main);
 }
 
-html.dark .automation-modal .modal-footer {
+html.dark .modal-content {
+  background: var(--color-bg-surface);
+}
+
+html.dark .modal-header {
   background: var(--color-bg-elevated);
 }
 
+html.dark .modal-footer {
+  background: var(--color-bg-elevated);
+}

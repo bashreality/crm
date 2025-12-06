@@ -1,3 +1,207 @@
+/* Sequences Page - Modern Design */
+
+.sequences-shell {
+  min-height: 100vh;
+  background-color: var(--color-bg-main, #f8fafc);
+  padding: 0;
+}
+
+.sequences-container {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+/* Modern Header - Transparent Style */
+.sequences-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  box-shadow: none;
+}
+
+.sequences-header-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.sequences-header-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
+}
+
+.sequences-header-content h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+}
+
+.sequences-header-content p {
+  margin: 4px 0 0 0;
+  font-size: 15px;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.sequences-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.sequences-header-actions .btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Stats Grid */
+.sequences-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.sequences-stat-card {
+  background: var(--color-bg-surface, #fff);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border, #e5e7eb);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.2s ease;
+}
+
+.sequences-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+}
+
+.sequences-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sequences-stat-icon.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.sequences-stat-icon.executions {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.sequences-stat-icon.pending {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.sequences-stat-icon.total {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.sequences-stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sequences-stat-number {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-text-main, #111827);
+  margin-bottom: 4px;
+}
+
+.sequences-stat-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted, #9ca3af);
+}
+
+/* Main Layout */
+.sequences-main-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.sequences-list-section {
+  background: var(--color-bg-surface, #fff);
+  border-radius: 16px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.sequences-list-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg-elevated, #f9fafb);
+}
+
+.sequences-list-content {
+  padding: 16px;
+  max-height: calc(100vh - 500px);
+  overflow-y: auto;
+}
+
+.sequences-center {
+  background: var(--color-bg-surface, #fff);
+  border-radius: 16px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  min-height: 400px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sequences-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-bg-elevated, #f9fafb);
+  border-radius: 16px 16px 0 0;
+}
+
+.sequences-content {
+  padding: 24px;
+}
+
+/* Legacy wrapper support */
 .sequences-wrapper {
   max-width: 1600px;
   margin: 0 auto;
@@ -6,12 +210,6 @@
   flex-direction: column;
   gap: 32px;
   font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
-}
-
-/* Topbar removed - buttons integrated into background */
-.sequences-shell {
-  min-height: 100vh;
-  background-color: var(--color-bg-main, #f8fafc);
 }
 
 /* --- Tabs --- */
@@ -233,11 +431,20 @@
   color: #6b7280;
   font-size: 14px;
   align-items: center;
+  margin-bottom: 16px;
 }
 
 .sequence-details__actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.sequence-details__actions .btn {
+  white-space: nowrap;
+  padding: 8px 14px;
+  font-size: 13px;
 }
 
 /* --- Steps Timeline (Read Mode) --- */
@@ -1285,4 +1492,101 @@ html.dark .btn-icon {
 html.dark .btn-icon:hover {
   background-color: var(--color-bg-elevated);
   color: var(--color-text-main);
+}
+
+/* ===== NEW MODERN HEADER DARK MODE ===== */
+html.dark .sequences-header {
+  background: transparent;
+  border-color: var(--color-border);
+}
+
+html.dark .sequences-header-content h1 {
+  color: var(--color-text-main);
+}
+
+html.dark .sequences-header-content p {
+  color: var(--color-text-secondary);
+}
+
+html.dark .sequences-stat-card {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sequences-stat-number {
+  color: var(--color-text-main);
+}
+
+html.dark .sequences-stat-label {
+  color: var(--color-text-muted);
+}
+
+html.dark .sequences-list-section {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sequences-list-header {
+  background-color: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .sequences-list-header h3 {
+  color: var(--color-text-main);
+}
+
+html.dark .sequences-center {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .sequences-toolbar {
+  background-color: var(--color-bg-elevated);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .sequences-toolbar h3 {
+  color: var(--color-text-main);
+}
+
+/* Responsive for new header */
+@media (max-width: 1200px) {
+  .sequences-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .sequences-main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .sequences-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .sequences-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .sequences-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .sequences-header-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+  
+  .sequences-header-content h1 {
+    font-size: 22px;
+  }
+  
+  .sequences-container {
+    padding: 16px;
+  }
 }

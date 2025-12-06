@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Users as UsersIcon, UserPlus, Edit2, Trash2, Shield, User } from 'lucide-react';
 import api from '../services/api';
 import '../styles/Users.css';
 
@@ -122,9 +123,18 @@ const Users = () => {
   return (
     <div className="users-container">
       <div className="users-header">
-        <h1>Zarządzanie użytkownikami</h1>
-        <button className="btn-add" onClick={() => setShowModal(true)}>
-          + Dodaj użytkownika
+        <div className="users-header-content">
+          <div className="users-header-icon">
+            <UsersIcon size={32} />
+          </div>
+          <div>
+            <h1>Zarządzanie użytkownikami</h1>
+            <p>Dodawaj, edytuj i zarządzaj kontami użytkowników systemu</p>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+          <UserPlus size={18} />
+          Dodaj użytkownika
         </button>
       </div>
 
@@ -161,11 +171,11 @@ const Users = () => {
                 </td>
                 <td>{new Date(user.createdAt).toLocaleDateString('pl-PL')}</td>
                 <td className="actions">
-                  <button className="btn-edit" onClick={() => handleEdit(user)}>
-                    Edytuj
+                  <button className="btn-action btn-action-edit" onClick={() => handleEdit(user)} title="Edytuj">
+                    <Edit2 size={16} />
                   </button>
-                  <button className="btn-delete" onClick={() => handleDelete(user.id)}>
-                    Usuń
+                  <button className="btn-action btn-action-delete" onClick={() => handleDelete(user.id)} title="Usuń">
+                    <Trash2 size={16} />
                   </button>
                 </td>
               </tr>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext } from 'react-beautiful-dnd';
 import toast, { Toaster } from 'react-hot-toast';
@@ -8,7 +8,12 @@ import {
   Filter,
   Search,
   Bot,
-  Zap
+  Zap,
+  TrendingUp,
+  DollarSign,
+  Target,
+  Users,
+  BarChart3
 } from 'lucide-react';
 import api, { contactsApi, emailAccountsApi, tasksApi, sequencesApi, tagsApi } from '../services/api';
 import PipelineColumn from '../components/deals/PipelineColumn';
@@ -781,40 +786,46 @@ const Deals = () => {
     }
   };
 
-  if (loading) return <div className="container loading-screen">Ładowanie systemu CRM...</div>;
+  // Calculate stats
+  const stats = useMemo(() => {
+    const dealsArray = Array.isArray(deals) ? deals : [];
+    const totalValue = dealsArray.reduce((sum, d) => sum + (d.value || 0), 0);
+    const totalDeals = dealsArray.length;
+    const avgValue = totalDeals > 0 ? totalValue / totalDeals : 0;
+    const uniqueContacts = new Set(dealsArray.map(d => d.contact?.id).filter(Boolean)).size;
+    return { totalValue, totalDeals, avgValue, uniqueContacts };
+  }, [deals]);
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(value);
+  };
+
+  if (loading) return <div className="deals-loading">Ładowanie systemu CRM...</div>;
 
   return (
-    <div className="container" style={{ paddingTop: '24px' }}>
-      <div className="deals-board-wrapper">
-        <Toaster position="top-right" />
+    <div className="deals-container">
+      <Toaster position="top-right" />
       
+      {/* Modern Header */}
       <div className="deals-header">
-        <div>
-          <h1>Sales Pipeline</h1>
-          <div className="pipeline-controls" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-             {pipelines.length > 1 && pipelines.map(p => (
-                <button
-                  key={p.id}
-                  className={`btn ${activePipeline?.id === p.id ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => { setActivePipeline(p); fetchDeals(p.id); }}
-                  style={{ fontSize: '13px', padding: '6px 12px' }}
-                >
-                  {p.name}
-                </button>
-              ))}
+        <div className="deals-header-content">
+          <div className="deals-header-icon">
+            <TrendingUp size={32} />
+          </div>
+          <div>
+            <h1>Sales Pipeline</h1>
+            <p>Zarządzaj szansami sprzedażowymi i lejkami</p>
           </div>
         </div>
-
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div className="search-box" style={{ position: 'relative' }}>
-             <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: '#9ca3af' }} />
-             <input 
-               type="text" 
-               placeholder="Szukaj szansy..." 
-               value={searchQuery}
-               onChange={e => setSearchQuery(e.target.value)}
-               style={{ paddingLeft: '34px', height: '38px', borderRadius: '6px', border: '1px solid #d1d5db' }}
-             />
+        <div className="deals-header-actions">
+          <div className="deals-search-box">
+            <Search size={16} />
+            <input
+              type="text"
+              placeholder="Szukaj szansy..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
           </div>
           <button className="btn btn-secondary" onClick={handleCreatePipeline}>
             <Settings size={16} /> Zarządzaj lejkami
@@ -826,6 +837,69 @@ const Deals = () => {
           )}
         </div>
       </div>
+
+      {/* Stats Grid */}
+      <div className="deals-stats-grid">
+        <div className="deals-stat-card">
+          <div className="deals-stat-icon value">
+            <DollarSign size={24} />
+          </div>
+          <div className="deals-stat-content">
+            <div className="deals-stat-number">{formatCurrency(stats.totalValue)}</div>
+            <div className="deals-stat-label">Łączna wartość</div>
+          </div>
+        </div>
+        <div className="deals-stat-card">
+          <div className="deals-stat-icon deals">
+            <Target size={24} />
+          </div>
+          <div className="deals-stat-content">
+            <div className="deals-stat-number">{stats.totalDeals}</div>
+            <div className="deals-stat-label">Aktywnych szans</div>
+          </div>
+        </div>
+        <div className="deals-stat-card">
+          <div className="deals-stat-icon avg">
+            <BarChart3 size={24} />
+          </div>
+          <div className="deals-stat-content">
+            <div className="deals-stat-number">{formatCurrency(stats.avgValue)}</div>
+            <div className="deals-stat-label">Średnia wartość</div>
+          </div>
+        </div>
+        <div className="deals-stat-card">
+          <div className="deals-stat-icon contacts">
+            <Users size={24} />
+          </div>
+          <div className="deals-stat-content">
+            <div className="deals-stat-number">{stats.uniqueContacts}</div>
+            <div className="deals-stat-label">Unikalnych kontaktów</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pipeline Tabs */}
+      {pipelines.length > 1 && (
+        <div className="deals-pipeline-tabs">
+          {pipelines.map(p => (
+            <button
+              key={p.id}
+              className={`deals-pipeline-tab ${activePipeline?.id === p.id ? 'active' : ''}`}
+              onClick={() => { setActivePipeline(p); fetchDeals(p.id); }}
+            >
+              {p.name}
+              {activePipeline?.id === p.id && (
+                <span className="deals-pipeline-tab-count">
+                  {filteredDeals.filter(d => d.pipeline?.id === p.id || activePipeline?.id === p.id).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Kanban Board */}
+      <div className="deals-board-wrapper">
 
       {!activePipeline ? (
         <div className="empty-state-container" style={{ textAlign: 'center', marginTop: '60px' }}>

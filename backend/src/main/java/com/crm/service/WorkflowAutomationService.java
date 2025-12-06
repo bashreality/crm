@@ -35,6 +35,7 @@ public class WorkflowAutomationService {
     private final DealRepository dealRepository;
     private final TagRepository tagRepository;
     private final PipelineStageRepository pipelineStageRepository;
+    private final PipelineRepository pipelineRepository;
     private final SequenceService sequenceService;
     private final UserContextService userContextService;
 
@@ -43,7 +44,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Email został otwarty
      */
-    @Async
     @Transactional
     public void handleEmailOpened(Email email, Contact contact) {
         if (email == null || contact == null) {
@@ -66,7 +66,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Link w emailu został kliknięty
      */
-    @Async
     @Transactional
     public void handleEmailClicked(Email email, Contact contact, String clickedUrl) {
         if (email == null || contact == null) {
@@ -88,7 +87,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Pozytywna odpowiedź
      */
-    @Async
     @Transactional
     public void handlePositiveReply(Email email, Contact contact) {
         if (email == null || contact == null) {
@@ -110,7 +108,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Negatywna odpowiedź
      */
-    @Async
     @Transactional
     public void handleNegativeReply(Email email, Contact contact) {
         if (email == null || contact == null) {
@@ -131,7 +128,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Jakakolwiek odpowiedź
      */
-    @Async
     @Transactional
     public void handleAnyReply(Email email, Contact contact) {
         if (email == null || contact == null) {
@@ -152,7 +148,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Tag dodany do kontaktu
      */
-    @Async
     @Transactional
     public void handleTagAdded(Contact contact, Tag tag) {
         if (contact == null || tag == null) {
@@ -174,7 +169,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Tag usunięty z kontaktu
      */
-    @Async
     @Transactional
     public void handleTagRemoved(Contact contact, Tag tag) {
         if (contact == null || tag == null) {
@@ -195,7 +189,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Zmiana etapu szansy
      */
-    @Async
     @Transactional
     public void handleDealStageChanged(Deal deal, PipelineStage oldStage, PipelineStage newStage) {
         if (deal == null || newStage == null) {
@@ -221,7 +214,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Szansa wygrana
      */
-    @Async
     @Transactional
     public void handleDealWon(Deal deal) {
         if (deal == null) {
@@ -242,7 +234,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Szansa przegrana
      */
-    @Async
     @Transactional
     public void handleDealLost(Deal deal) {
         if (deal == null) {
@@ -262,7 +253,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Utworzono nowy kontakt
      */
-    @Async
     @Transactional
     public void handleContactCreated(Contact contact) {
         if (contact == null) {
@@ -283,7 +273,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Sekwencja zakończona
      */
-    @Async
     @Transactional
     public void handleSequenceCompleted(SequenceExecution execution) {
         if (execution == null || execution.getContact() == null) {
@@ -304,7 +293,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Brak odpowiedzi (dla wybranej liczby dni)
      */
-    @Async
     @Transactional
     public void handleNoReply(Contact contact, Email email, int daysSinceEmail) {
         if (contact == null || email == null) {
@@ -328,7 +316,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Zmiana scoring leada
      */
-    @Async
     @Transactional
     public void handleLeadScoreChanged(Contact contact, int oldScore, int newScore) {
         if (contact == null) {
@@ -352,7 +339,6 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Krok sekwencji został wysłany
      */
-    @Async
     @Transactional
     public void handleSequenceStepSent(SequenceExecution execution, SequenceStep step, Email email) {
         if (execution == null || execution.getContact() == null || step == null) {
@@ -708,8 +694,13 @@ public class WorkflowAutomationService {
     private Map<String, Object> executeCreateDeal(Map<String, Object> config, Contact contact) {
         Map<String, Object> result = new HashMap<>();
 
+        if (contact == null) {
+            result.put("error", "No contact associated with this trigger");
+            return result;
+        }
+
         String title = (String) config.getOrDefault("title", "Nowa szansa");
-        Double value = config.containsKey("value") ? 
+        Double value = config.containsKey("value") ?
                 ((Number) config.get("value")).doubleValue() : 0.0;
 
         Deal deal = new Deal();
@@ -719,17 +710,39 @@ public class WorkflowAutomationService {
         deal.setStatus("open");
         deal.setCurrency("PLN");
         
-        if (contact != null && contact.getUserId() != null) {
+        if (contact.getUserId() != null) {
             deal.setUserId(contact.getUserId());
         }
 
-        // Ustaw pierwszy etap domyślnego pipeline'a
+        // Ustaw pierwszy etap pipeline'a (z config lub domyślnego)
+        Long pipelineId = null;
         if (config.containsKey("pipelineId")) {
-            Long pipelineId = ((Number) config.get("pipelineId")).longValue();
-            List<PipelineStage> stages = pipelineStageRepository.findByPipelineIdOrderByPosition(pipelineId);
-            if (!stages.isEmpty()) {
-                deal.setStage(stages.get(0));
+            pipelineId = ((Number) config.get("pipelineId")).longValue();
+        }
+        
+        List<PipelineStage> stages = null;
+        if (pipelineId != null) {
+            stages = pipelineStageRepository.findByPipelineIdOrderByPosition(pipelineId);
+        }
+        
+        // Jeśli nie znaleziono stages dla podanego pipeline, użyj domyślnego
+        if (stages == null || stages.isEmpty()) {
+            Optional<Pipeline> defaultPipeline = pipelineRepository.findByIsDefaultTrueWithStages();
+            if (defaultPipeline.isPresent() && defaultPipeline.get().getStages() != null
+                && !defaultPipeline.get().getStages().isEmpty()) {
+                stages = defaultPipeline.get().getStages();
+                log.debug("Using default pipeline for deal creation");
             }
+        }
+        
+        if (stages != null && !stages.isEmpty()) {
+            deal.setStage(stages.get(0));
+            // Ustaw też pipeline na podstawie stage
+            deal.setPipeline(stages.get(0).getPipeline());
+        } else {
+            result.put("error", "No pipeline stages found - cannot create deal");
+            log.error("Cannot create deal: no pipeline stages available");
+            return result;
         }
 
         deal = dealRepository.save(deal);
@@ -737,7 +750,10 @@ public class WorkflowAutomationService {
         result.put("success", true);
         result.put("dealId", deal.getId());
         result.put("dealTitle", title);
-        log.info("Created deal '{}' for contact {}", title, contact.getId());
+        result.put("stageId", deal.getStage().getId());
+        result.put("stageName", deal.getStage().getName());
+        log.info("Created deal '{}' for contact {} in stage '{}'",
+                 title, contact.getId(), deal.getStage().getName());
 
         return result;
     }

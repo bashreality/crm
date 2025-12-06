@@ -497,9 +497,14 @@ const Automations = () => {
     <div className="automations-container">
       {/* Header */}
       <div className="automations-header">
-        <div>
-          <h1>Automatyzacje</h1>
-          <p>Twórz reguły automatyzacji dla follow-up i workflow</p>
+        <div className="automations-header-content">
+          <div className="automations-header-icon">
+            <Zap size={32} />
+          </div>
+          <div>
+            <h1>Automatyzacje</h1>
+            <p>Twórz reguły automatyzacji dla follow-up i workflow</p>
+          </div>
         </div>
         <button className="btn btn-primary" onClick={openNewModal}>
           <Plus size={18} /> Nowa automatyzacja
@@ -509,21 +514,27 @@ const Automations = () => {
       {/* Stats */}
       <div className="automations-stats">
         <div className="stat-card">
-          <Zap size={24} className="stat-icon" />
+          <div className="stat-icon-wrapper active">
+            <Zap size={24} />
+          </div>
           <div>
             <div className="stat-value">{rules.filter(r => r.active).length}</div>
             <div className="stat-label">Aktywne reguły</div>
           </div>
         </div>
         <div className="stat-card">
-          <Activity size={24} className="stat-icon" />
+          <div className="stat-icon-wrapper executions">
+            <Activity size={24} />
+          </div>
           <div>
             <div className="stat-value">{stats.totalExecutions || 0}</div>
             <div className="stat-label">Wykonania łącznie</div>
           </div>
         </div>
         <div className="stat-card">
-          <CheckCircle size={24} className="stat-icon success" />
+          <div className="stat-icon-wrapper total">
+            <CheckCircle size={24} />
+          </div>
           <div>
             <div className="stat-value">{rules.length}</div>
             <div className="stat-label">Wszystkie reguły</div>

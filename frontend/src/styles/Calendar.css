@@ -202,3 +202,107 @@
     flex: 1;
   }
 }
+
+/* ===== DARK MODE SUPPORT ===== */
+html.dark .calendar-container {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+
+html.dark .calendar-header-custom h2 {
+  color: var(--color-text-main);
+}
+
+html.dark .legend-item {
+  color: var(--color-text-secondary);
+}
+
+html.dark .legend-toggle {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-main);
+}
+
+html.dark .legend-toggle:hover {
+  background: var(--color-bg-surface);
+}
+
+/* React Big Calendar Dark Mode */
+html.dark .rbc-calendar {
+  color: var(--color-text-main);
+}
+
+html.dark .rbc-header {
+  color: var(--color-text-secondary);
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .rbc-month-view {
+  border-color: var(--color-border);
+}
+
+html.dark .rbc-day-bg {
+  background-color: var(--color-bg-surface);
+}
+
+html.dark .rbc-off-range-bg {
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .rbc-today {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+html.dark .rbc-event {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .rbc-toolbar button {
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+  background-color: var(--color-bg-elevated);
+}
+
+html.dark .rbc-toolbar button:hover {
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-main);
+}
+
+html.dark .rbc-toolbar button.rbc-active {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+html.dark .rbc-toolbar button.rbc-active:hover {
+  background-color: var(--color-primary-hover);
+}
+
+html.dark .rbc-toolbar-label {
+  color: var(--color-text-main);
+}
+
+html.dark .rbc-month-row,
+html.dark .rbc-day-slot,
+html.dark .rbc-time-slot {
+  border-color: var(--color-border);
+}
+
+html.dark .rbc-date-cell {
+  color: var(--color-text-main);
+}
+
+html.dark .rbc-date-cell.rbc-off-range {
+  color: var(--color-text-muted);
+}
+
+html.dark .rbc-row-bg {
+  border-color: var(--color-border);
+}
+
+html.dark .rbc-row-content {
+  border-color: var(--color-border);
+}
+
+html.dark .rbc-month-row + .rbc-month-row {
+  border-top-color: var(--color-border);
+}

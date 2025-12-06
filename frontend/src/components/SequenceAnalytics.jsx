@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { analyticsApi } from '../services/api';
+import { BarChart3, Target, Zap, Mail, Eye, Reply, TrendingUp, RefreshCw, Activity } from 'lucide-react';
 import '../styles/SequenceAnalytics.css';
 
 const SequenceAnalytics = () => {
@@ -30,73 +31,127 @@ const SequenceAnalytics = () => {
 
   if (loading) {
     return (
-      <div className="analytics-container">
-        <div className="loading">Ładowanie analityki...</div>
+      <div className="analytics-shell">
+        <div className="analytics-container">
+          <div className="analytics-header">
+            <div className="analytics-header-content">
+              <div className="analytics-header-icon">
+                <BarChart3 size={32} />
+              </div>
+              <div>
+                <h1>Analityka Sekwencji</h1>
+                <p>Szczegółowe statystyki wydajności twoich kampanii email</p>
+              </div>
+            </div>
+          </div>
+          <div className="loading">
+            <div className="analytics-spinner"></div>
+            <span>Ładowanie analityki...</span>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!analytics) {
     return (
-      <div className="analytics-container">
-        <div className="error">Nie udało się załadować analityki</div>
+      <div className="analytics-shell">
+        <div className="analytics-container">
+          <div className="analytics-header">
+            <div className="analytics-header-content">
+              <div className="analytics-header-icon">
+                <BarChart3 size={32} />
+              </div>
+              <div>
+                <h1>Analityka Sekwencji</h1>
+                <p>Szczegółowe statystyki wydajności twoich kampanii email</p>
+              </div>
+            </div>
+          </div>
+          <div className="error">Nie udało się załadować analityki</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="analytics-container">
-      <div className="analytics-header">
-        <h1>📊 Analityka Sekwencji</h1>
-        <p>Szczegółowe statystyki wydajności twoich kampanii email</p>
-      </div>
-
-      {/* Overall Summary */}
-      <div className="analytics-summary">
-        <div className="summary-card">
-          <div className="summary-icon">🎯</div>
-          <div className="summary-content">
-            <div className="summary-label">Aktywne Sekwencje</div>
-            <div className="summary-value">{analytics.activeSequences} / {analytics.totalSequences}</div>
+    <div className="analytics-shell">
+      <div className="analytics-container">
+        <div className="analytics-header">
+          <div className="analytics-header-content">
+            <div className="analytics-header-icon">
+              <BarChart3 size={32} />
+            </div>
+            <div>
+              <h1>Analityka Sekwencji</h1>
+              <p>Szczegółowe statystyki wydajności twoich kampanii email</p>
+            </div>
+          </div>
+          <div className="analytics-header-actions">
+            <button className="btn btn-secondary" onClick={loadAnalytics}>
+              <RefreshCw size={18} />
+              Odśwież
+            </button>
           </div>
         </div>
 
-        <div className="summary-card">
-          <div className="summary-icon">⚡</div>
-          <div className="summary-content">
-            <div className="summary-label">Aktywne Wykonania</div>
-            <div className="summary-value">{analytics.activeExecutions}</div>
-            <div className="summary-sub">z {analytics.totalExecutions} wszystkich</div>
+        {/* Stats Grid */}
+        <div className="analytics-stats-grid">
+          <div className="analytics-stat-card">
+            <div className="analytics-stat-icon sequences">
+              <Target size={24} />
+            </div>
+            <div className="analytics-stat-content">
+              <div className="analytics-stat-number">{analytics.activeSequences}</div>
+              <div className="analytics-stat-label">Aktywne Sekwencje</div>
+              <div className="analytics-stat-sub">z {analytics.totalSequences} wszystkich</div>
+            </div>
           </div>
-        </div>
 
-        <div className="summary-card">
-          <div className="summary-icon">📧</div>
-          <div className="summary-content">
-            <div className="summary-label">Wysłane Emaile</div>
-            <div className="summary-value">{analytics.totalEmailsSent}</div>
-            <div className="summary-sub">{analytics.totalEmailsPending} oczekujących</div>
+          <div className="analytics-stat-card">
+            <div className="analytics-stat-icon executions">
+              <Zap size={24} />
+            </div>
+            <div className="analytics-stat-content">
+              <div className="analytics-stat-number">{analytics.activeExecutions}</div>
+              <div className="analytics-stat-label">Aktywne Wykonania</div>
+              <div className="analytics-stat-sub">z {analytics.totalExecutions} wszystkich</div>
+            </div>
           </div>
-        </div>
 
-        <div className="summary-card highlight">
-          <div className="summary-icon">👁️</div>
-          <div className="summary-content">
-            <div className="summary-label">Open Rate</div>
-            <div className="summary-value">{formatRate(analytics.overallOpenRate)}</div>
-            <div className="summary-sub">{analytics.emailsOpened} otwarć</div>
+          <div className="analytics-stat-card">
+            <div className="analytics-stat-icon emails">
+              <Mail size={24} />
+            </div>
+            <div className="analytics-stat-content">
+              <div className="analytics-stat-number">{analytics.totalEmailsSent}</div>
+              <div className="analytics-stat-label">Wysłane Emaile</div>
+              <div className="analytics-stat-sub">{analytics.totalEmailsPending} oczekujących</div>
+            </div>
           </div>
-        </div>
 
-        <div className="summary-card highlight">
-          <div className="summary-icon">↩️</div>
-          <div className="summary-content">
-            <div className="summary-label">Reply Rate</div>
-            <div className="summary-value">{formatRate(analytics.overallReplyRate)}</div>
-            <div className="summary-sub">Odpowiedzi kontaktów</div>
+          <div className="analytics-stat-card highlight">
+            <div className="analytics-stat-icon open-rate">
+              <Eye size={24} />
+            </div>
+            <div className="analytics-stat-content">
+              <div className="analytics-stat-number">{formatRate(analytics.overallOpenRate)}</div>
+              <div className="analytics-stat-label">Open Rate</div>
+              <div className="analytics-stat-sub">{analytics.emailsOpened} otwarć</div>
+            </div>
+          </div>
+
+          <div className="analytics-stat-card highlight">
+            <div className="analytics-stat-icon reply-rate">
+              <Reply size={24} />
+            </div>
+            <div className="analytics-stat-content">
+              <div className="analytics-stat-number">{formatRate(analytics.overallReplyRate)}</div>
+              <div className="analytics-stat-label">Reply Rate</div>
+              <div className="analytics-stat-sub">Odpowiedzi kontaktów</div>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Sequence Breakdown */}
       <div className="analytics-breakdown">
@@ -230,6 +285,7 @@ const SequenceAnalytics = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
