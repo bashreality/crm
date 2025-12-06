@@ -29,6 +29,7 @@ public class WorkflowAutomationService {
     private final WorkflowRuleRepository ruleRepository;
     private final WorkflowExecutionRepository executionRepository;
     private final WorkflowExecutionKeyRepository executionKeyRepository;
+    private final SequenceExecutionRepository sequenceExecutionRepository;
     private final ContactRepository contactRepository;
     private final TaskRepository taskRepository;
     private final DealRepository dealRepository;
@@ -300,6 +301,83 @@ public class WorkflowAutomationService {
         processTriggeredRules(TriggerType.SEQUENCE_COMPLETED, execution.getContact(), null, null, triggerData);
     }
 
+    /**
+     * Obsługa triggera: Brak odpowiedzi (dla wybranej liczby dni)
+     */
+    @Async
+    @Transactional
+    public void handleNoReply(Contact contact, Email email, int daysSinceEmail) {
+        if (contact == null || email == null) {
+            log.warn("handleNoReply called with null contact or email");
+            return;
+        }
+
+        log.info("Processing NO_REPLY trigger for email {} and contact {}",
+                 email.getId(), contact.getId());
+
+        Map<String, Object> triggerData = new HashMap<>();
+        triggerData.put("emailId", email.getId());
+        triggerData.put("contactId", contact.getId());
+        triggerData.put("subject", email.getSubject());
+        triggerData.put("daysSinceEmail", daysSinceEmail);
+        triggerData.put("triggeredAt", LocalDateTime.now().toString());
+
+        processTriggeredRules(TriggerType.NO_REPLY, contact, email, null, triggerData);
+    }
+
+    /**
+     * Obsługa triggera: Zmiana scoring leada
+     */
+    @Async
+    @Transactional
+    public void handleLeadScoreChanged(Contact contact, int oldScore, int newScore) {
+        if (contact == null) {
+            log.warn("handleLeadScoreChanged called with null contact");
+            return;
+        }
+
+        log.info("Processing LEAD_SCORE_CHANGED trigger for contact {} (old: {}, new: {})",
+                 contact.getId(), oldScore, newScore);
+
+        Map<String, Object> triggerData = new HashMap<>();
+        triggerData.put("contactId", contact.getId());
+        triggerData.put("oldScore", oldScore);
+        triggerData.put("newScore", newScore);
+        triggerData.put("scoreDifference", newScore - oldScore);
+        triggerData.put("changedAt", LocalDateTime.now().toString());
+
+        processTriggeredRules(TriggerType.LEAD_SCORE_CHANGED, contact, null, null, triggerData);
+    }
+
+    /**
+     * Obsługa triggera: Krok sekwencji został wysłany
+     */
+    @Async
+    @Transactional
+    public void handleSequenceStepSent(SequenceExecution execution, SequenceStep step, Email email) {
+        if (execution == null || execution.getContact() == null || step == null) {
+            log.warn("handleSequenceStepSent called with null parameters");
+            return;
+        }
+
+        log.info("Processing SEQUENCE_STEP_SENT trigger for execution {} and step {}",
+                 execution.getId(), step.getId());
+
+        Map<String, Object> triggerData = new HashMap<>();
+        triggerData.put("executionId", execution.getId());
+        triggerData.put("sequenceId", execution.getSequence().getId());
+        triggerData.put("sequenceName", execution.getSequence().getName());
+        triggerData.put("stepId", step.getId());
+        triggerData.put("contactId", execution.getContact().getId());
+        if (email != null) {
+            triggerData.put("emailId", email.getId());
+            triggerData.put("emailSubject", email.getSubject());
+        }
+        triggerData.put("sentAt", LocalDateTime.now().toString());
+
+        processTriggeredRules(TriggerType.SEQUENCE_STEP_SENT, execution.getContact(), email, null, triggerData);
+    }
+
     // ==================== CORE PROCESSING ====================
 
     /**
@@ -505,9 +583,56 @@ public class WorkflowAutomationService {
 
     private Map<String, Object> executeStopSequence(Map<String, Object> config, Contact contact) {
         Map<String, Object> result = new HashMap<>();
-        // TODO: Implementacja zatrzymywania sekwencji
-        result.put("success", true);
-        result.put("message", "Stop sequence not yet implemented");
+
+        if (contact == null) {
+            result.put("error", "No contact associated with this trigger");
+            return result;
+        }
+
+        try {
+            // Find all executions for this contact
+            List<SequenceExecution> executions = sequenceExecutionRepository.findByContactId(contact.getId());
+
+            // Filter by status="active" and optionally by sequenceId if specified in config
+            List<SequenceExecution> activeExecutions = new java.util.ArrayList<>();
+            for (SequenceExecution exec : executions) {
+                if ("active".equals(exec.getStatus())) {
+                    // If sequenceId is specified, only pause that one
+                    if (config != null && config.containsKey("sequenceId")) {
+                        Long specifiedSequenceId = ((Number) config.get("sequenceId")).longValue();
+                        if (exec.getSequence().getId().equals(specifiedSequenceId)) {
+                            activeExecutions.add(exec);
+                        }
+                    } else {
+                        // Otherwise pause all active sequences
+                        activeExecutions.add(exec);
+                    }
+                }
+            }
+
+            if (activeExecutions.isEmpty()) {
+                result.put("message", "No active sequences found for contact");
+                return result;
+            }
+
+            // Pause all matching executions
+            for (SequenceExecution execution : activeExecutions) {
+                execution.setStatus("paused");
+                execution.setPausedAt(LocalDateTime.now());
+                sequenceExecutionRepository.save(execution);
+                log.info("Paused sequence execution {} for contact {}",
+                         execution.getId(), contact.getId());
+            }
+
+            result.put("success", true);
+            result.put("message", activeExecutions.size() + " sequence(s) paused for contact");
+            result.put("executionsPaused", activeExecutions.size());
+        } catch (Exception e) {
+            result.put("error", e.getMessage());
+            log.error("Failed to stop sequences for contact {}: {}",
+                     contact.getId(), e.getMessage());
+        }
+
         return result;
     }
 
