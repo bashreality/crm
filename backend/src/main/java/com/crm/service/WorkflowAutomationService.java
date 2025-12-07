@@ -1117,21 +1117,24 @@ public class WorkflowAutomationService {
     public Map<String, Object> getDashboardStats(Long userId) {
         Map<String, Object> stats = new HashMap<>();
 
-        stats.put("totalRules", ruleRepository.countByUserIdAndActiveTrue(userId));
-
-        // Liczymy rzeczywiste wykonania z tabeli workflow_executions
-        // Pobieramy wszystkie reguły użytkownika
-        List<WorkflowRule> userRules = ruleRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        long totalExecutions = 0L;
-
-        // Dla każdej reguły zliczamy wykonania
-        for (WorkflowRule rule : userRules) {
-            List<WorkflowExecution> ruleExecutions = executionRepository.findByRuleIdOrderByCreatedAtDesc(rule.getId());
-            totalExecutions += ruleExecutions.size();
+        if (userId == null) {
+            log.warn("getDashboardStats called with null userId");
+            stats.put("totalRules", 0);
+            stats.put("totalExecutions", 0);
+            return stats;
         }
 
+        // Count active rules for user
+        long totalRules = ruleRepository.countByUserIdAndActiveTrue(userId);
+        stats.put("totalRules", totalRules);
+
+        // Count all executions for user's rules using single query
+        long totalExecutions = executionRepository.countByUserRules(userId);
+
         stats.put("totalExecutions", totalExecutions);
-        stats.put("recentExecutions", executionRepository.findTop20ByOrderByCreatedAtDesc());
+
+        log.info("Dashboard stats for user {}: totalRules={}, totalExecutions={}",
+                 userId, totalRules, totalExecutions);
 
         return stats;
     }

@@ -95,5 +95,16 @@ public interface WorkflowExecutionRepository extends JpaRepository<WorkflowExecu
      */
     List<WorkflowExecution> findByStatusAndCreatedAtAfterOrderByCreatedAtAsc(
             ExecutionStatus status, LocalDateTime since);
+
+    /**
+     * Policz wszystkie wykonania dla reguły
+     */
+    long countByRuleId(Long ruleId);
+
+    /**
+     * Policz wszystkie wykonania dla użytkownika (przez rule.userId)
+     */
+    @Query("SELECT COUNT(e) FROM WorkflowExecution e WHERE e.rule.userId = :userId")
+    long countByUserRules(@Param("userId") Long userId);
 }
 

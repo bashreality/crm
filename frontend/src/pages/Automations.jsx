@@ -101,7 +101,11 @@ const Automations = () => {
       setTags(tagsRes.data || []);
       setPipelines(pipelinesRes.data || []);
       setStats(dashRes.data || { totalRules: 0, totalExecutions: 0 });
-      setTemplates(templatesRes || []);
+
+      // Handle both array response and paginated object response
+      const templatesData = Array.isArray(templatesRes) ? templatesRes : (templatesRes?.content || []);
+      setTemplates(templatesData || []);
+
       setEmailAccounts(accountsRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);

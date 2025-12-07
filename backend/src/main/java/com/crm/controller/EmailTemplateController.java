@@ -30,16 +30,16 @@ public class EmailTemplateController {
     // ============ Template Management ============
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getAllTemplates(
+    public ResponseEntity<?> getAllTemplates(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String search,
             @RequestParam(required = false, defaultValue = "false") Boolean favoritesOnly,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        
+
         try {
             List<EmailTemplate> templates;
-            
+
             if (favoritesOnly) {
                 templates = templateService.getFavoriteTemplates();
             } else if (search != null && !search.trim().isEmpty()) {
@@ -49,24 +49,20 @@ public class EmailTemplateController {
             } else {
                 Pageable pageable = PageRequest.of(page, size);
                 Page<EmailTemplate> templatesPage = templateService.getAllTemplates(pageable);
-                
+
                 Map<String, Object> response = new HashMap<>();
                 response.put("content", templatesPage.getContent());
                 response.put("totalElements", templatesPage.getTotalElements());
                 response.put("totalPages", templatesPage.getTotalPages());
                 response.put("currentPage", templatesPage.getNumber());
                 response.put("size", templatesPage.getSize());
-                
+
                 return ResponseEntity.ok(response);
             }
-            
-            // For non-paginated responses
-            Map<String, Object> response = new HashMap<>();
-            response.put("content", templates);
-            response.put("totalElements", templates.size());
-            
-            return ResponseEntity.ok(response);
-            
+
+            // For non-paginated responses - return array directly
+            return ResponseEntity.ok(templates);
+
         } catch (Exception e) {
             log.error("Error fetching templates", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
