@@ -7,9 +7,11 @@ import com.crm.repository.EmailRepository;
 import jakarta.mail.*;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.internet.MimeUtility;
-import lombok.RequiredArgsConstructor;
+import com.crm.model.Contact;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailFetchService {
 
@@ -38,6 +39,31 @@ public class EmailFetchService {
     private final UserContactService userContactService;
     private final com.crm.repository.SequenceExecutionRepository sequenceExecutionRepository;
     private final ScheduledEmailService scheduledEmailService;
+    private final WorkflowAutomationService workflowAutomationService;
+
+    @Autowired
+    public EmailFetchService(
+            EmailRepository emailRepository,
+            AIClassificationService aiClassificationService,
+            ContactAutoCreationService contactAutoCreationService,
+            EmailAccountService emailAccountService,
+            ContactService contactService,
+            com.crm.repository.ContactRepository contactRepository,
+            UserContactService userContactService,
+            com.crm.repository.SequenceExecutionRepository sequenceExecutionRepository,
+            ScheduledEmailService scheduledEmailService,
+            @Lazy WorkflowAutomationService workflowAutomationService) {
+        this.emailRepository = emailRepository;
+        this.aiClassificationService = aiClassificationService;
+        this.contactAutoCreationService = contactAutoCreationService;
+        this.emailAccountService = emailAccountService;
+        this.contactService = contactService;
+        this.contactRepository = contactRepository;
+        this.userContactService = userContactService;
+        this.sequenceExecutionRepository = sequenceExecutionRepository;
+        this.scheduledEmailService = scheduledEmailService;
+        this.workflowAutomationService = workflowAutomationService;
+    }
 
     @Value("${email.fetch.folder:INBOX}")
     private String folderName;
@@ -239,6 +265,9 @@ public class EmailFetchService {
                     account.getId(),
                     status
                 );
+                
+                // Trigger workflow automation dla nowego emaila z klasyfikacją
+                triggerEmailClassificationWorkflow(savedEmail, contact, status);
             });
 
             log.debug("Contact creation/update completed for email ID: {}", savedEmail.getId());
@@ -246,6 +275,40 @@ public class EmailFetchService {
             log.error("Failed to create/update contact for email ID {} (sender: {}): {}",
                 savedEmail.getId(), from, e.getMessage(), e);
             // Nie rzucamy wyjątku dalej, żeby nie przerywać procesu zapisywania emaila
+        }
+    }
+
+    /**
+     * Uruchamia workflow automation dla nowo sklasyfikowanego emaila
+     */
+    private void triggerEmailClassificationWorkflow(Email email, Contact contact, String status) {
+        try {
+            log.debug("Triggering workflow for email {} with status {} and contact {}", 
+                     email.getId(), status, contact.getId());
+            
+            switch (status) {
+                case "positive":
+                    workflowAutomationService.handlePositiveReply(email, contact);
+                    workflowAutomationService.handleAnyReply(email, contact);
+                    log.info("Triggered POSITIVE_REPLY and ANY_REPLY workflow for email {}", email.getId());
+                    break;
+                case "negative":
+                    workflowAutomationService.handleNegativeReply(email, contact);
+                    workflowAutomationService.handleAnyReply(email, contact);
+                    log.info("Triggered NEGATIVE_REPLY and ANY_REPLY workflow for email {}", email.getId());
+                    break;
+                case "neutral":
+                case "maybeLater":
+                    workflowAutomationService.handleAnyReply(email, contact);
+                    log.info("Triggered ANY_REPLY workflow for email {}", email.getId());
+                    break;
+                default:
+                    log.debug("No workflow trigger for status: {}", status);
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Error triggering email classification workflow for email {}: {}", 
+                     email.getId(), e.getMessage(), e);
         }
     }
 

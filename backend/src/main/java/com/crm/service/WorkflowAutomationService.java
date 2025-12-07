@@ -396,14 +396,26 @@ public class WorkflowAutomationService {
         // Sprawdź warunki z konfiguracji triggera
         Map<String, Object> config = rule.getTriggerConfig();
         if (config != null && !config.isEmpty()) {
-            // Sprawdź filtr tagId
+            // Sprawdź filtr tagId (tylko jeśli jest poprawną liczbą)
             if (config.containsKey("tagId") && triggerData.containsKey("tagId")) {
-                Long configTagId = ((Number) config.get("tagId")).longValue();
-                Long actualTagId = ((Number) triggerData.get("tagId")).longValue();
-                if (!configTagId.equals(actualTagId)) {
-                    log.debug("Rule {} skipped - tagId mismatch: {} vs {}", 
+                Object configTagIdObj = config.get("tagId");
+                Object actualTagIdObj = triggerData.get("tagId");
+                
+                // Sprawdź czy configTagId jest poprawną liczbą (nie NaN, nie null)
+                if (configTagIdObj instanceof Number) {
+                    Long configTagId = ((Number) configTagIdObj).longValue();
+                    Long actualTagId = ((Number) actualTagIdObj).longValue();
+                    
+                    if (!configTagId.equals(actualTagId)) {
+                        log.debug("Rule {} skipped - tagId mismatch: {} vs {}", 
+                                 rule.getId(), configTagId, actualTagId);
+                        return false;
+                    }
+                    log.debug("Rule {} tagId filter passed: {} == {}", 
                              rule.getId(), configTagId, actualTagId);
-                    return false;
+                } else {
+                    log.debug("Rule {} has invalid tagId config (not a number): {}, ignoring filter", 
+                             rule.getId(), configTagIdObj);
                 }
             }
 
@@ -423,6 +435,7 @@ public class WorkflowAutomationService {
             }
         }
 
+        log.debug("Rule {} passed all checks, will be executed", rule.getId());
         return true;
     }
 
@@ -515,7 +528,7 @@ public class WorkflowAutomationService {
                 result = executeCreateTask(config, contact);
                 break;
             case MOVE_DEAL:
-                result = executeMoveDeal(config, deal);
+                result = executeMoveDeal(config, deal, contact);
                 break;
             case CREATE_DEAL:
                 result = executeCreateDeal(config, contact);
@@ -656,11 +669,24 @@ public class WorkflowAutomationService {
         return result;
     }
 
-    private Map<String, Object> executeMoveDeal(Map<String, Object> config, Deal deal) {
+    private Map<String, Object> executeMoveDeal(Map<String, Object> config, Deal deal, Contact contact) {
         Map<String, Object> result = new HashMap<>();
 
-        if (deal == null) {
-            result.put("error", "No deal associated with this trigger");
+        // Fallback: jeśli deal jest null, spróbuj znaleźć aktywny deal dla kontaktu
+        Deal targetDeal = deal;
+        if (targetDeal == null && contact != null) {
+            List<Deal> contactDeals = dealRepository.findByContactIdAndStatus(contact.getId(), "open");
+            if (!contactDeals.isEmpty()) {
+                targetDeal = contactDeals.get(0); // Weź pierwszy aktywny deal
+                log.info("No deal in trigger context, using first open deal {} for contact {}", 
+                         targetDeal.getId(), contact.getId());
+            }
+        }
+
+        if (targetDeal == null) {
+            log.warn("MOVE_DEAL action skipped - no deal associated with trigger and no open deals for contact");
+            result.put("skipped", true);
+            result.put("message", "No deal to move - trigger has no deal and contact has no open deals");
             return result;
         }
 
@@ -677,16 +703,16 @@ public class WorkflowAutomationService {
             return result;
         }
 
-        PipelineStage oldStage = deal.getStage();
-        deal.setStage(stageOpt.get());
-        deal.setUpdatedAt(LocalDateTime.now());
-        dealRepository.save(deal);
+        PipelineStage oldStage = targetDeal.getStage();
+        targetDeal.setStage(stageOpt.get());
+        targetDeal.setUpdatedAt(LocalDateTime.now());
+        dealRepository.save(targetDeal);
 
         result.put("success", true);
-        result.put("dealId", deal.getId());
+        result.put("dealId", targetDeal.getId());
         result.put("oldStageId", oldStage != null ? oldStage.getId() : null);
         result.put("newStageId", stageId);
-        log.info("Moved deal {} to stage {}", deal.getId(), stageId);
+        log.info("Moved deal {} to stage {}", targetDeal.getId(), stageId);
 
         return result;
     }
@@ -903,7 +929,11 @@ public class WorkflowAutomationService {
         Map<String, Object> stats = new HashMap<>();
         
         stats.put("totalRules", ruleRepository.countByUserIdAndActiveTrue(userId));
-        stats.put("totalExecutions", ruleRepository.sumExecutionCountByUserId(userId));
+        
+        // sumExecutionCountByUserId może zwrócić null gdy brak wykonań
+        Long totalExecutions = ruleRepository.sumExecutionCountByUserId(userId);
+        stats.put("totalExecutions", totalExecutions != null ? totalExecutions : 0L);
+        
         stats.put("recentExecutions", executionRepository.findTop20ByOrderByCreatedAtDesc());
 
         return stats;

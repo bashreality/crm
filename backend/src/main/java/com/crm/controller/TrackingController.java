@@ -18,7 +18,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Optional;
 
 @RestController
@@ -108,6 +113,101 @@ public class TrackingController {
             }
         } catch (Exception e) {
             log.error("Error triggering email opened workflow: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Endpoint do śledzenia kliknięć linków w emailach.
+     * Format: /api/track/click?id={trackingId}&url={base64EncodedUrl}
+     * Przekierowuje użytkownika na docelowy URL po zarejestrowaniu kliknięcia.
+     */
+    @GetMapping("/click")
+    public ResponseEntity<Void> trackClick(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String url) {
+        
+        String targetUrl = decodeTargetUrl(url);
+        
+        if (id != null && !id.isEmpty()) {
+            try {
+                Optional<Email> emailOpt = emailRepository.findByTrackingId(id);
+                if (emailOpt.isPresent()) {
+                    Email email = emailOpt.get();
+                    
+                    log.info("Link clicked in email: {} (Subject: {}), URL: {}", 
+                             id, email.getSubject(), targetUrl);
+                    
+                    // Trigger workflow automation for click
+                    triggerEmailClickedWorkflow(email, targetUrl);
+                }
+            } catch (Exception e) {
+                log.error("Error tracking email click: {}", id, e);
+            }
+        }
+        
+        // Redirect to target URL or fallback
+        if (targetUrl != null && !targetUrl.isEmpty()) {
+            return ResponseEntity.status(302)
+                    .location(URI.create(targetUrl))
+                    .build();
+        } else {
+            // Fallback - return 204 No Content if no URL provided
+            return ResponseEntity.noContent().build();
+        }
+    }
+    
+    /**
+     * Dekoduje URL z Base64 lub URLEncoding
+     */
+    private String decodeTargetUrl(String encodedUrl) {
+        if (encodedUrl == null || encodedUrl.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Najpierw spróbuj Base64
+            try {
+                byte[] decoded = Base64.getUrlDecoder().decode(encodedUrl);
+                return new String(decoded, StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException e) {
+                // Nie jest Base64, spróbuj URL decode
+                return URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.name());
+            }
+        } catch (UnsupportedEncodingException e) {
+            log.warn("Failed to decode URL: {}", encodedUrl);
+            return encodedUrl;
+        }
+    }
+    
+    /**
+     * Uruchamia workflow automation dla kliknięcia linku w emailu
+     */
+    private void triggerEmailClickedWorkflow(Email email, String clickedUrl) {
+        try {
+            // Znajdź kontakt na podstawie odbiorcy emaila
+            String recipient = email.getRecipient();
+            if (recipient == null || recipient.isEmpty()) {
+                log.debug("No recipient for email {}, skipping click workflow trigger", email.getId());
+                return;
+            }
+            
+            // Wyciągnij adres email z formatu "Name <email@example.com>"
+            String emailAddress = recipient;
+            if (recipient.contains("<") && recipient.contains(">")) {
+                emailAddress = recipient.substring(recipient.indexOf("<") + 1, recipient.indexOf(">"));
+            }
+            
+            Optional<Contact> contactOpt = contactRepository.findByEmailIgnoreCase(emailAddress);
+            if (contactOpt.isPresent()) {
+                Contact contact = contactOpt.get();
+                log.info("Triggering EMAIL_CLICKED workflow for contact {} and email {}, URL: {}", 
+                         contact.getId(), email.getId(), clickedUrl);
+                workflowAutomationService.handleEmailClicked(email, contact, clickedUrl);
+            } else {
+                log.debug("No contact found for email address {}", emailAddress);
+            }
+        } catch (Exception e) {
+            log.error("Error triggering email clicked workflow: {}", e.getMessage(), e);
         }
     }
 }

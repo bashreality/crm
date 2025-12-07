@@ -213,10 +213,19 @@ const Automations = () => {
             <label>Wybierz tag</label>
             <select
               value={triggerConfig.tagId || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                triggerConfig: { ...triggerConfig, tagId: parseInt(e.target.value) }
-              })}
+              onChange={(e) => {
+                const value = e.target.value;
+                const newConfig = { ...triggerConfig };
+                if (value) {
+                  newConfig.tagId = parseInt(value);
+                } else {
+                  delete newConfig.tagId; // Usuń tagId gdy wybrano "Wszystkie tagi"
+                }
+                setFormData({
+                  ...formData,
+                  triggerConfig: newConfig
+                });
+              }}
             >
               <option value="">-- Wszystkie tagi --</option>
               {tags.map(tag => (
@@ -437,10 +446,19 @@ const Automations = () => {
               <label>Lejek sprzedażowy</label>
               <select
                 value={actionConfig.pipelineId || ''}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  actionConfig: { ...actionConfig, pipelineId: parseInt(e.target.value) }
-                })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const newConfig = { ...actionConfig };
+                  if (value) {
+                    newConfig.pipelineId = parseInt(value);
+                  } else {
+                    delete newConfig.pipelineId; // Usuń gdy wybrano domyślny
+                  }
+                  setFormData({
+                    ...formData,
+                    actionConfig: newConfig
+                  });
+                }}
               >
                 <option value="">-- Wybierz lejek (lub domyślny) --</option>
                 {pipelines.map(pipeline => (

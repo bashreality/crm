@@ -24,6 +24,7 @@ public interface DealRepository extends JpaRepository<Deal, Long> {
     List<Deal> findByPipelineId(Long pipelineId);
     List<Deal> findByStageId(Long stageId);
     List<Deal> findByContactId(Long contactId);
+    List<Deal> findByContactIdAndStatus(Long contactId, String status);
     List<Deal> findByStatus(String status);
 
     // User-specific queries

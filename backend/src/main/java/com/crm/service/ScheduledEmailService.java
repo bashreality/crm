@@ -15,8 +15,9 @@ import com.crm.repository.PipelineStageRepository;
 import com.crm.repository.ScheduledEmailRepository;
 import com.crm.repository.SequenceExecutionRepository;
 import jakarta.mail.MessagingException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ScheduledEmailService {
 
@@ -38,6 +38,29 @@ public class ScheduledEmailService {
     private final DealRepository dealRepository;
     private final PipelineStageRepository pipelineStageRepository;
     private final EmailAccountRepository emailAccountRepository;
+    private final WorkflowAutomationService workflowAutomationService;
+
+    @Autowired
+    public ScheduledEmailService(
+            ScheduledEmailRepository scheduledEmailRepository,
+            SequenceExecutionRepository executionRepository,
+            EmailSendingService emailSendingService,
+            EmailRepository emailRepository,
+            ContactRepository contactRepository,
+            DealRepository dealRepository,
+            PipelineStageRepository pipelineStageRepository,
+            EmailAccountRepository emailAccountRepository,
+            @Lazy WorkflowAutomationService workflowAutomationService) {
+        this.scheduledEmailRepository = scheduledEmailRepository;
+        this.executionRepository = executionRepository;
+        this.emailSendingService = emailSendingService;
+        this.emailRepository = emailRepository;
+        this.contactRepository = contactRepository;
+        this.dealRepository = dealRepository;
+        this.pipelineStageRepository = pipelineStageRepository;
+        this.emailAccountRepository = emailAccountRepository;
+        this.workflowAutomationService = workflowAutomationService;
+    }
 
     /**
      * Automatycznie wysyła zaplanowane emaile co minutę
@@ -281,9 +304,26 @@ public class ScheduledEmailService {
             execution.setStatus("completed");
             execution.setCompletedAt(LocalDateTime.now());
             log.info("Sequence execution {} completed", execution.getId());
+            
+            // Trigger SEQUENCE_COMPLETED workflow
+            triggerSequenceCompletedWorkflow(execution);
         }
 
         executionRepository.save(execution);
+    }
+    
+    /**
+     * Uruchamia workflow automation dla zakończenia sekwencji
+     */
+    private void triggerSequenceCompletedWorkflow(SequenceExecution execution) {
+        try {
+            log.info("Triggering SEQUENCE_COMPLETED workflow for execution {} (sequence: {})", 
+                     execution.getId(), execution.getSequence().getName());
+            workflowAutomationService.handleSequenceCompleted(execution);
+        } catch (Exception e) {
+            log.error("Error triggering sequence completed workflow for execution {}: {}", 
+                     execution.getId(), e.getMessage(), e);
+        }
     }
 
     /**
