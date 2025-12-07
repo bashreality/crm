@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Moon, Sun } from 'lucide-react';
+import { Search, Moon, Sun, Bell, Check, Trash2, X } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import api from '../services/api';
+import api, { notificationsApi } from '../services/api';
 
 const Header = ({ onOpenSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const { theme, toggleTheme } = useTheme();
+  
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
 
   const isActive = (path) => location.pathname === path;
 
@@ -23,7 +29,85 @@ const Header = ({ onOpenSearch }) => {
       }
     };
     fetchCurrentUser();
+    
+    // Pobierz powiadomienia
+    fetchNotifications();
+    
+    // Odświeżaj powiadomienia co 30 sekund
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Zamknij dropdown przy kliknięciu poza nim
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const [notifRes, countRes] = await Promise.all([
+        notificationsApi.getAll(20),
+        notificationsApi.getUnreadCount()
+      ]);
+      setNotifications(notifRes.data || []);
+      setUnreadCount(countRes.data?.unreadCount || 0);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await notificationsApi.markAsRead(id);
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, isRead: true } : n
+      ));
+      setUnreadCount(Math.max(0, unreadCount - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationsApi.markAllAsRead();
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const handleDeleteNotification = async (id) => {
+    try {
+      await notificationsApi.delete(id);
+      const deleted = notifications.find(n => n.id === id);
+      setNotifications(notifications.filter(n => n.id !== id));
+      if (deleted && !deleted.isRead) {
+        setUnreadCount(Math.max(0, unreadCount - 1));
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 60) return 'przed chwilą';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min temu`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} godz. temu`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} dni temu`;
+    return date.toLocaleDateString('pl-PL');
+  };
 
   const handleLogout = () => {
     // Wyczyść dane z localStorage
@@ -125,6 +209,82 @@ const Header = ({ onOpenSearch }) => {
             <span className="search-text">Szukaj...</span>
             <kbd className="search-kbd">⌘K</kbd>
           </button>
+
+          {/* Notifications Bell */}
+          <div className="notification-wrapper" ref={notificationRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="notification-button"
+              title="Powiadomienia"
+            >
+              <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="notification-badge">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+            
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <div className="notification-header">
+                  <h3>Powiadomienia</h3>
+                  {unreadCount > 0 && (
+                    <button 
+                      className="mark-all-read-btn"
+                      onClick={handleMarkAllAsRead}
+                      title="Oznacz wszystkie jako przeczytane"
+                    >
+                      <Check size={14} /> Przeczytaj wszystkie
+                    </button>
+                  )}
+                </div>
+                
+                <div className="notification-list">
+                  {notifications.length === 0 ? (
+                    <div className="notification-empty">
+                      <Bell size={32} />
+                      <p>Brak powiadomień</p>
+                    </div>
+                  ) : (
+                    notifications.map(notification => (
+                      <div 
+                        key={notification.id} 
+                        className={`notification-item ${notification.isRead ? 'read' : 'unread'}`}
+                      >
+                        <div className="notification-content">
+                          <div className="notification-title">{notification.title}</div>
+                          <div className="notification-message">
+                            {notification.message?.split('\n')[0]}
+                          </div>
+                          <div className="notification-time">
+                            {formatTimeAgo(notification.createdAt)}
+                          </div>
+                        </div>
+                        <div className="notification-actions">
+                          {!notification.isRead && (
+                            <button 
+                              onClick={() => handleMarkAsRead(notification.id)}
+                              title="Oznacz jako przeczytane"
+                            >
+                              <Check size={14} />
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleDeleteNotification(notification.id)}
+                            title="Usuń"
+                            className="delete-btn"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Theme Toggle Button */}
           <button

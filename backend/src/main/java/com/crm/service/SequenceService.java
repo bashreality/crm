@@ -603,13 +603,18 @@ public class SequenceService {
 
         LocalDateTime reference = LocalDateTime.now();
         boolean firstStep = true;
-        boolean forceImmediateFirstStep = execution.getDealId() != null; // szansa -> wyślij pierwszy krok natychmiast
 
         for (SequenceStep step : steps) {
-            LocalDateTime scheduledTime = calculateScheduledTime(step, reference, execution, firstStep, forceImmediateFirstStep);
+            // Sprawdź czy pierwszy krok ma zerowe opóźnienie - jeśli tak, wyślij natychmiast
+            boolean sendFirstStepImmediately = firstStep && shouldBeSentImmediately(step);
+            
+            LocalDateTime scheduledTime = calculateScheduledTime(step, reference, execution, firstStep, sendFirstStepImmediately);
             ScheduledEmail scheduledEmail = createScheduledEmail(step, execution, scheduledTime);
 
-            handleImmediateSending(scheduledEmail, execution, firstStep && (forceImmediateFirstStep || shouldBeSentImmediately(step)));
+            if (sendFirstStepImmediately) {
+                log.info("First step has zero delay - sending immediately for execution {}", execution.getId());
+                handleImmediateSending(scheduledEmail, execution, true);
+            }
 
             log.info("Scheduled sequence step {} for execution {} at {}", step.getStepOrder(), execution.getId(), scheduledTime);
             reference = scheduledTime;
@@ -622,15 +627,13 @@ public class SequenceService {
      */
     private LocalDateTime calculateScheduledTime(SequenceStep step, LocalDateTime reference,
                                                SequenceExecution execution, boolean isFirstStep,
-                                               boolean forceImmediateFirstStep) {
-        LocalDateTime scheduled = calculateBaseScheduledTime(step, reference);
-
-        boolean sendImmediately = isFirstStep && (forceImmediateFirstStep || shouldBeSentImmediately(step));
+                                               boolean sendImmediately) {
+        // Jeśli ma być wysłany natychmiast, zwróć aktualny czas
         if (sendImmediately) {
-            scheduled = LocalDateTime.now();
-            log.info("First step has no delay - will be sent immediately for execution {}", execution.getId());
-            return scheduled;
+            return LocalDateTime.now();
         }
+        
+        LocalDateTime scheduled = calculateBaseScheduledTime(step, reference);
 
         // Apply sending window and policy constraints for non-immediate emails
         scheduled = alignToSendWindow(scheduled, execution.getSequence());
@@ -700,9 +703,14 @@ public class SequenceService {
         }
 
         try {
-            log.info("Sending first step immediately for execution {} - scheduled email ID: {}",
-                     execution.getId(), scheduledEmail.getId());
+            log.info("Sending first step immediately for execution {} - scheduled email ID: {}, recipient: {}",
+                     execution.getId(), scheduledEmail.getId(), scheduledEmail.getRecipientEmail());
+            
+            // Wymuś flush żeby email był widoczny w bazie przed próbą wysłania
+            scheduledEmailRepository.flush();
+            
             scheduledEmailService.sendNow(scheduledEmail.getId());
+            log.info("Successfully sent first step immediately for execution {}", execution.getId());
         } catch (Exception e) {
             log.error("Failed to send first step immediately for execution {}: {}",
                       execution.getId(), e.getMessage(), e);

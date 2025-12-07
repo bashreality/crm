@@ -36,8 +36,12 @@ public class WorkflowAutomationService {
     private final TagRepository tagRepository;
     private final PipelineStageRepository pipelineStageRepository;
     private final PipelineRepository pipelineRepository;
+    private final NotificationRepository notificationRepository;
+    private final EmailTemplateRepository emailTemplateRepository;
+    private final EmailAccountRepository emailAccountRepository;
     private final SequenceService sequenceService;
     private final UserContextService userContextService;
+    private final EmailSendingService emailSendingService;
 
     // ==================== TRIGGER HANDLERS ====================
 
@@ -543,7 +547,10 @@ public class WorkflowAutomationService {
                 result = executeUpdateLeadScore(config, contact);
                 break;
             case SEND_NOTIFICATION:
-                result = executeSendNotification(config, contact, email);
+                result = executeSendNotification(config, contact, email, deal, rule);
+                break;
+            case SEND_EMAIL:
+                result = executeSendEmail(config, contact, rule);
                 break;
             default:
                 log.warn("Unknown action type: {}", actionType);
@@ -892,20 +899,167 @@ public class WorkflowAutomationService {
     }
 
     private Map<String, Object> executeSendNotification(Map<String, Object> config, 
-                                                         Contact contact, Email email) {
+                                                         Contact contact, Email email,
+                                                         Deal deal, WorkflowRule rule) {
         Map<String, Object> result = new HashMap<>();
 
         String message = (String) config.getOrDefault("message", "Nowe zdarzenie workflow");
-        // TODO: Implementacja systemu powiadomień (websocket, email do użytkownika, etc.)
+        
+        // Znajdź userId dla powiadomienia
+        Long userId = null;
+        if (contact != null && contact.getUserId() != null) {
+            userId = contact.getUserId();
+        } else if (deal != null && deal.getUserId() != null) {
+            userId = deal.getUserId();
+        } else if (rule != null && rule.getUserId() != null) {
+            userId = rule.getUserId();
+        }
+        
+        if (userId == null) {
+            log.warn("Cannot send notification - no userId found");
+            result.put("error", "No userId to send notification to");
+            return result;
+        }
+
+        // Utwórz tytuł powiadomienia na podstawie kontekstu
+        String title = "Automatyzacja: " + (rule != null ? rule.getName() : "Workflow");
+        
+        // Dodaj kontekst do wiadomości
+        StringBuilder fullMessage = new StringBuilder(message);
+        if (contact != null) {
+            fullMessage.append("\n\nKontakt: ").append(contact.getName());
+            if (contact.getEmail() != null) {
+                fullMessage.append(" (").append(contact.getEmail()).append(")");
+            }
+        }
+        if (deal != null) {
+            fullMessage.append("\n\nSzansa: ").append(deal.getTitle());
+            if (deal.getValue() != null) {
+                fullMessage.append(" - ").append(deal.getValue()).append(" ").append(deal.getCurrency());
+            }
+        }
+
+        // Utwórz powiadomienie w bazie danych
+        Notification notification = new Notification();
+        notification.setUserId(userId);
+        notification.setTitle(title);
+        notification.setMessage(fullMessage.toString());
+        notification.setType("info");
+        notification.setContactId(contact != null ? contact.getId() : null);
+        notification.setDealId(deal != null ? deal.getId() : null);
+        notification.setEmailId(email != null ? email.getId() : null);
+        notification.setWorkflowRuleId(rule != null ? rule.getId() : null);
+        
+        notificationRepository.save(notification);
 
         result.put("success", true);
+        result.put("notificationId", notification.getId());
         result.put("message", message);
-        result.put("notificationType", "log"); // Na razie tylko logujemy
-        log.info("Notification: {} (contact: {}, email: {})", message, 
+        result.put("userId", userId);
+        log.info("Created notification {} for user {}: {} (contact: {}, deal: {})", 
+                 notification.getId(), userId, title,
                  contact != null ? contact.getId() : null,
-                 email != null ? email.getId() : null);
+                 deal != null ? deal.getId() : null);
 
         return result;
+    }
+
+    private Map<String, Object> executeSendEmail(Map<String, Object> config, Contact contact, WorkflowRule rule) {
+        Map<String, Object> result = new HashMap<>();
+
+        if (contact == null) {
+            result.put("error", "No contact to send email to");
+            return result;
+        }
+
+        if (contact.getEmail() == null || contact.getEmail().trim().isEmpty()) {
+            result.put("error", "Contact has no email address");
+            return result;
+        }
+
+        if (!config.containsKey("templateId")) {
+            result.put("error", "Missing templateId in config");
+            return result;
+        }
+
+        Long templateId = ((Number) config.get("templateId")).longValue();
+        Optional<EmailTemplate> templateOpt = emailTemplateRepository.findById(templateId);
+
+        if (templateOpt.isEmpty()) {
+            result.put("error", "Template not found: " + templateId);
+            return result;
+        }
+
+        EmailTemplate template = templateOpt.get();
+        
+        // Get email account if specified
+        EmailAccount emailAccount = null;
+        if (config.containsKey("accountId")) {
+            Long accountId = ((Number) config.get("accountId")).longValue();
+            emailAccount = emailAccountRepository.findById(accountId).orElse(null);
+        }
+
+        try {
+            // Process template with contact data
+            String subject = processTemplateVariables(template.getSubject(), contact);
+            String body = processTemplateVariables(template.getHtmlContent(), contact);
+
+            // Send email
+            Long sentEmailId;
+            if (emailAccount != null) {
+                sentEmailId = emailSendingService.sendEmailFromAccount(
+                        emailAccount,
+                        contact.getEmail(),
+                        subject,
+                        body
+                );
+            } else {
+                sentEmailId = emailSendingService.sendEmail(
+                        contact.getEmail(),
+                        subject,
+                        body
+                );
+            }
+
+            // Increment template usage
+            template.incrementUsage();
+            emailTemplateRepository.save(template);
+
+            result.put("success", true);
+            result.put("emailId", sentEmailId);
+            result.put("templateId", templateId);
+            result.put("recipientEmail", contact.getEmail());
+            log.info("Sent email from template {} to contact {} ({})", 
+                     templateId, contact.getId(), contact.getEmail());
+
+        } catch (Exception e) {
+            result.put("error", "Failed to send email: " + e.getMessage());
+            log.error("Failed to send email from template {} to contact {}: {}", 
+                     templateId, contact.getId(), e.getMessage());
+        }
+
+        return result;
+    }
+
+    /**
+     * Zamienia zmienne szablonowe na dane kontaktu
+     */
+    private String processTemplateVariables(String template, Contact contact) {
+        if (template == null) return "";
+        
+        return template
+                .replace("{{name}}", contact.getName() != null ? contact.getName() : "")
+                .replace("{{firstName}}", extractFirstName(contact.getName()))
+                .replace("{{email}}", contact.getEmail() != null ? contact.getEmail() : "")
+                .replace("{{company}}", contact.getCompany() != null ? contact.getCompany() : "")
+                .replace("{{position}}", contact.getPosition() != null ? contact.getPosition() : "")
+                .replace("{{phone}}", contact.getPhone() != null ? contact.getPhone() : "");
+    }
+
+    private String extractFirstName(String fullName) {
+        if (fullName == null || fullName.isBlank()) return "";
+        String[] parts = fullName.trim().split("\\s+");
+        return parts[0];
     }
 
     // ==================== CRUD OPERATIONS ====================

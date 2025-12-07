@@ -3,9 +3,11 @@ package com.crm.service;
 import com.crm.exception.ResourceNotFoundException;
 import com.crm.exception.ValidationException;
 import com.crm.model.Contact;
+import com.crm.model.EmailAccount;
 import com.crm.model.EmailTemplate;
 import com.crm.model.EmailTemplateTheme;
 import com.crm.repository.ContactRepository;
+import com.crm.repository.EmailAccountRepository;
 import com.crm.repository.EmailTemplateRepository;
 import com.crm.repository.EmailTemplateThemeRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +18,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +31,7 @@ public class EmailTemplateService {
     private final EmailTemplateRepository templateRepository;
     private final EmailTemplateThemeRepository themeRepository;
     private final ContactRepository contactRepository;
+    private final EmailAccountRepository emailAccountRepository;
     private final UserContextService userContextService;
     private final EmailSendingService emailSendingService;
 
@@ -387,20 +388,35 @@ public class EmailTemplateService {
     // ============ Newsletter Sending ============
 
     /**
-     * Send newsletter to all contacts with a specific tag
+     * Send newsletter to all contacts with specified tags
      */
-    public Map<String, Object> sendNewsletterToTag(Long templateId, Long tagId, String subject) {
-        log.info("Sending newsletter - templateId: {}, tagId: {}", templateId, tagId);
+    public Map<String, Object> sendNewsletterToTags(Long templateId, List<Long> tagIds, String subject, Long accountId) {
+        log.info("Sending newsletter - templateId: {}, tagIds: {}, accountId: {}", templateId, tagIds, accountId);
         
         // Get template
         EmailTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new ResourceNotFoundException("Template not found"));
         
-        // Get contacts with the specified tag
-        List<Contact> contacts = contactRepository.findByTagId(tagId);
+        // Get email account if specified
+        EmailAccount emailAccount = null;
+        if (accountId != null) {
+            emailAccount = emailAccountRepository.findById(accountId).orElse(null);
+            if (emailAccount == null) {
+                log.warn("Email account {} not found, using default", accountId);
+            }
+        }
+        
+        // Get unique contacts with any of the specified tags
+        Set<Contact> uniqueContacts = new HashSet<>();
+        for (Long tagId : tagIds) {
+            List<Contact> tagContacts = contactRepository.findByTagId(tagId);
+            uniqueContacts.addAll(tagContacts);
+        }
+        
+        List<Contact> contacts = new ArrayList<>(uniqueContacts);
         
         if (contacts.isEmpty()) {
-            throw new ValidationException("Brak kontaktów z wybranym tagiem");
+            throw new ValidationException("Brak kontaktów z wybranymi tagami");
         }
         
         // Use provided subject or template subject
@@ -408,22 +424,38 @@ public class EmailTemplateService {
                 ? subject 
                 : template.getSubject();
         
-        // Send emails asynchronously
+        // Send emails
         int successCount = 0;
         int failCount = 0;
+        final EmailAccount finalAccount = emailAccount;
         
         for (Contact contact : contacts) {
             try {
+                // Skip contacts without email
+                if (contact.getEmail() == null || contact.getEmail().trim().isEmpty()) {
+                    log.debug("Skipping contact {} - no email address", contact.getId());
+                    continue;
+                }
+                
                 // Render template for this contact
                 String renderedHtml = renderTemplateForContact(template, contact);
                 String renderedSubject = processTemplate(emailSubject, prepareVariables(contact, null));
                 
-                // Send email
-                emailSendingService.sendEmail(
-                        contact.getEmail(),
-                        renderedSubject,
-                        renderedHtml
-                );
+                // Send email using specified account or default
+                if (finalAccount != null) {
+                    emailSendingService.sendEmailFromAccount(
+                            finalAccount,
+                            contact.getEmail(),
+                            renderedSubject,
+                            renderedHtml
+                    );
+                } else {
+                    emailSendingService.sendEmail(
+                            contact.getEmail(),
+                            renderedSubject,
+                            renderedHtml
+                    );
+                }
                 
                 successCount++;
                 log.debug("Newsletter sent to: {}", contact.getEmail());
@@ -447,6 +479,13 @@ public class EmailTemplateService {
         result.put("message", String.format("Newsletter wysłany do %d z %d odbiorców", successCount, contacts.size()));
         
         return result;
+    }
+    
+    /**
+     * Send newsletter to all contacts with a specific tag (backward compatibility)
+     */
+    public Map<String, Object> sendNewsletterToTag(Long templateId, Long tagId, String subject) {
+        return sendNewsletterToTags(templateId, List.of(tagId), subject, null);
     }
 
     /**

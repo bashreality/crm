@@ -232,10 +232,32 @@ public class EmailTemplateController {
     public ResponseEntity<Map<String, Object>> sendNewsletter(@RequestBody Map<String, Object> request) {
         try {
             Long templateId = ((Number) request.get("templateId")).longValue();
-            Long tagId = ((Number) request.get("tagId")).longValue();
             String subject = (String) request.get("subject");
+            
+            // Obsługa accountId (opcjonalne)
+            Long accountId = null;
+            if (request.get("accountId") != null) {
+                accountId = ((Number) request.get("accountId")).longValue();
+            }
+            
+            // Obsługa tagIds (tablica) lub tagId (pojedynczy)
+            List<Long> tagIds = new java.util.ArrayList<>();
+            if (request.get("tagIds") != null) {
+                @SuppressWarnings("unchecked")
+                List<Object> tagIdsList = (List<Object>) request.get("tagIds");
+                for (Object tagIdObj : tagIdsList) {
+                    tagIds.add(((Number) tagIdObj).longValue());
+                }
+            } else if (request.get("tagId") != null) {
+                tagIds.add(((Number) request.get("tagId")).longValue());
+            }
+            
+            if (tagIds.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Wybierz przynajmniej jeden tag", "success", false));
+            }
 
-            Map<String, Object> result = templateService.sendNewsletterToTag(templateId, tagId, subject);
+            Map<String, Object> result = templateService.sendNewsletterToTags(templateId, tagIds, subject, accountId);
             
             return ResponseEntity.ok(result);
         } catch (Exception e) {

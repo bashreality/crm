@@ -231,6 +231,16 @@ export const workflowsApi = {
   getActionTypes: () => api.get('/workflows/action-types'),
 };
 
+// Notifications API
+export const notificationsApi = {
+  getAll: (limit = 50) => api.get('/notifications', { params: { limit } }),
+  getUnread: () => api.get('/notifications/unread'),
+  getUnreadCount: () => api.get('/notifications/count'),
+  markAsRead: (id) => api.post(`/notifications/${id}/read`),
+  markAllAsRead: () => api.post('/notifications/read-all'),
+  delete: (id) => api.delete(`/notifications/${id}`),
+};
+
 // Deals API
 export const dealsApi = {
   getAll: () => api.get('/deals'),

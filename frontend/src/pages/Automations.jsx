@@ -15,10 +15,12 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { workflowsApi, sequencesApi, tagsApi, dealsApi } from '../services/api';
+import { workflowsApi, sequencesApi, tagsApi, dealsApi, emailAccountsApi } from '../services/api';
+import emailTemplateService from '../services/emailTemplateService';
 import '../styles/Automations.css';
 
 // Mapowanie typów triggerów na czytelne nazwy
@@ -49,6 +51,7 @@ const ACTION_LABELS = {
   REMOVE_TAG: { label: 'Usuń tag', icon: Tag, color: '#f97316' },
   UPDATE_LEAD_SCORE: { label: 'Zmień scoring', icon: Activity, color: '#f59e0b' },
   SEND_NOTIFICATION: { label: 'Wyślij powiadomienie', icon: Mail, color: '#ec4899' },
+  SEND_EMAIL: { label: 'Wyślij email z szablonu', icon: FileText, color: '#3b82f6' },
 };
 
 const Automations = () => {
@@ -60,6 +63,8 @@ const Automations = () => {
   const [sequences, setSequences] = useState([]);
   const [tags, setTags] = useState([]);
   const [pipelines, setPipelines] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [emailAccounts, setEmailAccounts] = useState([]);
   const [stats, setStats] = useState({ totalRules: 0, totalExecutions: 0 });
 
   // Form state
@@ -82,18 +87,22 @@ const Automations = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [rulesRes, seqRes, tagsRes, pipelinesRes, dashRes] = await Promise.all([
+      const [rulesRes, seqRes, tagsRes, pipelinesRes, dashRes, templatesRes, accountsRes] = await Promise.all([
         workflowsApi.getAllRules(),
         sequencesApi.getAll(),
         tagsApi.getAll(),
         dealsApi.getAllPipelines().catch(() => ({ data: [] })),
         workflowsApi.getDashboard().catch(() => ({ data: { totalRules: 0, totalExecutions: 0 } })),
+        emailTemplateService.getAllTemplates().catch(() => []),
+        emailAccountsApi.getAll().catch(() => ({ data: [] })),
       ]);
       setRules(rulesRes.data || []);
       setSequences(seqRes.data || []);
       setTags(tagsRes.data || []);
       setPipelines(pipelinesRes.data || []);
       setStats(dashRes.data || { totalRules: 0, totalExecutions: 0 });
+      setTemplates(templatesRes || []);
+      setEmailAccounts(accountsRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Błąd ładowania danych');
@@ -493,6 +502,58 @@ const Automations = () => {
               )}
             </select>
           </div>
+        );
+      case 'SEND_EMAIL':
+        return (
+          <>
+            <div className="config-field">
+              <label>Wybierz szablon emaila *</label>
+              <select
+                value={actionConfig.templateId || ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  actionConfig: { ...actionConfig, templateId: parseInt(e.target.value) }
+                })}
+                required
+              >
+                <option value="">-- Wybierz szablon --</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} {template.category && `(${template.category})`}
+                  </option>
+                ))}
+              </select>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                Email zostanie wysłany do kontaktu powiązanego z triggerem
+              </p>
+            </div>
+            <div className="config-field">
+              <label>Konto do wysyłki (opcjonalne)</label>
+              <select
+                value={actionConfig.accountId || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const newConfig = { ...actionConfig };
+                  if (value) {
+                    newConfig.accountId = parseInt(value);
+                  } else {
+                    delete newConfig.accountId;
+                  }
+                  setFormData({
+                    ...formData,
+                    actionConfig: newConfig
+                  });
+                }}
+              >
+                <option value="">-- Domyślne konto --</option>
+                {emailAccounts.map(account => (
+                  <option key={account.id} value={account.id}>
+                    {account.displayName || account.emailAddress}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
         );
       default:
         return null;
