@@ -252,7 +252,7 @@ public class SequenceService {
     public SequenceExecution startSequenceForContact(Long sequenceId, Long contactId, Long dealId) {
         Long userId = userContextService.getCurrentUserId();
         EmailSequence sequence = sequenceRepository.findById(sequenceId)
-                .orElseThrow(() -> new RuntimeException("Sequence not found"));
+                .orElseThrow(() -> new RuntimeException("Sequence not found. Please refresh the page and try again"));
 
         // Check if user owns this sequence
         if (!userId.equals(sequence.getUserId())) {
