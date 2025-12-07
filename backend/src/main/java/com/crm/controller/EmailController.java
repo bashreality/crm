@@ -49,10 +49,12 @@ public class EmailController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String company,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Long accountId) {
+            @RequestParam(required = false) Long accountId,
+            @RequestParam(required = false) String direction) {
 
         // Użyj zoptymalizowanego zapytania SQL zamiast filtrowania w Javie
-        List<Email> emails = emailService.getEmailsByFilters(accountId, status, company, search);
+        // direction: "sent" = tylko wysłane, "received" = tylko odebrane, null/empty = wszystkie
+        List<Email> emails = emailService.getEmailsByFilters(accountId, status, company, search, direction);
 
         // Pobierz kontakty dla nadawców
         Set<String> senderEmails = new HashSet<>();

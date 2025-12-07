@@ -159,10 +159,10 @@ public class EmailService {
      * Zoptymalizowana metoda - filtrowanie w SQL zamiast w Javie.
      * Automatycznie filtruje według aktualnie zalogowanego użytkownika.
      */
-    public List<Email> getEmailsByFilters(Long accountId, String status, String company, String search) {
+    public List<Email> getEmailsByFilters(Long accountId, String status, String company, String search, String direction) {
         Long currentUserId = userContextService.getCurrentUserId();
         Long userIdFilter = userContextService.isCurrentUserAdmin() ? null : currentUserId;
-        return emailRepository.findByFilters(userIdFilter, accountId, status, company, search);
+        return emailRepository.findByFilters(userIdFilter, accountId, status, company, search, direction);
     }
 
     /**

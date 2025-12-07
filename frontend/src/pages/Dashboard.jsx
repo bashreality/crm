@@ -12,7 +12,9 @@ import {
   Bot,
   Eye,
   LayoutGrid,
-  List
+  List,
+  Send,
+  Inbox
 } from 'lucide-react';
 import { emailsApi, emailAccountsApi, analyticsApi, tasksApi, contactsApi, tagsApi } from '../services/api';
 import api from '../services/api';
@@ -68,6 +70,7 @@ const Dashboard = () => {
   const [emailToChangeStatus, setEmailToChangeStatus] = useState(null);
   const [showDealModal, setShowDealModal] = useState(false);
   const [pipelines, setPipelines] = useState([]);
+  const [directionFilter, setDirectionFilter] = useState('all'); // 'all', 'received', 'sent'
   const [dealForm, setDealForm] = useState({
     title: '',
     value: '',
@@ -318,12 +321,13 @@ const Dashboard = () => {
     }
   };
 
-  const buildEmailParams = (filtersState) => {
+  const buildEmailParams = (filtersState, direction = directionFilter) => {
     const params = {};
     if (filtersState.search) params.search = filtersState.search;
     if (filtersState.company) params.company = filtersState.company;
     if (filtersState.status) params.status = filtersState.status;
     if (filtersState.accountId) params.accountId = filtersState.accountId;
+    if (direction && direction !== 'all') params.direction = direction;
     return params;
   };
 
@@ -1523,6 +1527,20 @@ const Dashboard = () => {
                   >
                     {compactView ? <LayoutGrid size={16} /> : <List size={16} />}
                     <span>{compactView ? 'Rozszerzony' : 'Kompaktowy'}</span>
+                  </button>
+                  <button
+                    className={`btn ${directionFilter === 'all' ? 'btn-secondary' : 'btn-primary'} view-toggle-btn`}
+                    onClick={() => {
+                      const nextDirection = directionFilter === 'all' ? 'received' : directionFilter === 'received' ? 'sent' : 'all';
+                      setDirectionFilter(nextDirection);
+                      fetchEmails(buildEmailParams(filters, nextDirection));
+                    }}
+                    title="Przełącz między: Wszystkie → Odebrane → Wysłane"
+                  >
+                    {directionFilter === 'all' ? <Mail size={16} /> : directionFilter === 'received' ? <Inbox size={16} /> : <Send size={16} />}
+                    <span>
+                      {directionFilter === 'all' ? 'Wszystkie' : directionFilter === 'received' ? 'Odebrane' : 'Wysłane'}
+                    </span>
                   </button>
                   {selectedEmails.length > 0 && (
                     <span className="dashboard-selected-count">

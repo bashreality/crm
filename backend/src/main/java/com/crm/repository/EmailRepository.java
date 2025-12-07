@@ -44,7 +44,10 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
             "(:accountId IS NULL OR e.account_id = :accountId) AND " +
             "(:status IS NULL OR :status = '' OR e.status = :status) AND " +
             "(:company IS NULL OR :company = '' OR LOWER(e.company) LIKE LOWER(CONCAT('%', :company, '%'))) AND " +
-            "(:search IS NULL OR :search = '' OR LOWER(e.sender) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "(:search IS NULL OR :search = '' OR LOWER(e.sender) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(e.subject) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "(:direction IS NULL OR :direction = '' OR " +
+            "  (:direction = 'sent' AND e.tracking_id IS NOT NULL) OR " +
+            "  (:direction = 'received' AND e.tracking_id IS NULL)) " +
             "ORDER BY e.received_at DESC LIMIT 1000",
             nativeQuery = true)
     List<Email> findByFilters(
@@ -52,7 +55,8 @@ public interface EmailRepository extends JpaRepository<Email, Long> {
             @Param("accountId") Long accountId,
             @Param("status") String status,
             @Param("company") String company,
-            @Param("search") String search
+            @Param("search") String search,
+            @Param("direction") String direction
     );
 
     // Additional user-specific queries
