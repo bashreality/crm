@@ -152,6 +152,7 @@ public class WorkflowAutomationService {
     /**
      * Obsługa triggera: Tag dodany do kontaktu
      */
+    @Async
     @Transactional
     public void handleTagAdded(Contact contact, Tag tag) {
         if (contact == null || tag == null) {
@@ -1115,13 +1116,21 @@ public class WorkflowAutomationService {
 
     public Map<String, Object> getDashboardStats(Long userId) {
         Map<String, Object> stats = new HashMap<>();
-        
+
         stats.put("totalRules", ruleRepository.countByUserIdAndActiveTrue(userId));
-        
-        // sumExecutionCountByUserId może zwrócić null gdy brak wykonań
-        Long totalExecutions = ruleRepository.sumExecutionCountByUserId(userId);
-        stats.put("totalExecutions", totalExecutions != null ? totalExecutions : 0L);
-        
+
+        // Liczymy rzeczywiste wykonania z tabeli workflow_executions
+        // Pobieramy wszystkie reguły użytkownika
+        List<WorkflowRule> userRules = ruleRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        long totalExecutions = 0L;
+
+        // Dla każdej reguły zliczamy wykonania
+        for (WorkflowRule rule : userRules) {
+            List<WorkflowExecution> ruleExecutions = executionRepository.findByRuleIdOrderByCreatedAtDesc(rule.getId());
+            totalExecutions += ruleExecutions.size();
+        }
+
+        stats.put("totalExecutions", totalExecutions);
         stats.put("recentExecutions", executionRepository.findTop20ByOrderByCreatedAtDesc());
 
         return stats;
