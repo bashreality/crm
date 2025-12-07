@@ -672,24 +672,6 @@ public class WorkflowAutomationService {
     private Map<String, Object> executeMoveDeal(Map<String, Object> config, Deal deal, Contact contact) {
         Map<String, Object> result = new HashMap<>();
 
-        // Fallback: jeśli deal jest null, spróbuj znaleźć aktywny deal dla kontaktu
-        Deal targetDeal = deal;
-        if (targetDeal == null && contact != null) {
-            List<Deal> contactDeals = dealRepository.findByContactIdAndStatus(contact.getId(), "open");
-            if (!contactDeals.isEmpty()) {
-                targetDeal = contactDeals.get(0); // Weź pierwszy aktywny deal
-                log.info("No deal in trigger context, using first open deal {} for contact {}", 
-                         targetDeal.getId(), contact.getId());
-            }
-        }
-
-        if (targetDeal == null) {
-            log.warn("MOVE_DEAL action skipped - no deal associated with trigger and no open deals for contact");
-            result.put("skipped", true);
-            result.put("message", "No deal to move - trigger has no deal and contact has no open deals");
-            return result;
-        }
-
         if (!config.containsKey("stageId")) {
             result.put("error", "Missing stageId in config");
             return result;
@@ -703,8 +685,60 @@ public class WorkflowAutomationService {
             return result;
         }
 
+        PipelineStage targetStage = stageOpt.get();
+
+        // Fallback: jeśli deal jest null, spróbuj znaleźć aktywny deal dla kontaktu
+        Deal targetDeal = deal;
+        if (targetDeal == null && contact != null) {
+            List<Deal> contactDeals = dealRepository.findByContactIdAndStatus(contact.getId(), "open");
+            if (!contactDeals.isEmpty()) {
+                targetDeal = contactDeals.get(0); // Weź pierwszy aktywny deal
+                log.info("No deal in trigger context, using first open deal {} for contact {}", 
+                         targetDeal.getId(), contact.getId());
+            }
+        }
+
+        // Jeśli nadal brak deala - utwórz nowy dla kontaktu i od razu umieść w docelowym etapie
+        if (targetDeal == null && contact != null) {
+            log.info("No deal found for contact {} - creating new deal in stage {}", 
+                     contact.getId(), targetStage.getName());
+            
+            targetDeal = new Deal();
+            targetDeal.setTitle("Szansa z automatyzacji - " + contact.getName());
+            targetDeal.setValue(0.0);
+            targetDeal.setContact(contact);
+            targetDeal.setStatus("open");
+            targetDeal.setCurrency("PLN");
+            targetDeal.setStage(targetStage);
+            targetDeal.setPipeline(targetStage.getPipeline());
+            
+            if (contact.getUserId() != null) {
+                targetDeal.setUserId(contact.getUserId());
+            }
+            
+            targetDeal = dealRepository.save(targetDeal);
+            
+            result.put("success", true);
+            result.put("dealId", targetDeal.getId());
+            result.put("created", true);
+            result.put("newStageId", stageId);
+            result.put("stageName", targetStage.getName());
+            log.info("Created new deal {} for contact {} in stage '{}'", 
+                     targetDeal.getId(), contact.getId(), targetStage.getName());
+            
+            return result;
+        }
+
+        if (targetDeal == null) {
+            log.warn("MOVE_DEAL action skipped - no deal and no contact to create deal for");
+            result.put("skipped", true);
+            result.put("message", "No deal to move and no contact to create deal for");
+            return result;
+        }
+
+        // Przenieś istniejący deal do nowego etapu
         PipelineStage oldStage = targetDeal.getStage();
-        targetDeal.setStage(stageOpt.get());
+        targetDeal.setStage(targetStage);
         targetDeal.setUpdatedAt(LocalDateTime.now());
         dealRepository.save(targetDeal);
 

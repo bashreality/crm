@@ -1,7 +1,7 @@
 package com.crm.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,7 +48,7 @@ public class Pipeline {
 
     @OneToMany(mappedBy = "pipeline", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("position ASC")
-    @JsonManagedReference
+    @JsonIgnoreProperties({"pipeline"})
     private List<PipelineStage> stages;
 
     @ManyToMany(fetch = FetchType.LAZY)

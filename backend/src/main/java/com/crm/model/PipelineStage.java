@@ -1,6 +1,6 @@
 package com.crm.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,7 +19,7 @@ public class PipelineStage {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pipeline_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnoreProperties({"stages", "deals"})
     private Pipeline pipeline;
 
     @Column(nullable = false)

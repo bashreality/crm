@@ -94,7 +94,7 @@ public class DealService {
 
     @Transactional
     public Deal updateDealStage(Long dealId, Long stageId) {
-        Deal deal = dealRepository.findById(dealId)
+        Deal deal = dealRepository.findWithRelationsById(dealId)
                 .orElseThrow(() -> new RuntimeException("Deal not found"));
         
         PipelineStage oldStage = deal.getStage();
