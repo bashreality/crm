@@ -18,6 +18,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
   GripVertical,
   Check,
   X,
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react';
 import api, { contactsApi, emailAccountsApi, tasksApi, sequencesApi, tagsApi } from '../services/api';
 import PipelineColumn from '../components/deals/PipelineColumn';
+import PipelineCard from '../components/deals/PipelineCard';
 import AttachmentUploader from '../components/AttachmentUploader';
 import RichTextEditor from '../components/RichTextEditor';
 import '../components/RichTextEditor.css';
@@ -43,6 +45,10 @@ const Deals = () => {
   const [deals, setDeals] = useState([]);
   const [filteredDeals, setFilteredDeals] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // View mode: 'list' = lista lejków, 'kanban' = pełnoekranowy kanban
+  const [viewMode, setViewMode] = useState('list');
+  const [selectedPipelineId, setSelectedPipelineId] = useState(null);
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -161,6 +167,29 @@ const Deals = () => {
     fetchTags();
   }, []);
 
+  // Ładuj deals dla wszystkich lejków w widoku listy (dla statystyk)
+  useEffect(() => {
+    if (viewMode === 'list' && pipelines.length > 0) {
+      // Ładuj deals dla wszystkich lejków równolegle
+      const loadAllDeals = async () => {
+        try {
+          const allDealsPromises = pipelines.map(p => 
+            api.get(`/deals/pipeline/${p.id}`).then(res => ({
+              pipelineId: p.id,
+              deals: Array.isArray(res.data) ? res.data : []
+            })).catch(() => ({ pipelineId: p.id, deals: [] }))
+          );
+          const results = await Promise.all(allDealsPromises);
+          const allDeals = results.flatMap(r => r.deals);
+          setDeals(allDeals);
+        } catch (err) {
+          console.error('Error loading deals for pipelines:', err);
+        }
+      };
+      loadAllDeals();
+    }
+  }, [viewMode, pipelines]);
+
   useEffect(() => {
     // Ensure deals is an array before filtering
     const dealsArray = Array.isArray(deals) ? deals : [];
@@ -202,7 +231,8 @@ const Deals = () => {
     try {
       const res = await api.get('/deals/pipelines');
       setPipelines(res.data);
-      if (res.data.length > 0) {
+      // Nie ustawiaj automatycznie activePipeline jeśli jesteśmy w trybie listy
+      if (viewMode === 'kanban' && res.data.length > 0) {
         const toActivate = activePipeline ? res.data.find(p => p.id === activePipeline.id) || res.data[0] : res.data[0];
         setActivePipeline(toActivate);
         fetchDeals(toActivate.id);
@@ -213,6 +243,22 @@ const Deals = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Funkcje do przełączania widoków
+  const handleOpenPipeline = async (pipeline) => {
+    setSelectedPipelineId(pipeline.id);
+    setActivePipeline(pipeline);
+    setViewMode('kanban');
+    await fetchDeals(pipeline.id);
+  };
+
+  const handleBackToList = () => {
+    setViewMode('list');
+    setSelectedPipelineId(null);
+    setActivePipeline(null);
+    setDeals([]);
+    setFilteredDeals([]);
   };
 
   const fetchDeals = async (pipelineId) => {
@@ -1097,7 +1143,7 @@ const Deals = () => {
           <button className="btn btn-secondary" onClick={handleCreatePipeline}>
             <Settings size={16} /> Zarządzaj lejkami
           </button>
-          {activePipeline && (
+          {viewMode === 'kanban' && activePipeline && (
             <button className="btn btn-primary" onClick={() => setShowModal(true)}>
               <Plus size={16} /> Nowa Szansa
             </button>
@@ -1105,96 +1151,180 @@ const Deals = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="deals-stats-grid">
-        <div className="deals-stat-card">
-          <div className="deals-stat-icon value">
-            <DollarSign size={24} />
+      {viewMode === 'list' ? (
+        <>
+          {/* Stats Grid - tylko w widoku listy */}
+          <div className="deals-stats-grid">
+            <div className="deals-stat-card">
+              <div className="deals-stat-icon value">
+                <DollarSign size={24} />
+              </div>
+              <div className="deals-stat-content">
+                <div className="deals-stat-number">{formatCurrency(stats.totalValue)}</div>
+                <div className="deals-stat-label">Łączna wartość</div>
+              </div>
+            </div>
+            <div className="deals-stat-card">
+              <div className="deals-stat-icon deals">
+                <Target size={24} />
+              </div>
+              <div className="deals-stat-content">
+                <div className="deals-stat-number">{stats.totalDeals}</div>
+                <div className="deals-stat-label">Aktywnych szans</div>
+              </div>
+            </div>
+            <div className="deals-stat-card">
+              <div className="deals-stat-icon avg">
+                <BarChart3 size={24} />
+              </div>
+              <div className="deals-stat-content">
+                <div className="deals-stat-number">{formatCurrency(stats.avgValue)}</div>
+                <div className="deals-stat-label">Średnia wartość</div>
+              </div>
+            </div>
+            <div className="deals-stat-card">
+              <div className="deals-stat-icon contacts">
+                <Users size={24} />
+              </div>
+              <div className="deals-stat-content">
+                <div className="deals-stat-number">{stats.uniqueContacts}</div>
+                <div className="deals-stat-label">Unikalnych kontaktów</div>
+              </div>
+            </div>
           </div>
-          <div className="deals-stat-content">
-            <div className="deals-stat-number">{formatCurrency(stats.totalValue)}</div>
-            <div className="deals-stat-label">Łączna wartość</div>
-          </div>
-        </div>
-        <div className="deals-stat-card">
-          <div className="deals-stat-icon deals">
-            <Target size={24} />
-          </div>
-          <div className="deals-stat-content">
-            <div className="deals-stat-number">{stats.totalDeals}</div>
-            <div className="deals-stat-label">Aktywnych szans</div>
-          </div>
-        </div>
-        <div className="deals-stat-card">
-          <div className="deals-stat-icon avg">
-            <BarChart3 size={24} />
-          </div>
-          <div className="deals-stat-content">
-            <div className="deals-stat-number">{formatCurrency(stats.avgValue)}</div>
-            <div className="deals-stat-label">Średnia wartość</div>
-          </div>
-        </div>
-        <div className="deals-stat-card">
-          <div className="deals-stat-icon contacts">
-            <Users size={24} />
-          </div>
-          <div className="deals-stat-content">
-            <div className="deals-stat-number">{stats.uniqueContacts}</div>
-            <div className="deals-stat-label">Unikalnych kontaktów</div>
-          </div>
-        </div>
-      </div>
 
-      {/* Pipeline Tabs */}
-      {pipelines.length > 1 && (
-        <div className="deals-pipeline-tabs">
-          {pipelines.map(p => (
-            <button
-              key={p.id}
-              className={`deals-pipeline-tab ${activePipeline?.id === p.id ? 'active' : ''}`}
-              onClick={() => { setActivePipeline(p); fetchDeals(p.id); }}
-            >
-              {p.name}
-              {activePipeline?.id === p.id && (
-                <span className="deals-pipeline-tab-count">
-                  {filteredDeals.filter(d => d.pipeline?.id === p.id || activePipeline?.id === p.id).length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Kanban Board */}
-      <div className="deals-board-wrapper">
-
-      {!activePipeline ? (
-        <div className="empty-state-container" style={{ textAlign: 'center', marginTop: '60px' }}>
-           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏢</div>
-           <h3>Witaj w module Sprzedaży</h3>
-           <p style={{ color: '#6b7280', maxWidth: '400px', margin: '0 auto 24px auto' }}>
-             Nie masz jeszcze żadnego aktywnego lejka sprzedażowego. Utwórz pierwszy lejek, aby zacząć zarządzać procesem.
-           </p>
-           <button className="btn btn-primary" onClick={handleCreatePipeline}>
-             Rozpocznij konfigurację
-           </button>
-        </div>
+          {/* Pipeline Cards Grid */}
+          {pipelines.length === 0 ? (
+            <div className="empty-state-container" style={{ textAlign: 'center', marginTop: '60px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏢</div>
+              <h3>Witaj w module Sprzedaży</h3>
+              <p style={{ color: '#6b7280', maxWidth: '400px', margin: '0 auto 24px auto' }}>
+                Nie masz jeszcze żadnego aktywnego lejka sprzedażowego. Utwórz pierwszy lejek, aby zacząć zarządzać procesem.
+              </p>
+              <button className="btn btn-primary" onClick={handleCreatePipeline}>
+                Rozpocznij konfigurację
+              </button>
+            </div>
+          ) : (
+            <div className="pipelines-grid">
+              {pipelines.map(pipeline => {
+                // Pobierz deals dla tego lejka (jeśli są już załadowane)
+                const pipelineDeals = deals.filter(d => d.pipeline?.id === pipeline.id);
+                return (
+                  <PipelineCard
+                    key={pipeline.id}
+                    pipeline={pipeline}
+                    deals={pipelineDeals}
+                    onClick={() => handleOpenPipeline(pipeline)}
+                    isDefault={pipeline.isDefault}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </>
       ) : (
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="kanban-board">
-            {(activePipeline.stages && activePipeline.stages.length > 0) ? (
-              activePipeline.stages.map(stage => (
-                <PipelineColumn
-                  key={stage.id}
-                  stage={stage}
-                  deals={filteredDeals}
-                  onEditDeal={handleEditDeal}
-                  onEmailDeal={handleEmail}
-                  onTaskDeal={handleAddTask}
-                  onSequenceDeal={handleSequence}
-                  onDeleteDeal={handleDeleteDeal}
-                />
-              ))
+        <>
+          {/* Top Bar - tylko w widoku kanban */}
+          <div className="kanban-top-bar">
+            <button
+              className="kanban-back-btn"
+              onClick={handleBackToList}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                background: 'var(--color-bg-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                color: 'var(--color-text-main)',
+                fontWeight: '600',
+                fontSize: '14px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-bg-main)';
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-bg-surface)';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            >
+              <ChevronLeft size={18} />
+              Wstecz do listy
+            </button>
+
+            <div style={{ flex: 1, marginLeft: '20px' }}>
+              <h2 style={{
+                margin: 0,
+                fontSize: '24px',
+                fontWeight: '700',
+                color: 'var(--color-text-main)'
+              }}>
+                {activePipeline?.name || 'Lejek sprzedażowy'}
+              </h2>
+              {activePipeline && (
+                <div style={{
+                  display: 'flex',
+                  gap: '20px',
+                  marginTop: '8px',
+                  fontSize: '14px',
+                  color: 'var(--color-text-secondary)'
+                }}>
+                  <span>
+                    <strong>{filteredDeals.length}</strong> szans
+                  </span>
+                  <span>
+                    <strong>{formatCurrency(stats.totalValue)}</strong> łączna wartość
+                  </span>
+                  {activePipeline.isDefault && (
+                    <span style={{
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '600'
+                    }}>
+                      ⭐ Domyślny
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="btn btn-secondary" onClick={handleCreatePipeline}>
+                <Settings size={16} /> Zarządzaj lejkami
+              </button>
+              <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                <Plus size={16} /> Nowa Szansa
+              </button>
+            </div>
+          </div>
+
+          {/* Pełnoekranowy Kanban Board */}
+          <div className="deals-board-wrapper fullscreen">
+            {activePipeline && activePipeline.stages && activePipeline.stages.length > 0 ? (
+              <DragDropContext onDragEnd={onDragEnd}>
+                <div className="kanban-board fullscreen">
+                  {activePipeline.stages.map(stage => (
+                    <PipelineColumn
+                      key={stage.id}
+                      stage={stage}
+                      deals={filteredDeals}
+                      onEditDeal={handleEditDeal}
+                      onEmailDeal={handleEmail}
+                      onTaskDeal={handleAddTask}
+                      onSequenceDeal={handleSequence}
+                      onDeleteDeal={handleDeleteDeal}
+                    />
+                  ))}
+                </div>
+              </DragDropContext>
             ) : (
               <div style={{ 
                 textAlign: 'center', 
@@ -1216,7 +1346,7 @@ const Deals = () => {
               </div>
             )}
           </div>
-        </DragDropContext>
+        </>
       )}
 
       {/* --- MODALS --- */}

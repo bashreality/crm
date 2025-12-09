@@ -1628,3 +1628,51 @@ html.dark .stage-edit-form .stage-name-input {
   background: var(--color-bg-elevated);
   border-radius: 0 0 20px 20px;
 }
+
+/* Pipeline Cards Grid */
+.pipelines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+@media (max-width: 1200px) {
+  .pipelines-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .pipelines-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Kanban Top Bar */
+.kanban-top-bar {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+/* Fullscreen Kanban */
+.deals-board-wrapper.fullscreen {
+  min-height: calc(100vh - 300px);
+  padding: 24px;
+}
+
+.kanban-board.fullscreen {
+  height: calc(100vh - 350px);
+  min-height: 600px;
+}
+
+.kanban-board.fullscreen .kanban-column {
+  max-height: calc(100vh - 400px);
+  min-height: 500px;
+}
