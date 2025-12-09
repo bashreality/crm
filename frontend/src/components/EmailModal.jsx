@@ -27,9 +27,9 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pl-PL', { 
-      day: '2-digit', 
-      month: '2-digit', 
+    return date.toLocaleDateString('pl-PL', {
+      day: '2-digit',
+      month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -104,52 +104,51 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
   const statusColors = getStatusColor(email.status);
 
   return (
-    <div 
+    <div
+      className="modal-overlay"
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.7)',
+        backgroundColor: '#f1f5f9',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
         padding: '1.5rem',
-        backdropFilter: 'blur(8px)',
         animation: 'fadeIn 0.2s ease-out'
       }}
       onClick={onClose}
     >
-      <div 
+      <div
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '24px',
-          maxWidth: '1400px',
+          maxWidth: '1600px',
           width: '100%',
-          maxHeight: '92vh',
-          display: 'flex',
-          flexDirection: 'row',
-          boxShadow: '0 25px 80px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-          overflow: 'hidden',
+          height: '92vh',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '1.5rem',
           animation: 'slideUp 0.3s ease-out'
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* LEFT PANEL - Email Preview */}
+        {/* LEFT PANEL - Email Viewer (Clean, Flat) */}
         <div style={{
-          flex: '1 1 55%',
           display: 'flex',
           flexDirection: 'column',
-          borderRight: '1px solid #e2e8f0',
-          background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)'
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid var(--color-border)',
+          overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
         }}>
           {/* Email Header */}
           <div style={{
             padding: '1.75rem 2rem',
-            borderBottom: '1px solid #e2e8f0',
-            background: '#ffffff'
+            borderBottom: '1px solid var(--color-border)',
+            background: 'var(--color-bg-surface)'
           }}>
             <div style={{
               display: 'flex',
@@ -165,11 +164,11 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                   marginBottom: '0.75rem',
                   flexWrap: 'wrap'
                 }}>
-                  <h2 style={{ 
-                    fontSize: '1.375rem', 
+                  <h2 style={{
+                    fontSize: '1.375rem',
                     fontWeight: '700',
                     margin: 0,
-                    color: '#0f172a',
+                    color: 'var(--color-text-main)',
                     lineHeight: 1.3,
                     letterSpacing: '-0.02em'
                   }}>
@@ -190,14 +189,15 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                   </span>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={onClose}
+                className="btn-icon"
                 style={{
-                  background: '#f1f5f9',
-                  border: 'none',
+                  background: 'var(--color-bg-main)',
+                  border: '1px solid var(--color-border)',
                   fontSize: '1.125rem',
                   cursor: 'pointer',
-                  color: '#64748b',
+                  color: 'var(--color-text-secondary)',
                   padding: '0.5rem',
                   borderRadius: '10px',
                   transition: 'all 0.2s',
@@ -207,14 +207,6 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.backgroundColor = '#e2e8f0';
-                  e.target.style.color = '#334155';
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.backgroundColor = '#f1f5f9';
-                  e.target.style.color = '#64748b';
                 }}
               >
                 ✕
@@ -228,63 +220,63 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
               gap: '0.75rem'
             }}>
               <div style={{
-                background: '#f8fafc',
+                background: 'var(--color-bg-main)',
                 borderRadius: '12px',
                 padding: '0.875rem 1rem',
-                border: '1px solid #e2e8f0'
+                border: '1px solid var(--color-border)'
               }}>
                 <div style={{
                   fontSize: '0.7rem',
                   fontWeight: '600',
-                  color: '#94a3b8',
+                  color: 'var(--color-text-muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   marginBottom: '0.35rem'
                 }}>Od</div>
                 <div style={{
                   fontSize: '0.9rem',
-                  color: '#334155',
+                  color: 'var(--color-text-main)',
                   fontWeight: '500',
                   wordBreak: 'break-word'
                 }}>{email.sender}</div>
               </div>
               <div style={{
-                background: '#f8fafc',
+                background: 'var(--color-bg-main)',
                 borderRadius: '12px',
                 padding: '0.875rem 1rem',
-                border: '1px solid #e2e8f0'
+                border: '1px solid var(--color-border)'
               }}>
                 <div style={{
                   fontSize: '0.7rem',
                   fontWeight: '600',
-                  color: '#94a3b8',
+                  color: 'var(--color-text-muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   marginBottom: '0.35rem'
                 }}>Firma</div>
                 <div style={{
                   fontSize: '0.9rem',
-                  color: '#334155',
+                  color: 'var(--color-text-main)',
                   fontWeight: '500'
                 }}>{email.company || '—'}</div>
               </div>
               <div style={{
-                background: '#f8fafc',
+                background: 'var(--color-bg-main)',
                 borderRadius: '12px',
                 padding: '0.875rem 1rem',
-                border: '1px solid #e2e8f0'
+                border: '1px solid var(--color-border)'
               }}>
                 <div style={{
                   fontSize: '0.7rem',
                   fontWeight: '600',
-                  color: '#94a3b8',
+                  color: 'var(--color-text-muted)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   marginBottom: '0.35rem'
                 }}>Data</div>
                 <div style={{
                   fontSize: '0.9rem',
-                  color: '#334155',
+                  color: 'var(--color-text-main)',
                   fontWeight: '500'
                 }}>{formatDate(email.receivedAt)}</div>
               </div>
@@ -295,19 +287,20 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
           <div style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '1.75rem 2rem'
+            padding: '1.75rem 2rem',
+            background: 'var(--color-bg-main)'
           }}>
             <div style={{
               background: '#ffffff',
-              borderRadius: '16px',
+              borderRadius: '12px',
               padding: '1.5rem',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
+              border: '1px solid var(--color-border)',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
             }}>
               <div style={{
                 lineHeight: '1.85',
                 fontSize: '0.95rem',
-                color: '#334155',
+                color: 'var(--color-text-main)',
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word'
               }}>
@@ -317,30 +310,34 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
           </div>
         </div>
 
-        {/* RIGHT PANEL - Reply Composer */}
+        {/* RIGHT PANEL - Reply Composer (Floating Card) */}
         <div style={{
-          flex: '1 1 45%',
           display: 'flex',
           flexDirection: 'column',
-          background: 'linear-gradient(180deg, #fafbfd 0%, #f1f5f9 100%)',
-          minWidth: '380px'
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid var(--color-border)',
+          overflow: 'hidden',
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06)',
+          transform: 'translateY(0)',
+          transition: 'all 0.3s ease'
         }}>
           {/* Reply Header */}
           <div style={{
             padding: '1.5rem 1.75rem',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-            color: 'white'
+            background: 'linear-gradient(135deg, var(--color-primary) 0%, #059669 100%)',
+            color: 'white',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.75rem',
-              marginBottom: '0.75rem'
+              gap: '0.75rem'
             }}>
               <div style={{
                 width: '40px',
                 height: '40px',
-                borderRadius: '12px',
+                borderRadius: '10px',
                 background: 'rgba(255, 255, 255, 0.2)',
                 display: 'flex',
                 alignItems: 'center',
@@ -376,15 +373,16 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
             padding: '1.5rem 1.75rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1.25rem'
+            gap: '1.25rem',
+            background: 'var(--color-bg-main)'
           }}>
             {/* Subject Field */}
-            <div>
+            <div className="form-group">
               <label style={{
                 display: 'block',
                 marginBottom: '0.5rem',
                 fontWeight: '600',
-                color: '#334155',
+                color: 'var(--color-text-main)',
                 fontSize: '0.85rem'
               }}>
                 Temat
@@ -398,21 +396,21 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                 style={{
                   width: '100%',
                   padding: '0.875rem 1rem',
-                  border: '2px solid #e2e8f0',
-                  borderRadius: '12px',
+                  border: '2px solid var(--color-border)',
+                  borderRadius: '10px',
                   fontSize: '0.95rem',
                   outline: 'none',
                   transition: 'all 0.2s',
-                  backgroundColor: isLoading ? '#f8fafc' : '#ffffff',
-                  color: '#0f172a',
+                  backgroundColor: isLoading ? 'var(--color-bg-main)' : '#ffffff',
+                  color: 'var(--color-text-main)',
                   boxSizing: 'border-box'
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#3b82f6';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.15)';
+                  e.target.style.borderColor = 'var(--color-primary)';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#e2e8f0';
+                  e.target.style.borderColor = 'var(--color-border)';
                   e.target.style.boxShadow = 'none';
                 }}
               />
@@ -428,7 +426,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
               }}>
                 <label style={{
                   fontWeight: '600',
-                  color: '#334155',
+                  color: 'var(--color-text-main)',
                   fontSize: '0.85rem'
                 }}>
                   Treść wiadomości
@@ -436,6 +434,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                 <button
                   onClick={handleGenerateAI}
                   disabled={isGenerating || isLoading}
+                  className="btn btn-secondary"
                   style={{
                     background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
                     color: 'white',
@@ -451,16 +450,6 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                     transition: 'all 0.2s',
                     opacity: isGenerating || isLoading ? 0.6 : 1,
                     boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
-                  }}
-                  onMouseOver={(e) => {
-                    if (!isGenerating && !isLoading) {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)';
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.3)';
                   }}
                 >
                   {isGenerating ? (
@@ -494,7 +483,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                 display: 'block',
                 marginBottom: '0.5rem',
                 fontWeight: '600',
-                color: '#334155',
+                color: 'var(--color-text-main)',
                 fontSize: '0.85rem'
               }}>
                 Załączniki
@@ -545,7 +534,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
           {/* Reply Footer Actions */}
           <div style={{
             padding: '1.25rem 1.75rem',
-            borderTop: '1px solid #e2e8f0',
+            borderTop: '1px solid var(--color-border)',
             display: 'flex',
             justifyContent: 'flex-end',
             gap: '0.75rem',
@@ -554,27 +543,10 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
             <button
               onClick={onClose}
               disabled={isLoading}
+              className="btn btn-secondary"
               style={{
                 padding: '0.75rem 1.5rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '10px',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                backgroundColor: '#ffffff',
-                color: '#64748b',
-                transition: 'all 0.2s',
                 opacity: isLoading ? 0.6 : 1
-              }}
-              onMouseOver={(e) => {
-                if (!isLoading) {
-                  e.target.style.backgroundColor = '#f8fafc';
-                  e.target.style.borderColor = '#cbd5e1';
-                }
-              }}
-              onMouseOut={(e) => {
-                e.target.style.backgroundColor = '#ffffff';
-                e.target.style.borderColor = '#e2e8f0';
               }}
             >
               Zamknij
@@ -582,31 +554,13 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
             <button
               onClick={handleSend}
               disabled={isLoading || !subject.trim() || !body.trim()}
+              className="btn btn-primary"
               style={{
                 padding: '0.75rem 1.75rem',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: (isLoading || !subject.trim() || !body.trim()) ? 'not-allowed' : 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                color: 'white',
-                transition: 'all 0.2s',
                 opacity: (isLoading || !subject.trim() || !body.trim()) ? 0.5 : 1,
-                boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem'
-              }}
-              onMouseOver={(e) => {
-                if (!isLoading && subject.trim() && body.trim()) {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.45)';
-                }
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 14px rgba(59, 130, 246, 0.35)';
               }}
             >
               {isLoading ? (
@@ -635,24 +589,25 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
           to { opacity: 1; }
         }
         @keyframes slideUp {
-          from { 
+          from {
             opacity: 0;
-            transform: translateY(20px) scale(0.98);
+            transform: translateY(20px);
           }
-          to { 
+          to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
           }
         }
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        
+
         /* Responsywność dla mniejszych ekranów */
-        @media (max-width: 1024px) {
-          .email-modal-content {
-            flex-direction: column !important;
+        @media (max-width: 1200px) {
+          .modal-overlay > div {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
           }
         }
       `}</style>
