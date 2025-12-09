@@ -889,3 +889,742 @@ html.dark .form-group textarea {
 html.dark .empty-state-container {
   color: var(--color-text-secondary);
 }
+
+/* ===== MODERN PIPELINE MANAGER ===== */
+.modal-content.pipeline-manager-modal {
+  width: min(1300px, 95vw) !important;
+  max-width: 1300px !important;
+  max-height: 90vh !important;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.pipeline-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 20px 20px 0 0;
+}
+
+html.dark .pipeline-manager-header {
+  background: linear-gradient(135deg, var(--color-bg-elevated) 0%, var(--color-bg-surface) 100%);
+}
+
+.pipeline-manager-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pipeline-manager-title svg {
+  width: 48px;
+  height: 48px;
+  padding: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.pipeline-manager-title h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.pipeline-manager-title p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-manager-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.pipeline-manager-close:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+html.dark .pipeline-manager-close {
+  background: var(--color-bg-elevated);
+}
+
+.pipeline-manager-body {
+  padding: 24px 28px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.pipeline-manager-actions {
+  margin-bottom: 24px;
+}
+
+.pipeline-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.pipeline-create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+/* Pipeline List */
+.pipeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pipeline-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-empty-state svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.pipeline-empty-state h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--color-text-main);
+}
+
+.pipeline-empty-state p {
+  margin: 0 0 24px;
+  font-size: 14px;
+}
+
+/* Pipeline Card */
+.pipeline-card {
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.pipeline-card:hover {
+  border-color: #10b981;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.1);
+}
+
+.pipeline-card.expanded {
+  border-color: #10b981;
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.15);
+}
+
+html.dark .pipeline-card {
+  background: var(--color-bg-elevated);
+}
+
+.pipeline-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+}
+
+.pipeline-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.pipeline-expand-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-main);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.pipeline-card.expanded .pipeline-expand-btn {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.pipeline-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pipeline-info .pipeline-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.pipeline-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pipeline-badge.default {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+}
+
+.pipeline-stages-count {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  padding: 4px 12px;
+  background: var(--color-bg-main);
+  border-radius: 20px;
+}
+
+/* Pipeline Name Edit */
+.pipeline-name-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipeline-name-input {
+  padding: 8px 14px;
+  border: 2px solid #10b981;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  width: 200px;
+  background: white;
+  color: var(--color-text-main);
+}
+
+html.dark .pipeline-name-input {
+  background: var(--color-bg-surface);
+}
+
+.pipeline-name-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.pipeline-name-save,
+.pipeline-name-cancel {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.pipeline-name-save {
+  background: #10b981;
+  color: white;
+}
+
+.pipeline-name-save:hover {
+  background: #059669;
+}
+
+.pipeline-name-cancel {
+  background: var(--color-bg-main);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.pipeline-name-cancel:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* Pipeline Actions */
+.pipeline-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pipeline-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+html.dark .pipeline-action-btn {
+  background: var(--color-bg-surface);
+}
+
+.pipeline-action-btn.edit:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.pipeline-action-btn.share:hover {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.pipeline-action-btn.delete:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* Stages Section */
+.pipeline-stages-section {
+  border-top: 1px solid var(--color-border);
+  padding: 20px;
+  background: var(--color-bg-main);
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html.dark .pipeline-stages-section {
+  background: var(--color-bg-surface);
+}
+
+.pipeline-stages-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.pipeline-stages-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stage-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: white;
+  border: 1px dashed #10b981;
+  border-radius: 8px;
+  color: #10b981;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stage-add-btn:hover {
+  background: #f0fdf4;
+  border-style: solid;
+}
+
+html.dark .stage-add-btn {
+  background: var(--color-bg-elevated);
+}
+
+/* Stage Add Form */
+.stage-add-form {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: white;
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+html.dark .stage-add-form {
+  background: var(--color-bg-elevated);
+}
+
+.stage-add-form-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stage-add-form .stage-name-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--color-bg-main);
+  color: var(--color-text-main);
+}
+
+.stage-add-form .stage-name-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.stage-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.stage-color-picker svg {
+  color: var(--color-text-secondary);
+}
+
+.stage-color-picker input[type="color"] {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+}
+
+.stage-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.stage-color-picker input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
+.stage-probability-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.stage-probability-input svg {
+  color: var(--color-text-secondary);
+}
+
+.stage-probability-input input {
+  width: 50px;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  text-align: center;
+}
+
+.stage-probability-input input:focus {
+  outline: none;
+}
+
+.stage-probability-input span {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.stage-save-btn,
+.stage-cancel-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.stage-save-btn {
+  background: #10b981;
+  color: white;
+}
+
+.stage-save-btn:hover {
+  background: #059669;
+  transform: scale(1.05);
+}
+
+.stage-cancel-btn {
+  background: var(--color-bg-main);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.stage-cancel-btn:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* Stages List */
+.stages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stages-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  background: white;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+}
+
+html.dark .stages-empty {
+  background: var(--color-bg-elevated);
+}
+
+/* Stage Item */
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.stage-item:hover {
+  border-color: #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+.stage-item.editing {
+  border: 2px solid #10b981;
+  padding: 16px;
+  background: #f0fdf4;
+}
+
+html.dark .stage-item {
+  background: var(--color-bg-elevated);
+}
+
+html.dark .stage-item.editing {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.stage-item-indicator {
+  width: 8px;
+  height: 32px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.stage-item-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.stage-item-content .stage-position {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-bg-main);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.stage-item-content .stage-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.stage-item-content .stage-probability {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-main);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.stage-item-actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.stage-item:hover .stage-item-actions {
+  opacity: 1;
+}
+
+.stage-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+html.dark .stage-action-btn {
+  background: var(--color-bg-surface);
+}
+
+.stage-action-btn.edit:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.stage-action-btn.delete:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* Stage Edit Form */
+.stage-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.stage-edit-form .stage-name-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: var(--color-text-main);
+}
+
+html.dark .stage-edit-form .stage-name-input {
+  background: var(--color-bg-surface);
+}
+
+.stage-edit-form .stage-name-input:focus {
+  outline: none;
+  border-color: #10b981;
+}
+
+.stage-edit-form .stage-color-picker {
+  padding: 4px 8px;
+}
+
+.stage-edit-form .stage-color-picker input[type="color"] {
+  width: 24px;
+  height: 24px;
+}
+
+.stage-edit-form .stage-probability-input {
+  padding: 4px 10px;
+}
+
+.stage-edit-form .stage-probability-input input {
+  width: 40px;
+}
+
+/* Create Pipeline Modal */
+.create-pipeline-modal {
+  max-width: 600px !important;
+}
+
+.create-pipeline-modal .modal-header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 16px;
+}
+
+.create-pipeline-modal .modal-body {
+  padding: 24px 28px;
+}
+
+.create-pipeline-modal .modal-footer {
+  border-top: 1px solid var(--color-border);
+  padding: 20px 28px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: var(--color-bg-elevated);
+  border-radius: 0 0 20px 20px;
+}

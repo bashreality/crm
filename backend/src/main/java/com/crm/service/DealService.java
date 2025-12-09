@@ -217,6 +217,7 @@ public class DealService {
 
     // Stage Management
     @Transactional
+    @CacheEvict(value = "pipelines", allEntries = true)
     public PipelineStage createStage(Long pipelineId, PipelineStage stage) {
         Pipeline pipeline = pipelineRepository.findById(pipelineId)
                 .orElseThrow(() -> new RuntimeException("Pipeline not found"));
@@ -226,6 +227,7 @@ public class DealService {
     }
 
     @Transactional
+    @CacheEvict(value = "pipelines", allEntries = true)
     public PipelineStage updateStage(Long stageId, PipelineStage stageData) {
         PipelineStage stage = stageRepository.findById(stageId)
                 .orElseThrow(() -> new RuntimeException("Stage not found"));
@@ -239,10 +241,12 @@ public class DealService {
     }
 
     @Transactional
+    @CacheEvict(value = "pipelines", allEntries = true)
     public void deleteStage(Long stageId) {
         stageRepository.deleteById(stageId);
     }
 
+    @Transactional(readOnly = true)
     public List<PipelineStage> getStagesByPipeline(Long pipelineId) {
         return stageRepository.findByPipelineIdOrderByPosition(pipelineId);
     }

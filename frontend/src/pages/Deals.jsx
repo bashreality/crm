@@ -13,7 +13,20 @@ import {
   DollarSign,
   Target,
   Users,
-  BarChart3
+  BarChart3,
+  Edit3,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  Check,
+  X,
+  Palette,
+  Percent,
+  PlusCircle,
+  MoreHorizontal,
+  Copy,
+  Share2
 } from 'lucide-react';
 import api, { contactsApi, emailAccountsApi, tasksApi, sequencesApi, tagsApi } from '../services/api';
 import PipelineColumn from '../components/deals/PipelineColumn';
@@ -127,6 +140,16 @@ const Deals = () => {
   const [stages, setStages] = useState([]);
   const [editingStageId, setEditingStageId] = useState(null);
   const [editingStageData, setEditingStageData] = useState(null);
+
+  // New states for modern pipeline management
+  const [expandedPipelineId, setExpandedPipelineId] = useState(null);
+  const [editingPipelineNameId, setEditingPipelineNameId] = useState(null);
+  const [editingPipelineName, setEditingPipelineName] = useState('');
+  const [addingStageToId, setAddingStageToId] = useState(null);
+  const [newStageData, setNewStageData] = useState({ name: '', color: '#3b82f6', probability: 50 });
+  const [pipelineStagesMap, setPipelineStagesMap] = useState({});
+  const [showCreatePipelineModal, setShowCreatePipelineModal] = useState(false);
+  const [newPipelineName, setNewPipelineName] = useState('');
 
   useEffect(() => {
     fetchPipelines();
@@ -789,6 +812,197 @@ const Deals = () => {
     });
     setGeneratedSequence(null);
     setShowAISequenceModal(true);
+  };
+
+  // Modern Pipeline Management Functions
+  const togglePipelineExpand = async (pipelineId) => {
+    if (expandedPipelineId === pipelineId) {
+      setExpandedPipelineId(null);
+    } else {
+      setExpandedPipelineId(pipelineId);
+      // Load stages if not already loaded
+      if (!pipelineStagesMap[pipelineId]) {
+        try {
+          const res = await api.get(`/deals/pipelines/${pipelineId}/stages`);
+          setPipelineStagesMap(prev => ({ ...prev, [pipelineId]: res.data }));
+        } catch (err) {
+          toast.error('Błąd pobierania etapów');
+        }
+      }
+    }
+  };
+
+  const startEditPipelineName = (pipeline) => {
+    setEditingPipelineNameId(pipeline.id);
+    setEditingPipelineName(pipeline.name);
+  };
+
+  const cancelEditPipelineName = () => {
+    setEditingPipelineNameId(null);
+    setEditingPipelineName('');
+  };
+
+  const savePipelineName = async (pipelineId) => {
+    if (!editingPipelineName.trim()) {
+      toast.error('Nazwa lejka jest wymagana');
+      return;
+    }
+    try {
+      await api.put(`/deals/pipelines/${pipelineId}`, { name: editingPipelineName });
+      setPipelines(prev => prev.map(p => p.id === pipelineId ? { ...p, name: editingPipelineName } : p));
+      if (activePipeline?.id === pipelineId) {
+        setActivePipeline(prev => ({ ...prev, name: editingPipelineName }));
+      }
+      setEditingPipelineNameId(null);
+      setEditingPipelineName('');
+      toast.success('Nazwa lejka zaktualizowana');
+    } catch (err) {
+      toast.error('Błąd aktualizacji nazwy');
+    }
+  };
+
+  const startAddStage = (pipelineId) => {
+    setAddingStageToId(pipelineId);
+    setNewStageData({ name: '', color: '#3b82f6', probability: 50 });
+  };
+
+  const cancelAddStage = () => {
+    setAddingStageToId(null);
+    setNewStageData({ name: '', color: '#3b82f6', probability: 50 });
+  };
+
+  const saveNewStage = async (pipelineId) => {
+    if (!newStageData.name.trim()) {
+      toast.error('Nazwa etapu jest wymagana');
+      return;
+    }
+    try {
+      const currentStages = pipelineStagesMap[pipelineId] || [];
+      await api.post(`/deals/pipelines/${pipelineId}/stages`, {
+        ...newStageData,
+        position: currentStages.length
+      });
+      // Refresh stages
+      const res = await api.get(`/deals/pipelines/${pipelineId}/stages`);
+      setPipelineStagesMap(prev => ({ ...prev, [pipelineId]: res.data }));
+      setAddingStageToId(null);
+      setNewStageData({ name: '', color: '#3b82f6', probability: 50 });
+      toast.success('Etap dodany');
+
+      // Refresh active pipeline if this is the current one
+      if (activePipeline?.id === pipelineId) {
+        const pipelinesRes = await api.get('/deals/pipelines');
+        const updatedPipeline = pipelinesRes.data.find(p => p.id === pipelineId);
+        if (updatedPipeline) {
+          setActivePipeline(updatedPipeline);
+          setPipelines(pipelinesRes.data);
+        }
+      }
+    } catch (err) {
+      toast.error('Błąd dodawania etapu');
+    }
+  };
+
+  const handleInlineEditStage = (stage) => {
+    setEditingStageId(stage.id);
+    setEditingStageData({
+      name: stage.name,
+      color: stage.color,
+      probability: stage.probability,
+      position: stage.position
+    });
+  };
+
+  const handleInlineCancelEditStage = () => {
+    setEditingStageId(null);
+    setEditingStageData(null);
+  };
+
+  const handleInlineSaveStage = async (stageId, pipelineId) => {
+    if (!editingStageData.name.trim()) {
+      toast.error('Nazwa etapu jest wymagana');
+      return;
+    }
+    try {
+      await api.put(`/deals/stages/${stageId}`, editingStageData);
+      // Refresh stages for this pipeline
+      const res = await api.get(`/deals/pipelines/${pipelineId}/stages`);
+      setPipelineStagesMap(prev => ({ ...prev, [pipelineId]: res.data }));
+      setEditingStageId(null);
+      setEditingStageData(null);
+      toast.success('Etap zaktualizowany');
+
+      // Refresh active pipeline if editing its stages
+      if (activePipeline?.id === pipelineId) {
+        const pipelinesRes = await api.get('/deals/pipelines');
+        const updatedPipeline = pipelinesRes.data.find(p => p.id === pipelineId);
+        if (updatedPipeline) {
+          setActivePipeline(updatedPipeline);
+          setPipelines(pipelinesRes.data);
+        }
+      }
+    } catch (err) {
+      toast.error('Błąd aktualizacji etapu');
+    }
+  };
+
+  const handleInlineDeleteStage = async (stageId, pipelineId) => {
+    if (!confirm('Czy na pewno chcesz usunąć ten etap? Szanse przypisane do tego etapu zostaną usunięte!')) {
+      return;
+    }
+    try {
+      await api.delete(`/deals/stages/${stageId}`);
+      // Refresh stages
+      const res = await api.get(`/deals/pipelines/${pipelineId}/stages`);
+      setPipelineStagesMap(prev => ({ ...prev, [pipelineId]: res.data }));
+      toast.success('Etap usunięty');
+
+      // Refresh active pipeline and deals if needed
+      if (activePipeline?.id === pipelineId) {
+        const pipelinesRes = await api.get('/deals/pipelines');
+        const updatedPipeline = pipelinesRes.data.find(p => p.id === pipelineId);
+        if (updatedPipeline) {
+          setActivePipeline(updatedPipeline);
+          setPipelines(pipelinesRes.data);
+          fetchDeals(pipelineId);
+        }
+      }
+    } catch (err) {
+      toast.error('Błąd usuwania etapu');
+    }
+  };
+
+  const handleQuickCreatePipeline = () => {
+    console.log('Opening create pipeline modal');
+    setNewPipelineName('');
+    setShowCreatePipelineModal(true);
+  };
+
+  const handleCreatePipelineSubmit = async (e) => {
+    e.preventDefault();
+    if (!newPipelineName.trim()) {
+      toast.error('Nazwa lejka jest wymagana');
+      return;
+    }
+
+    try {
+      const res = await api.post('/deals/pipelines', {
+        name: newPipelineName.trim(),
+        description: '',
+        isDefault: false,
+        active: true
+      });
+      const pipelinesRes = await api.get('/deals/pipelines');
+      setPipelines(pipelinesRes.data);
+      // Expand the new pipeline
+      setExpandedPipelineId(res.data.id);
+      setPipelineStagesMap(prev => ({ ...prev, [res.data.id]: res.data.stages || [] }));
+      setShowCreatePipelineModal(false);
+      setNewPipelineName('');
+      toast.success('Lejek utworzony');
+    } catch (err) {
+      toast.error('Błąd tworzenia lejka');
+    }
   };
 
   const handleGenerateAISequence = async (e) => {
@@ -1608,117 +1822,341 @@ const Deals = () => {
         </div>
       )}
 
-      {/* Pipeline Management Modal (Restored Detailed Version) */}
+      {/* Modern Pipeline Management Modal */}
       {showPipelineModal && (
         <div className="modal-overlay" onClick={() => !isSaving && setShowPipelineModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
-            <div className="modal-header">
-              <h2>Zarządzanie lejkami</h2>
-              <button className="modal-close" onClick={() => setShowPipelineModal(false)} disabled={isSaving}>×</button>
+          <div className="modal-content pipeline-manager-modal" onClick={e => e.stopPropagation()}>
+            <div className="pipeline-manager-header">
+              <div className="pipeline-manager-title">
+                <Settings size={24} />
+                <div>
+                  <h2>Zarządzaj lejkami</h2>
+                  <p>Konfiguruj lejki sprzedażowe i ich etapy</p>
+                </div>
+              </div>
+              <button className="pipeline-manager-close" onClick={() => setShowPipelineModal(false)} disabled={isSaving}>
+                <X size={20} />
+              </button>
             </div>
-            <div className="modal-body">
-              <h3>{editingPipeline ? 'Edytuj lejek' : 'Utwórz nowy lejek'}</h3>
-              <form onSubmit={handleSavePipeline} style={{ marginBottom: '30px' }}>
+
+            <div className="pipeline-manager-body">
+              {/* Action bar */}
+              <div className="pipeline-manager-actions">
+                <button className="pipeline-create-btn" onClick={handleQuickCreatePipeline}>
+                  <PlusCircle size={18} />
+                  Nowy lejek
+                </button>
+              </div>
+
+              {/* Pipeline list */}
+              <div className="pipeline-list">
+                {pipelines.length === 0 ? (
+                  <div className="pipeline-empty-state">
+                    <Target size={48} />
+                    <h3>Brak lejków</h3>
+                    <p>Utwórz pierwszy lejek, aby rozpocząć zarządzanie procesem sprzedaży</p>
+                    <button className="btn btn-primary" onClick={handleQuickCreatePipeline}>
+                      <Plus size={16} /> Utwórz lejek
+                    </button>
+                  </div>
+                ) : (
+                  pipelines.map(pipeline => (
+                    <div key={pipeline.id} className={`pipeline-card ${expandedPipelineId === pipeline.id ? 'expanded' : ''}`}>
+                      {/* Pipeline header */}
+                      <div className="pipeline-card-header">
+                        <div className="pipeline-card-left" onClick={() => togglePipelineExpand(pipeline.id)}>
+                          <button className="pipeline-expand-btn">
+                            {expandedPipelineId === pipeline.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                          </button>
+
+                          {editingPipelineNameId === pipeline.id ? (
+                            <div className="pipeline-name-edit" onClick={e => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={editingPipelineName}
+                                onChange={e => setEditingPipelineName(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') savePipelineName(pipeline.id);
+                                  if (e.key === 'Escape') cancelEditPipelineName();
+                                }}
+                                autoFocus
+                                className="pipeline-name-input"
+                              />
+                              <button className="pipeline-name-save" onClick={() => savePipelineName(pipeline.id)}>
+                                <Check size={16} />
+                              </button>
+                              <button className="pipeline-name-cancel" onClick={cancelEditPipelineName}>
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="pipeline-info">
+                              <span className="pipeline-name">{pipeline.name}</span>
+                              {pipeline.isDefault && <span className="pipeline-badge default">Domyślny</span>}
+                              <span className="pipeline-stages-count">
+                                {pipeline.stages?.length || 0} etapów
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pipeline-card-actions" onClick={e => e.stopPropagation()}>
+                          <button
+                            className="pipeline-action-btn edit"
+                            onClick={() => startEditPipelineName(pipeline)}
+                            title="Zmień nazwę"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          {currentUser && pipeline.userId === currentUser.id && (
+                            <button
+                              className="pipeline-action-btn share"
+                              onClick={() => handleSharePipeline(pipeline)}
+                              title="Udostępnij"
+                            >
+                              <Share2 size={16} />
+                            </button>
+                          )}
+                          {!pipeline.isDefault && (
+                            <button
+                              className="pipeline-action-btn delete"
+                              onClick={() => handleDeletePipeline(pipeline.id)}
+                              title="Usuń lejek"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Expanded stages section */}
+                      {expandedPipelineId === pipeline.id && (
+                        <div className="pipeline-stages-section">
+                          <div className="pipeline-stages-header">
+                            <h4>Etapy lejka</h4>
+                            <button
+                              className="stage-add-btn"
+                              onClick={() => startAddStage(pipeline.id)}
+                            >
+                              <Plus size={14} /> Dodaj etap
+                            </button>
+                          </div>
+
+                          {/* Add new stage form */}
+                          {addingStageToId === pipeline.id && (
+                            <div className="stage-add-form">
+                              <div className="stage-add-form-row">
+                                <input
+                                  type="text"
+                                  placeholder="Nazwa etapu..."
+                                  value={newStageData.name}
+                                  onChange={e => setNewStageData(prev => ({ ...prev, name: e.target.value }))}
+                                  className="stage-name-input"
+                                  autoFocus
+                                />
+                                <div className="stage-color-picker">
+                                  <Palette size={14} />
+                                  <input
+                                    type="color"
+                                    value={newStageData.color}
+                                    onChange={e => setNewStageData(prev => ({ ...prev, color: e.target.value }))}
+                                  />
+                                </div>
+                                <div className="stage-probability-input">
+                                  <Percent size={14} />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={newStageData.probability}
+                                    onChange={e => setNewStageData(prev => ({ ...prev, probability: parseInt(e.target.value) || 0 }))}
+                                  />
+                                </div>
+                                <button className="stage-save-btn" onClick={() => saveNewStage(pipeline.id)}>
+                                  <Check size={16} />
+                                </button>
+                                <button className="stage-cancel-btn" onClick={cancelAddStage}>
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Stages list */}
+                          <div className="stages-list">
+                            {(pipelineStagesMap[pipeline.id] || []).length === 0 ? (
+                              <div className="stages-empty">
+                                <p>Brak etapów. Dodaj pierwszy etap do lejka.</p>
+                              </div>
+                            ) : (
+                              (pipelineStagesMap[pipeline.id] || []).map((stage, index) => (
+                                <div
+                                  key={stage.id}
+                                  className={`stage-item ${editingStageId === stage.id ? 'editing' : ''}`}
+                                >
+                                  <div className="stage-item-indicator" style={{ backgroundColor: stage.color }} />
+
+                                  {editingStageId === stage.id ? (
+                                    <div className="stage-edit-form">
+                                      <input
+                                        type="text"
+                                        value={editingStageData?.name || ''}
+                                        onChange={e => setEditingStageData(prev => ({ ...prev, name: e.target.value }))}
+                                        className="stage-name-input"
+                                        autoFocus
+                                      />
+                                      <div className="stage-color-picker">
+                                        <input
+                                          type="color"
+                                          value={editingStageData?.color || '#3b82f6'}
+                                          onChange={e => setEditingStageData(prev => ({ ...prev, color: e.target.value }))}
+                                        />
+                                      </div>
+                                      <div className="stage-probability-input">
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          value={editingStageData?.probability || 0}
+                                          onChange={e => setEditingStageData(prev => ({ ...prev, probability: parseInt(e.target.value) || 0 }))}
+                                        />
+                                        <span>%</span>
+                                      </div>
+                                      <button
+                                        className="stage-save-btn"
+                                        onClick={() => handleInlineSaveStage(stage.id, pipeline.id)}
+                                      >
+                                        <Check size={16} />
+                                      </button>
+                                      <button className="stage-cancel-btn" onClick={handleInlineCancelEditStage}>
+                                        <X size={16} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="stage-item-content">
+                                        <span className="stage-position">#{index + 1}</span>
+                                        <span className="stage-name">{stage.name}</span>
+                                        <span className="stage-probability">{stage.probability}%</span>
+                                      </div>
+                                      <div className="stage-item-actions">
+                                        <button
+                                          className="stage-action-btn edit"
+                                          onClick={() => handleInlineEditStage(stage)}
+                                          title="Edytuj"
+                                        >
+                                          <Edit3 size={14} />
+                                        </button>
+                                        <button
+                                          className="stage-action-btn delete"
+                                          onClick={() => handleInlineDeleteStage(stage.id, pipeline.id)}
+                                          title="Usuń"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Pipeline Modal */}
+      {showCreatePipelineModal && (
+        <div className="modal-overlay" onClick={() => setShowCreatePipelineModal(false)}>
+          <div className="modal-content create-pipeline-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white'
+                }}>
+                  <PlusCircle size={22} />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0 }}>Utwórz nowy lejek</h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                    Dodaj nowy lejek sprzedażowy do systemu
+                  </p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setShowCreatePipelineModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePipelineSubmit}>
+              <div className="modal-body">
                 <div className="form-group">
                   <label>Nazwa lejka *</label>
                   <input
                     type="text"
-                    value={pipelineForm.name}
-                    onChange={e => setPipelineForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="np. Sprzedaż B2B"
+                    value={newPipelineName}
+                    onChange={e => setNewPipelineName(e.target.value)}
+                    placeholder="np. Sprzedaż B2B, Leady 2025..."
+                    autoFocus
                     required
-                    disabled={isSaving}
                   />
+                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '6px' }}>
+                    Wybierz opisową nazwę, która pomoże Ci zidentyfikować proces sprzedaży
+                  </p>
                 </div>
-                <div className="form-group">
-                  <label>Opis</label>
-                  <textarea
-                    value={pipelineForm.description}
-                    onChange={e => setPipelineForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Opcjonalny opis lejka"
-                    rows={3}
-                    disabled={isSaving}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                    {isSaving ? 'Zapisywanie...' : editingPipeline ? 'Zaktualizuj' : 'Utwórz lejek'}
-                  </button>
-                  {editingPipeline && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => handleManageStages(editingPipeline)}
-                      disabled={isSaving}
-                    >
-                      Zarządzaj etapami
-                    </button>
-                  )}
-                </div>
-              </form>
 
-              <h3 style={{ marginTop: '30px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
-                Istniejące lejki
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {pipelines.map(pipeline => (
-                  <div key={pipeline.id} style={{
-                    padding: '12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    backgroundColor: pipeline.isDefault ? '#eff6ff' : 'white'
-                  }}>
-                    <div>
-                      <strong>{pipeline.name}</strong>
-                      {pipeline.isDefault && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#3b82f6' }}>⭐ Domyślny</span>}
-                      {pipeline.description && (
-                        <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
-                          {pipeline.description}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {currentUser && pipeline.userId === currentUser.id && (
-                        <button
-                          className="btn-icon"
-                          onClick={() => handleSharePipeline(pipeline)}
-                          title="Udostępnij użytkownikom"
-                        >
-                          👥
-                        </button>
-                      )}
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleManageStages(pipeline)}
-                        title="Zarządzaj etapami"
-                      >
-                        📋
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => handleEditPipeline(pipeline)}
-                        title="Edytuj"
-                      >
-                        ✏️
-                      </button>
-                      {!pipeline.isDefault && (
-                        <button
-                          className="btn-icon"
-                          onClick={() => handleDeletePipeline(pipeline.id)}
-                          title="Usuń"
-                          style={{ color: '#ef4444' }}
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </div>
+                <div style={{
+                  background: 'var(--color-bg-main)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '10px',
+                  padding: '16px',
+                  marginTop: '20px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <Target size={16} style={{ color: 'var(--color-primary)' }} />
+                    <strong style={{ fontSize: '14px' }}>Automatycznie utworzone etapy:</strong>
                   </div>
-                ))}
+                  <ul style={{ fontSize: '13px', color: 'var(--color-text-secondary)', paddingLeft: '24px', margin: '8px 0 0' }}>
+                    <li>Nowy (10% prawdopodobieństwo)</li>
+                    <li>W trakcie (50% prawdopodobieństwo)</li>
+                    <li>Negocjacje (80% prawdopodobieństwo)</li>
+                    <li>Zamknięte - Wygrana (100%)</li>
+                    <li>Zamknięte - Przegrana (0%)</li>
+                  </ul>
+                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '12px' }}>
+                    Możesz dodać, edytować lub usunąć etapy po utworzeniu lejka
+                  </p>
+                </div>
               </div>
-            </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowCreatePipelineModal(false)}
+                >
+                  Anuluj
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <PlusCircle size={16} />
+                  Utwórz lejek
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
