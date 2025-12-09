@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import api, { contactsApi, emailAccountsApi, tasksApi, sequencesApi, tagsApi } from '../services/api';
 import PipelineColumn from '../components/deals/PipelineColumn';
+import AttachmentUploader from '../components/AttachmentUploader';
+import RichTextEditor from '../components/RichTextEditor';
+import '../components/RichTextEditor.css';
 import '../styles/Deals.css';
 import '../styles/Tasks.css';
 
@@ -96,6 +99,7 @@ const Deals = () => {
     subject: '',
     body: '',
     accountId: '',
+    attachments: [],
   });
 
   const [taskFormData, setTaskFormData] = useState({
@@ -121,6 +125,8 @@ const Deals = () => {
     probability: 50
   });
   const [stages, setStages] = useState([]);
+  const [editingStageId, setEditingStageId] = useState(null);
+  const [editingStageData, setEditingStageData] = useState(null);
 
   useEffect(() => {
     fetchPipelines();
@@ -492,14 +498,17 @@ const Deals = () => {
     }
     setIsSaving(true);
     try {
+        const attachmentIds = emailFormData.attachments?.map(a => a.id) || [];
         await api.post('/emails/send', {
             to: emailFormData.to,
             subject: emailFormData.subject,
             body: emailFormData.body,
-            accountId: Number(emailFormData.accountId)
+            accountId: Number(emailFormData.accountId),
+            attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined
         });
         toast.success('Email wysłany!');
         setShowEmailModal(false);
+        setEmailFormData(prev => ({ ...prev, attachments: [] }));
     } catch (err) {
         toast.error('Błąd wysyłki emaila');
     } finally {
@@ -663,6 +672,50 @@ const Deals = () => {
     } catch (err) {
       console.error('Error deleting stage:', err);
       toast.error('Błąd usuwania etapu');
+    }
+  };
+
+  const handleEditStage = (stage) => {
+    setEditingStageId(stage.id);
+    setEditingStageData({
+      name: stage.name,
+      color: stage.color,
+      probability: stage.probability,
+      position: stage.position
+    });
+  };
+
+  const handleCancelEditStage = () => {
+    setEditingStageId(null);
+    setEditingStageData(null);
+  };
+
+  const handleSaveStage = async (stageId) => {
+    if (!editingStageData.name.trim()) {
+      toast.error('Nazwa etapu jest wymagana');
+      return;
+    }
+
+    try {
+      await api.put(`/deals/stages/${stageId}`, editingStageData);
+      const res = await api.get(`/deals/pipelines/${managingStages.id}/stages`);
+      setStages(res.data);
+      setEditingStageId(null);
+      setEditingStageData(null);
+      toast.success('Etap zaktualizowany');
+
+      // Odśwież activePipeline jeśli edytujemy etap z aktualnego lejka
+      if (activePipeline && activePipeline.id === managingStages.id) {
+        const pipelinesRes = await api.get('/deals/pipelines');
+        const updatedPipeline = pipelinesRes.data.find(p => p.id === managingStages.id);
+        if (updatedPipeline) {
+          setActivePipeline(updatedPipeline);
+          setPipelines(pipelinesRes.data);
+        }
+      }
+    } catch (err) {
+      console.error('Error updating stage:', err);
+      toast.error('Błąd aktualizacji etapu');
     }
   };
 
@@ -1513,15 +1566,24 @@ const Deals = () => {
               <div className="task-form__section">
                 <label className="task-form__label">
                   Treść wiadomości <span>*</span>
-                  <textarea
-                    value={emailFormData.body}
-                    onChange={(e) => setEmailFormData(prev => ({ ...prev, body: e.target.value }))}
-                    placeholder="Treść..."
-                    rows={8}
-                    required
-                    disabled={isSaving}
-                  />
                 </label>
+                <RichTextEditor
+                  value={emailFormData.body}
+                  onChange={(val) => setEmailFormData(prev => ({ ...prev, body: val }))}
+                  placeholder="Treść wiadomości..."
+                  minHeight="180px"
+                  disabled={isSaving}
+                />
+              </div>
+
+              <div className="task-form__section">
+                <label className="task-form__label">Załączniki</label>
+                <AttachmentUploader
+                  attachments={emailFormData.attachments || []}
+                  onChange={(attachments) => setEmailFormData(prev => ({ ...prev, attachments }))}
+                  disabled={isSaving}
+                  maxSize={25}
+                />
               </div>
 
               <div className="task-modal__footer">
@@ -1708,36 +1770,199 @@ const Deals = () => {
               </div>
 
               <h3 style={{ marginTop: '30px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
-                Istniejące etapy
+                Istniejące etapy ({stages.length})
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {stages.map((stage, index) => (
                   <div key={stage.id} style={{
-                    padding: '10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderLeft: `4px solid ${stage.color}`
+                    padding: editingStageId === stage.id ? '16px' : '12px',
+                    border: editingStageId === stage.id ? '2px solid #3b82f6' : '1px solid #d1d5db',
+                    borderRadius: '10px',
+                    borderLeft: `5px solid ${editingStageId === stage.id ? (editingStageData?.color || stage.color) : stage.color}`,
+                    backgroundColor: editingStageId === stage.id ? '#f8fafc' : 'white',
+                    transition: 'all 0.2s ease'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ color: '#9ca3af', fontSize: '12px' }}>#{index + 1}</span>
-                      <div>
-                        <strong>{stage.name}</strong>
-                        <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                          Prawdopodobieństwo: {stage.probability}%
+                    {editingStageId === stage.id ? (
+                      // Edit mode
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                          <div style={{ flex: 2 }}>
+                            <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>
+                              Nazwa etapu
+                            </label>
+                            <input
+                              type="text"
+                              value={editingStageData?.name || ''}
+                              onChange={e => setEditingStageData(prev => ({ ...prev, name: e.target.value }))}
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '14px'
+                              }}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>
+                              Kolor
+                            </label>
+                            <input
+                              type="color"
+                              value={editingStageData?.color || '#60A5FA'}
+                              onChange={e => setEditingStageData(prev => ({ ...prev, color: e.target.value }))}
+                              style={{ width: '100%', height: '36px', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer' }}
+                            />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: '12px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '4px' }}>
+                              Prawdop. (%)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={editingStageData?.probability || 0}
+                              onChange={e => setEditingStageData(prev => ({ ...prev, probability: parseInt(e.target.value) || 0 }))}
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '14px'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditStage}
+                            style={{
+                              padding: '6px 14px',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '6px',
+                              background: 'white',
+                              color: '#374151',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Anuluj
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveStage(stage.id)}
+                            style={{
+                              padding: '6px 14px',
+                              border: 'none',
+                              borderRadius: '6px',
+                              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                              color: 'white',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: '600'
+                            }}
+                          >
+                            💾 Zapisz
+                          </button>
                         </div>
                       </div>
-                    </div>
-                    <button
-                      className="btn-icon"
-                      onClick={() => handleDeleteStage(stage.id)}
-                      style={{ color: '#ef4444' }}
-                      title="Usuń etap"
-                    >
-                      🗑️
-                    </button>
+                    ) : (
+                      // View mode
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{
+                            color: '#9ca3af',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            background: '#f3f4f6',
+                            padding: '2px 8px',
+                            borderRadius: '4px'
+                          }}>
+                            #{index + 1}
+                          </span>
+                          <div
+                            style={{
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              backgroundColor: stage.color,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}
+                          />
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '14px', color: '#1f2937' }}>
+                              {stage.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                              Prawdopodobieństwo: {stage.probability}%
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleEditStage(stage)}
+                            style={{
+                              padding: '6px 10px',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '6px',
+                              background: 'white',
+                              color: '#3b82f6',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = '#eff6ff';
+                              e.currentTarget.style.borderColor = '#3b82f6';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = 'white';
+                              e.currentTarget.style.borderColor = '#d1d5db';
+                            }}
+                            title="Edytuj etap"
+                          >
+                            ✏️ Edytuj
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStage(stage.id)}
+                            style={{
+                              padding: '6px 10px',
+                              border: '1px solid #fecaca',
+                              borderRadius: '6px',
+                              background: 'white',
+                              color: '#dc2626',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: '500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = '#fef2f2';
+                              e.currentTarget.style.borderColor = '#dc2626';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = 'white';
+                              e.currentTarget.style.borderColor = '#fecaca';
+                            }}
+                            title="Usuń etap"
+                          >
+                            🗑️ Usuń
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

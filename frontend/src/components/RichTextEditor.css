@@ -1,0 +1,211 @@
+/* Rich Text Editor Styles */
+.rich-editor-container {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rich-editor-container:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.rich-editor-container.disabled {
+  opacity: 0.6;
+  background: #f9fafb;
+}
+
+/* Toolbar */
+.rich-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  border-bottom: 1px solid #e2e8f0;
+  align-items: center;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.toolbar-group:last-child {
+  border-right: none;
+}
+
+/* Toolbar buttons */
+.toolbar-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #475569;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.toolbar-btn:active:not(:disabled) {
+  background: #cbd5e1;
+}
+
+.toolbar-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.toolbar-btn strong {
+  font-weight: 700;
+}
+
+.toolbar-btn em {
+  font-style: italic;
+}
+
+.toolbar-btn u {
+  text-decoration: underline;
+}
+
+.toolbar-btn s {
+  text-decoration: line-through;
+}
+
+/* Toolbar selects */
+.toolbar-select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  min-width: 100px;
+}
+
+.toolbar-select-small {
+  min-width: 70px;
+}
+
+.toolbar-select:hover:not(:disabled) {
+  border-color: #cbd5e1;
+}
+
+.toolbar-select:focus:not(:disabled) {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.toolbar-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Color picker */
+.color-picker-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.color-btn {
+  position: relative;
+}
+
+.color-indicator {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 3px;
+  border-radius: 1px;
+}
+
+.color-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Editor content */
+.rich-editor-content {
+  padding: 14px 16px;
+  outline: none;
+  line-height: 1.7;
+  font-size: 15px;
+  color: #1e293b;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.rich-editor-content:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.rich-editor-content a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.rich-editor-content ul,
+.rich-editor-content ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.rich-editor-content li {
+  margin: 0.25em 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .rich-editor-toolbar {
+    gap: 2px;
+    padding: 6px 8px;
+  }
+
+  .toolbar-group {
+    padding: 0 4px;
+  }
+
+  .toolbar-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .toolbar-select {
+    height: 28px;
+    font-size: 12px;
+    min-width: 80px;
+  }
+
+  .toolbar-select-small {
+    min-width: 60px;
+  }
+}
+

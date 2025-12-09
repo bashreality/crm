@@ -15,6 +15,9 @@ import {
   Zap,
   Target
 } from 'lucide-react';
+import AttachmentUploader from '../components/AttachmentUploader';
+import RichTextEditor from '../components/RichTextEditor';
+import '../components/RichTextEditor.css';
 import './Sequences.css';
 
 const initialSequenceForm = {
@@ -44,6 +47,7 @@ const initialStepForm = {
   skipIfReplied: true,
   trackOpens: true,
   trackClicks: true,
+  attachments: [],
 };
 
 const Sequences = () => {
@@ -1559,13 +1563,32 @@ const Sequences = () => {
                         value={step.subject}
                         onChange={e => updateStep(idx, 'subject', e.target.value)}
                       />
-                      <textarea
-                        rows={6}
-                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e5e7eb', fontFamily: 'inherit' }}
-                        placeholder="Treść wiadomości... Użyj zmiennych np. {{name}}"
-                        value={step.body}
-                        onChange={e => updateStep(idx, 'body', e.target.value)}
-                      />
+                      <div style={{ marginTop: '8px' }}>
+                        <RichTextEditor
+                          value={step.body}
+                          onChange={(val) => updateStep(idx, 'body', val)}
+                          placeholder="Treść wiadomości... Użyj zmiennych np. {{name}}"
+                          minHeight="150px"
+                        />
+                      </div>
+
+                      {/* Attachments */}
+                      <div style={{ marginTop: '12px' }}>
+                        <label style={{ 
+                          fontWeight: '600', 
+                          fontSize: '13px', 
+                          color: '#374151',
+                          display: 'block',
+                          marginBottom: '8px'
+                        }}>
+                          📎 Załączniki
+                        </label>
+                        <AttachmentUploader
+                          attachments={step.attachments || []}
+                          onChange={(attachments) => updateStep(idx, 'attachments', attachments)}
+                          maxSize={25}
+                        />
+                      </div>
 
                       {/* AI Action Buttons */}
                       <div style={{

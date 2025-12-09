@@ -2,6 +2,8 @@ package com.crm.dto.sequence;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class SequenceStepRequestDto {
     private Long id;
@@ -16,5 +18,6 @@ public class SequenceStepRequestDto {
     private Boolean skipIfReplied;
     private Boolean trackOpens;
     private Boolean trackClicks;
+    private List<Long> attachmentIds; // Lista ID załączników do przypisania
 }
 

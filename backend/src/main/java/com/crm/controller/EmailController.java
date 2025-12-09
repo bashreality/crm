@@ -2,9 +2,11 @@ package com.crm.controller;
 
 import com.crm.dto.EmailDto;
 import com.crm.mapper.EmailMapper;
+import com.crm.model.Attachment;
 import com.crm.model.Contact;
 import com.crm.repository.ContactRepository;
 import com.crm.model.Email;
+import com.crm.service.AttachmentService;
 import com.crm.service.EmailService;
 import com.crm.service.EmailSendingService;
 import com.crm.service.AIReplyService;
@@ -14,6 +16,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +46,7 @@ public class EmailController {
     private final ContactRepository contactRepository;
     private final com.crm.service.ContactService contactService;
     private final EmailMapper emailMapper;
+    private final AttachmentService attachmentService;
     
     @GetMapping
     public ResponseEntity<List<EmailDto>> getAllEmails(
@@ -132,7 +136,7 @@ public class EmailController {
     }
 
     /**
-     * Wysyła nowy email z wybranego konta
+     * Wysyła nowy email z wybranego konta (z opcjonalnymi załącznikami)
      */
     @PostMapping("/send")
     public ResponseEntity<Map<String, Object>> sendEmail(@RequestBody Map<String, Object> emailData) {
@@ -141,6 +145,16 @@ public class EmailController {
             String subject = (String) emailData.get("subject");
             String body = (String) emailData.get("body");
             Long accountId = emailData.get("accountId") != null ? ((Number) emailData.get("accountId")).longValue() : null;
+            
+            // Pobierz listę ID załączników (opcjonalna)
+            @SuppressWarnings("unchecked")
+            List<Number> attachmentIdNumbers = (List<Number>) emailData.get("attachmentIds");
+            List<Long> attachmentIds = new ArrayList<>();
+            if (attachmentIdNumbers != null) {
+                for (Number n : attachmentIdNumbers) {
+                    attachmentIds.add(n.longValue());
+                }
+            }
 
             if (to == null || subject == null || body == null || accountId == null) {
                 return ResponseEntity.badRequest()
@@ -150,7 +164,15 @@ public class EmailController {
             EmailAccount account = emailAccountRepository.findById(accountId)
                     .orElseThrow(() -> new RuntimeException("Email account not found"));
 
-            Long sentEmailId = emailSendingService.sendEmailFromAccount(account, to, subject, body);
+            // Pobierz załączniki jeśli są
+            List<Attachment> attachments = null;
+            if (!attachmentIds.isEmpty()) {
+                attachments = attachmentService.getByIds(attachmentIds);
+                log.info("Sending email with {} attachments", attachments.size());
+            }
+
+            Long sentEmailId = emailSendingService.sendEmailFromAccountWithAttachments(
+                    account, to, subject, body, attachments);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -227,22 +249,39 @@ public class EmailController {
     }
 
     /**
-     * Wysyła odpowiedź na email
+     * Wysyła odpowiedź na email (z opcjonalnymi załącznikami)
      */
     @PostMapping("/{id}/reply")
     public ResponseEntity<Map<String, Object>> sendReply(
             @PathVariable Long id,
-            @RequestBody Map<String, String> replyData) {
+            @RequestBody Map<String, Object> replyData) {
         try {
             Email originalEmail = emailService.getEmailById(id)
                     .orElseThrow(() -> new RuntimeException("Email not found"));
 
-            String subject = replyData.get("subject");
-            String body = replyData.get("body");
+            String subject = (String) replyData.get("subject");
+            String body = (String) replyData.get("body");
+            
+            // Pobierz listę ID załączników (opcjonalna)
+            @SuppressWarnings("unchecked")
+            List<Number> attachmentIdNumbers = (List<Number>) replyData.get("attachmentIds");
+            List<Long> attachmentIds = new ArrayList<>();
+            if (attachmentIdNumbers != null) {
+                for (Number n : attachmentIdNumbers) {
+                    attachmentIds.add(n.longValue());
+                }
+            }
 
             if (subject == null || body == null) {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error", "Subject and body are required"));
+            }
+
+            // Pobierz załączniki jeśli są
+            List<Attachment> attachments = null;
+            if (!attachmentIds.isEmpty()) {
+                attachments = attachmentService.getByIds(attachmentIds);
+                log.info("Sending reply with {} attachments", attachments.size());
             }
 
             // Budujemy nagłówek References dla wątku
@@ -251,13 +290,14 @@ public class EmailController {
             // Wysyłamy odpowiedź - użyj konta z sygnaturą jeśli dostępne
             Long sentEmailId;
             if (originalEmail.getAccount() != null) {
-                sentEmailId = emailSendingService.sendReplyFromAccount(
+                sentEmailId = emailSendingService.sendReplyFromAccountWithAttachments(
                         originalEmail.getAccount(),
                         originalEmail.getSender(),
                         subject,
                         body,
                         originalEmail.getMessageId(),
-                        references
+                        references,
+                        attachments
                 );
             } else {
                 sentEmailId = emailSendingService.sendReply(

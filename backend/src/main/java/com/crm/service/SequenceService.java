@@ -41,6 +41,7 @@ public class SequenceService {
     private final EmailRepository emailRepository;
     private final UserContextService userContextService;
     private final EmailTemplateService emailTemplateService;
+    private final AttachmentRepository attachmentRepository;
 
     public List<SequenceSummaryDto> getAllSequences() {
         Long userId = userContextService.getCurrentUserId();
@@ -591,6 +592,15 @@ public class SequenceService {
         step.setSkipIfReplied(Optional.ofNullable(request.getSkipIfReplied()).orElse(true));
         step.setTrackOpens(Optional.ofNullable(request.getTrackOpens()).orElse(false));
         step.setTrackClicks(Optional.ofNullable(request.getTrackClicks()).orElse(false));
+        
+        // Handle attachments
+        if (request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
+            List<Attachment> attachments = attachmentRepository.findByIdIn(request.getAttachmentIds());
+            step.setAttachments(attachments);
+            log.info("Set {} attachments for step", attachments.size());
+        } else {
+            step.setAttachments(new ArrayList<>());
+        }
     }
 
     @Transactional

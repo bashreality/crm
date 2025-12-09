@@ -6,6 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Pojedynczy krok w sekwencji follow-up
  */
@@ -61,4 +64,12 @@ public class SequenceStep {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "template_id")
     private EmailTemplate template; // Optional: Use template instead of manual subject/body
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "sequence_step_attachments",
+        joinColumns = @JoinColumn(name = "sequence_step_id"),
+        inverseJoinColumns = @JoinColumn(name = "attachment_id")
+    )
+    private List<Attachment> attachments = new ArrayList<>();
 }

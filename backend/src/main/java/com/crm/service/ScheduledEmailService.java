@@ -1,5 +1,6 @@
 package com.crm.service;
 
+import com.crm.model.Attachment;
 import com.crm.model.Contact;
 import com.crm.model.Deal;
 import com.crm.model.Email;
@@ -7,6 +8,7 @@ import com.crm.model.EmailAccount;
 import com.crm.model.PipelineStage;
 import com.crm.model.ScheduledEmail;
 import com.crm.model.SequenceExecution;
+import com.crm.model.SequenceStep;
 import com.crm.repository.ContactRepository;
 import com.crm.repository.DealRepository;
 import com.crm.repository.EmailAccountRepository;
@@ -194,19 +196,28 @@ public class ScheduledEmailService {
                 log.debug("Continuing thread with subject: {}", processedSubject);
             }
 
+            // Get attachments from step if any
+            List<Attachment> attachments = null;
+            SequenceStep step = scheduledEmail.getStep();
+            if (step != null && step.getAttachments() != null && !step.getAttachments().isEmpty()) {
+                attachments = step.getAttachments();
+                log.info("Sending scheduled email {} with {} attachments", scheduledEmail.getId(), attachments.size());
+            }
+
             Long sentEmailId;
             if (shouldContinueThread) {
                 // Send as reply to maintain thread
                 log.info("Sending scheduled email {} as reply to thread (messageId: {})", 
                         scheduledEmail.getId(), execution.getLastMessageId());
                 if (account != null) {
-                    sentEmailId = emailSendingService.sendReplyFromAccount(
+                    sentEmailId = emailSendingService.sendReplyFromAccountWithAttachments(
                             account,
                             recipientEmail,
                             processedSubject,
                             processedBody,
                             execution.getLastMessageId(),
-                            null // References will be built by sendReply
+                            null, // References will be built by sendReply
+                            attachments
                     );
                 } else {
                     sentEmailId = emailSendingService.sendReply(
@@ -221,11 +232,12 @@ public class ScheduledEmailService {
                 // Send as new email (new thread)
                 log.info("Sending scheduled email {} as new email (new thread)", scheduledEmail.getId());
                 if (account != null) {
-                    sentEmailId = emailSendingService.sendEmailFromAccount(
+                    sentEmailId = emailSendingService.sendEmailFromAccountWithAttachments(
                             account,
                             recipientEmail,
                             processedSubject,
-                            processedBody
+                            processedBody,
+                            attachments
                     );
                 } else {
                     sentEmailId = emailSendingService.sendEmail(

@@ -256,4 +256,26 @@ export const dealsApi = {
   getStages: (pipelineId) => api.get(`/pipelines/${pipelineId}/stages`),
 };
 
+// Attachments API
+export const attachmentsApi = {
+  upload: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/attachments/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  uploadMultiple: (files) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    return api.post('/attachments/upload-multiple', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  download: (id) => api.get(`/attachments/${id}`, { responseType: 'blob' }),
+  getInfo: (id) => api.get(`/attachments/${id}/info`),
+  getMy: () => api.get('/attachments/my'),
+  delete: (id) => api.delete(`/attachments/${id}`),
+};
+
 export default api;
