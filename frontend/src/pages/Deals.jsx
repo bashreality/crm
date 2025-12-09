@@ -2853,7 +2853,6 @@ const Deals = () => {
         </div>
       )}
 
-      </div>
     </div>
   );
 };
