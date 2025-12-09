@@ -12,6 +12,7 @@ const EmailListItem = ({
   onReply,
   onDelete,
   onChangeStatus,
+  onAddSequence,
   formatDate,
   getTrackingIcon,
   truncateText,
@@ -133,6 +134,13 @@ const EmailListItem = ({
             title="Dodaj tag"
           >
             🏷️
+          </button>
+          <button
+            className="action-btn action-sequence"
+            onClick={(e) => onAddSequence(email, e)}
+            title="Dodaj do sekwencji"
+          >
+            📧
           </button>
           <button
             className="action-btn action-status"

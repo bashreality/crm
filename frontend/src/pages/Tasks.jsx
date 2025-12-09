@@ -309,7 +309,7 @@ const Tasks = () => {
       try {
         const [tasksResponse, contactsResponse] = await Promise.all([
           tasksApi.getAll(),
-          contactsApi.getAll(),
+          contactsApi.getSimple(),
         ]);
         setTasks(tasksResponse.data);
         setContacts(contactsResponse.data);

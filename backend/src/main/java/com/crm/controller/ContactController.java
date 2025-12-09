@@ -45,6 +45,7 @@ public class ContactController {
     private final ContactMapper contactMapper;
     private final com.crm.mapper.EmailMapper emailMapper;
     private final com.crm.service.UserContextService userContextService;
+    private final com.crm.repository.ContactRepository contactRepository;
     
     @GetMapping
     public ResponseEntity<List<ContactDto>> getAllContacts(
@@ -76,6 +77,31 @@ public class ContactController {
         return ResponseEntity.ok(contactDtos);
     }
     
+    /**
+     * Lightweight endpoint for dropdowns - returns only id, name, company
+     * Uses optimized native SQL query for better performance
+     */
+    @GetMapping("/simple")
+    public ResponseEntity<List<Map<String, Object>>> getContactsSimple() {
+        Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        List<Object[]> results = contactRepository.findSimpleContactsByUserId(userId);
+        List<Map<String, Object>> simpleContacts = results.stream()
+                .map(row -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", row[0]);
+                    map.put("name", row[1]);
+                    map.put("company", row[2]);
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(simpleContacts);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ContactDto> getContactById(@PathVariable Long id) {
         return contactService.getContactById(id)

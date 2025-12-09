@@ -94,4 +94,12 @@ public interface ContactRepository extends JpaRepository<Contact, Long> {
 
     @Query("SELECT c FROM Contact c JOIN c.sharedWithUsers u WHERE u.id = :userId AND c.deletedAt IS NOT NULL ORDER BY c.deletedAt DESC")
     List<Contact> findDeletedAccessibleByUserId(@Param("userId") Long userId);
+
+    // Optimized query for dropdowns - returns only id, name, company
+    @Query(value = "SELECT c.id, c.name, c.company FROM contacts c " +
+            "INNER JOIN user_contacts uc ON c.id = uc.contact_id " +
+            "WHERE uc.user_id = :userId AND c.deleted_at IS NULL " +
+            "ORDER BY c.name",
+            nativeQuery = true)
+    List<Object[]> findSimpleContactsByUserId(@Param("userId") Long userId);
 }

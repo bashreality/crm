@@ -71,6 +71,9 @@ const Dashboard = () => {
   const [showDealModal, setShowDealModal] = useState(false);
   const [pipelines, setPipelines] = useState([]);
   const [directionFilter, setDirectionFilter] = useState('all'); // 'all', 'received', 'sent'
+  const [showSequenceModal, setShowSequenceModal] = useState(false);
+  const [sequences, setSequences] = useState([]);
+  const [sequenceEmail, setSequenceEmail] = useState(null);
   const [dealForm, setDealForm] = useState({
     title: '',
     value: '',
@@ -193,6 +196,7 @@ const Dashboard = () => {
     fetchContacts();
     fetchTags();
     fetchPipelines();
+    fetchSequences();
     // Załaduj statystyki dla domyślnego widoku (wszystkie skrzynki)
     fetchGlobalStats();
   }, []);
@@ -271,6 +275,15 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching pipelines:', error);
+    }
+  };
+
+  const fetchSequences = async () => {
+    try {
+      const response = await api.get('/sequences');
+      setSequences(response.data);
+    } catch (error) {
+      console.error('Error fetching sequences:', error);
     }
   };
 
@@ -448,7 +461,12 @@ const Dashboard = () => {
   const pagedEmails = filteredEmails.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleStatClick = (status) => {
-    const newFilters = { ...filters, status };
+    // Map frontend status names to backend status names
+    const statusMap = {
+      'auto_reply': 'autoReply'
+    };
+    const backendStatus = statusMap[status] || status;
+    const newFilters = { ...filters, status: backendStatus };
     setFilters(newFilters);
     setCurrentPage(1);
     fetchEmails(buildEmailParams(newFilters));
@@ -639,6 +657,47 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error creating task:', error);
       alert('❌ Błąd podczas tworzenia zadania');
+    }
+  };
+
+  const handleAddSequence = async (email, e) => {
+    e.stopPropagation();
+    setSequenceEmail(email);
+    setShowSequenceModal(true);
+  };
+
+  const handleStartSequence = async (sequenceId) => {
+    if (!sequenceEmail) return;
+
+    try {
+      // Pobierz adres email z nadawcy
+      const emailAddress = sequenceEmail.sender.match(/<(.+?)>/)?.[1] || sequenceEmail.sender;
+
+      // Znajdź lub utwórz kontakt
+      let contact = contacts.find(c => c.email?.toLowerCase() === emailAddress.toLowerCase());
+
+      if (!contact) {
+        // Utwórz nowy kontakt
+        const newContact = await contactsApi.create({
+          name: sequenceEmail.sender.replace(/<.+?>/, '').trim() || emailAddress,
+          email: emailAddress,
+          company: sequenceEmail.company || 'Nieznana firma',
+          phone: ''
+        });
+        contact = newContact.data;
+      }
+
+      // Wystartuj sekwencję dla kontaktu
+      await api.post(`/sequences/${sequenceId}/start`, {
+        contactId: contact.id
+      });
+
+      toast.success('Kontakt dodany do sekwencji!');
+      setShowSequenceModal(false);
+      setSequenceEmail(null);
+    } catch (error) {
+      console.error('Error starting sequence:', error);
+      toast.error('Błąd podczas dodawania do sekwencji');
     }
   };
 
@@ -1223,6 +1282,49 @@ const Dashboard = () => {
         onTagAdded={handleTagAdded}
       />
 
+      {/* Sequence Modal */}
+      {showSequenceModal && (
+        <div className="modal-overlay" onClick={() => { setShowSequenceModal(false); setSequenceEmail(null); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2>Dodaj do sekwencji</h2>
+              <button className="modal-close" onClick={() => { setShowSequenceModal(false); setSequenceEmail(null); }}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: '1rem', color: '#6b7280' }}>
+                Wybierz sekwencję dla kontaktu: {sequenceEmail?.sender?.replace(/<.+?>/, '').trim() || sequenceEmail?.sender}
+              </p>
+              {sequences.length === 0 ? (
+                <p style={{ color: '#9ca3af', textAlign: 'center', padding: '2rem' }}>
+                  Brak dostępnych sekwencji. Utwórz sekwencję w zakładce Sekwencje.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {sequences.map(seq => (
+                    <button
+                      key={seq.id}
+                      className="btn btn-secondary"
+                      onClick={() => handleStartSequence(seq.id)}
+                      style={{
+                        justifyContent: 'flex-start',
+                        padding: '12px',
+                        borderLeft: '4px solid #3b82f6'
+                      }}
+                    >
+                      <span style={{ marginRight: '8px' }}>📧</span>
+                      {seq.name}
+                      <span style={{ marginLeft: 'auto', color: '#6b7280', fontSize: '0.85rem' }}>
+                        {seq.steps?.length || 0} kroków
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bulk Tag Modal */}
       {showBulkTagModal && (
         <div className="modal-overlay" onClick={() => setShowBulkTagModal(false)}>
@@ -1729,6 +1831,7 @@ const Dashboard = () => {
                                 setEmailToChangeStatus(email);
                                 setShowStatusChangeModal(true);
                               }}
+                              onAddSequence={handleAddSequence}
                               formatDate={formatDate}
                               getTrackingIcon={getTrackingIcon}
                               truncateText={truncateText}

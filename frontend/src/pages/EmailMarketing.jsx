@@ -746,7 +746,10 @@ const EmailMarketing = () => {
 
       {/* Stats Overview */}
       <div className="em-stats-grid">
-        <div className="em-stat-card">
+        <div
+          className={`em-stat-card clickable ${activeTab === 'campaigns' ? 'active' : ''}`}
+          onClick={() => setActiveTab('campaigns')}
+        >
           <div className="em-stat-icon campaigns">
             <Layers size={24} />
           </div>
@@ -755,7 +758,10 @@ const EmailMarketing = () => {
             <div className="em-stat-label">Kampanie</div>
           </div>
         </div>
-        <div className="em-stat-card">
+        <div
+          className={`em-stat-card clickable ${activeTab === 'templates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+        >
           <div className="em-stat-icon templates">
             <FileText size={24} />
           </div>
@@ -764,7 +770,10 @@ const EmailMarketing = () => {
             <div className="em-stat-label">Szablony</div>
           </div>
         </div>
-        <div className="em-stat-card">
+        <div
+          className={`em-stat-card clickable ${activeTab === 'themes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('themes')}
+        >
           <div className="em-stat-icon themes">
             <Palette size={24} />
           </div>
@@ -793,35 +802,7 @@ const EmailMarketing = () => {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="em-tabs">
-        <button 
-          className={`em-tab ${activeTab === 'campaigns' ? 'active' : ''}`}
-          onClick={() => setActiveTab('campaigns')}
-        >
-          <Layers size={18} />
-          <span>Kampanie</span>
-          <span className="em-tab-count">{campaigns.length}</span>
-        </button>
-        <button 
-          className={`em-tab ${activeTab === 'templates' ? 'active' : ''}`}
-          onClick={() => setActiveTab('templates')}
-        >
-          <FileText size={18} />
-          <span>Szablony</span>
-          <span className="em-tab-count">{templates.length}</span>
-        </button>
-        <button 
-          className={`em-tab ${activeTab === 'themes' ? 'active' : ''}`}
-          onClick={() => setActiveTab('themes')}
-        >
-          <Palette size={18} />
-          <span>Motywy</span>
-          <span className="em-tab-count">{themes.length}</span>
-        </button>
-      </div>
-
-      {/* Tab Content */}
+      {/* Content */}
       <div className="em-content">
         {/* ==================== CAMPAIGNS TAB ==================== */}
         {activeTab === 'campaigns' && (

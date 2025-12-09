@@ -55,6 +55,7 @@ export const emailsApi = {
 // Contacts API
 export const contactsApi = {
   getAll: (params) => api.get('/contacts', { params }),
+  getSimple: () => api.get('/contacts/simple'),
   getCompanies: () => api.get('/contacts/companies'),
   getById: (id) => api.get(`/contacts/${id}`),
   create: (data) => api.post('/contacts', data),

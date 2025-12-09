@@ -119,7 +119,19 @@ public class EmailSendingService {
         Properties props = sender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
+
+        // Port 465 uses SSL/TLS from the start, port 587 uses STARTTLS
+        if (account.getSmtpPort() == 465) {
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.starttls.enable", "false");
+        } else {
+            props.put("mail.smtp.ssl.enable", "false");
+            props.put("mail.smtp.starttls.enable", "true");
+        }
+
+        props.put("mail.smtp.connectiontimeout", "30000"); // 30 seconds
+        props.put("mail.smtp.timeout", "30000");
+        props.put("mail.smtp.writetimeout", "30000");
         props.put("mail.debug", "false");
 
         try {
@@ -254,7 +266,19 @@ public class EmailSendingService {
         Properties props = sender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
+
+        // Port 465 uses SSL/TLS from the start, port 587 uses STARTTLS
+        if (account.getSmtpPort() == 465) {
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.starttls.enable", "false");
+        } else {
+            props.put("mail.smtp.ssl.enable", "false");
+            props.put("mail.smtp.starttls.enable", "true");
+        }
+
+        props.put("mail.smtp.connectiontimeout", "30000"); // 30 seconds
+        props.put("mail.smtp.timeout", "30000");
+        props.put("mail.smtp.writetimeout", "30000");
         props.put("mail.debug", "false");
 
         MimeMessage message = sender.createMimeMessage();
