@@ -1,5 +1,6 @@
 package com.crm.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,7 +9,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Szablon sekwencji follow-up
@@ -54,6 +57,18 @@ public class EmailSequence {
 
     @Column(name = "user_id")
     private Long userId; // ID użytkownika będącego właścicielem sekwencji
+
+    @Column(name = "shared_with_all")
+    private Boolean sharedWithAll = false; // Czy sekwencja jest udostępniona wszystkim użytkownikom
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "sequence_shared_users",
+        joinColumns = @JoinColumn(name = "sequence_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    @JsonIgnore
+    private Set<AdminUser> sharedWithUsers = new HashSet<>();
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

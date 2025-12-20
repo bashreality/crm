@@ -28,6 +28,7 @@ public class DealService {
     private final PipelineStageRepository stageRepository;
     private final ContactRepository contactRepository;
     private final WorkflowAutomationService workflowAutomationService;
+    private final UserContextService userContextService;
 
     @Autowired
     public DealService(
@@ -35,18 +36,24 @@ public class DealService {
             PipelineRepository pipelineRepository,
             PipelineStageRepository stageRepository,
             ContactRepository contactRepository,
-            @Lazy WorkflowAutomationService workflowAutomationService) {
+            @Lazy WorkflowAutomationService workflowAutomationService,
+            UserContextService userContextService) {
         this.dealRepository = dealRepository;
         this.pipelineRepository = pipelineRepository;
         this.stageRepository = stageRepository;
         this.contactRepository = contactRepository;
         this.workflowAutomationService = workflowAutomationService;
+        this.userContextService = userContextService;
     }
 
-    @Cacheable(value = "pipelines")
     public List<Pipeline> getAllPipelines() {
-        log.debug("Fetching all pipelines from database (cache miss)");
-        return pipelineRepository.findAllWithStages();
+        Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            log.warn("No authenticated user found when fetching pipelines");
+            return List.of();
+        }
+        log.debug("Fetching pipelines for user {}", userId);
+        return pipelineRepository.findAccessibleByUserIdWithStages(userId);
     }
 
     public Pipeline getDefaultPipeline() {
@@ -56,6 +63,11 @@ public class DealService {
 
     public List<Deal> getDealsByPipeline(Long pipelineId) {
         return dealRepository.findByPipelineIdWithRelations(pipelineId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Deal> getAllDeals() {
+        return dealRepository.findAllWithRelations();
     }
 
     @Transactional
@@ -158,6 +170,12 @@ public class DealService {
     @Transactional
     @CacheEvict(value = "pipelines", allEntries = true)
     public Pipeline createPipeline(Pipeline pipeline) {
+        Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            throw new RuntimeException("User must be authenticated to create a pipeline");
+        }
+
+        pipeline.setUserId(userId);
         pipeline.setCreatedAt(LocalDateTime.now());
         if (pipeline.getActive() == null) {
             pipeline.setActive(true);

@@ -92,8 +92,7 @@ const Login = () => {
         </form>
 
         <div className="login-hint">
-          <p>Domyślne dane logowania:</p>
-          <p><strong>Login:</strong> admin | <strong>Hasło:</strong> admin123</p>
+          <p>Wpisz swoje dane logowania</p>
         </div>
       </div>
     </div>

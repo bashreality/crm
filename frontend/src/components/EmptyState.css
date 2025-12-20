@@ -1,0 +1,86 @@
+/* Empty State Component */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  min-height: 200px;
+}
+
+.empty-state-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.8;
+  line-height: 1;
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  margin: 0 0 0.5rem 0;
+}
+
+.empty-state-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0 0 1.5rem 0;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.empty-state-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background-color: var(--primary-color, #4f46e5);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.empty-state-action:hover {
+  background-color: var(--primary-color-dark, #4338ca);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.empty-state-action:active {
+  transform: translateY(0);
+}
+
+/* Smaller variant for inline use */
+.empty-state.empty-state-small {
+  padding: 1.5rem 1rem;
+  min-height: 120px;
+}
+
+.empty-state.empty-state-small .empty-state-icon {
+  font-size: 2rem;
+}
+
+.empty-state.empty-state-small .empty-state-title {
+  font-size: 1rem;
+}
+
+.empty-state.empty-state-small .empty-state-description {
+  font-size: 0.8125rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .empty-state-title {
+    color: #f9fafb;
+  }
+
+  .empty-state-description {
+    color: #9ca3af;
+  }
+}

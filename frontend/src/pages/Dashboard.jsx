@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useDebounce, useDebouncedCallback } from '../hooks/useDebounce';
 import {
   Mail,
   RefreshCw,
@@ -344,13 +345,23 @@ const Dashboard = () => {
     return params;
   };
 
+  // Debounced fetch for search input
+  const debouncedFetchEmails = useDebouncedCallback((filtersState) => {
+    fetchEmails(buildEmailParams(filtersState));
+  }, 400);
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     const newFilters = { ...filters, [name]: value };
     setFilters(newFilters);
     setCurrentPage(1);
 
-    fetchEmails(buildEmailParams(newFilters));
+    // Use debounce only for search field, immediate for others
+    if (name === 'search') {
+      debouncedFetchEmails(newFilters);
+    } else {
+      fetchEmails(buildEmailParams(newFilters));
+    }
   };
 
   const handleAccountChange = (e) => {
@@ -784,6 +795,52 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error sending reply:', error);
       alert('❌ Błąd podczas wysyłania odpowiedzi');
+    }
+  };
+
+  const handleCreateContact = async (email, e) => {
+    e.stopPropagation(); // Zatrzymaj propagację, aby nie otworzyć modala emaila
+
+    // Wyciągnij adres email
+    let emailAddress = email.sender;
+    const match = emailAddress.match(/<(.+?)>/);
+    if (match) {
+      emailAddress = match[1];
+    } else {
+      emailAddress = emailAddress.trim();
+    }
+
+    // Sprawdź czy kontakt już istnieje
+    const existingContact = contacts.find(c => c.email && c.email.toLowerCase() === emailAddress.toLowerCase());
+
+    if (existingContact) {
+      toast.error(`Kontakt dla "${emailAddress}" już istnieje: ${existingContact.name}`);
+      return;
+    }
+
+    try {
+      // Wyciągnij nazwę z sender (jeśli jest)
+      const namePart = email.sender.replace(/<.*?>/, '').trim();
+      let name = namePart || emailAddress.split('@')[0];
+
+      // Ensure name is at least 2 characters for validation
+      if (name.length < 2) {
+        name = name + " " + name;
+      }
+
+      const response = await contactsApi.create({
+        name: name,
+        email: emailAddress,
+        company: email.company || '',
+        phone: ''
+      });
+
+      // Odśwież listę kontaktów
+      await fetchContacts();
+      toast.success(`Kontakt "${response.data.name}" został utworzony!`);
+    } catch (error) {
+      console.error('Error creating contact:', error);
+      toast.error('Nie udało się utworzyć kontaktu: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -1823,6 +1880,7 @@ const Dashboard = () => {
                               onSelect={() => toggleEmailSelection(email.id)}
                               onClick={() => setSelectedEmail(email)}
                               onCreateDeal={handleCreateDeal}
+                              onCreateContact={handleCreateContact}
                               onTag={handleTagEmail}
                               onReply={handleReply}
                               onDelete={handleDeleteEmail}

@@ -11,7 +11,14 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "contacts")
+@Table(name = "contacts", indexes = {
+    @Index(name = "idx_contacts_user_id", columnList = "user_id"),
+    @Index(name = "idx_contacts_email", columnList = "email"),
+    @Index(name = "idx_contacts_company", columnList = "company"),
+    @Index(name = "idx_contacts_score", columnList = "score"),
+    @Index(name = "idx_contacts_deleted_at", columnList = "deleted_at"),
+    @Index(name = "idx_contacts_created_at", columnList = "created_at")
+})
 @Data
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor

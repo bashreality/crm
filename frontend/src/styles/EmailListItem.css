@@ -1,8 +1,8 @@
 /* Email List Item - Grid Layout */
 .email-list-item {
   display: grid;
-  grid-template-columns: 40px 48px 1fr 180px 100px 200px;
-  gap: 12px;
+  grid-template-columns: 40px 48px 1fr 140px 70px 250px;
+  gap: 10px;
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
@@ -24,12 +24,12 @@
 }
 
 .email-list-item.compact {
-  grid-template-columns: 40px 48px 1fr 180px 100px 200px;
+  grid-template-columns: 40px 48px 1fr 140px 70px 250px;
   padding: 12px 20px;
 }
 
 .email-list-item.expanded {
-  grid-template-columns: 40px 48px 1fr 180px 100px 200px;
+  grid-template-columns: 40px 48px 1fr 140px 70px 250px;
   padding: 18px 20px;
 }
 
@@ -244,6 +244,16 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.action-contact {
+  color: #10b981;
+  border-color: #a7f3d0;
+}
+
+.action-contact:hover {
+  background: #d1fae5;
+  border-color: #10b981;
+}
+
 .action-task {
   color: #6366f1;
   border-color: #c7d2fe;
@@ -345,6 +355,15 @@ html.dark .action-btn:hover {
   background: var(--color-bg-surface);
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+html.dark .action-contact {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+html.dark .action-contact:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
 }
 
 html.dark .action-task {

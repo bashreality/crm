@@ -31,5 +31,7 @@ public class SequenceSummaryDto {
     String tagName;
     Long emailAccountId;
     String emailAccountName;
+    Long userId;
+    Boolean sharedWithAll;
 }
 

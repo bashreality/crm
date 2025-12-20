@@ -4,6 +4,7 @@ import com.crm.model.Pipeline;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -29,8 +30,8 @@ public interface PipelineRepository extends JpaRepository<Pipeline, Long> {
     
     // User-specific queries
     List<Pipeline> findByUserId(Long userId);
-    
+
     @EntityGraph(attributePaths = {"stages"})
-    @Query("SELECT p FROM Pipeline p WHERE p.userId = :userId OR p.sharedWithAll = true")
-    List<Pipeline> findAccessibleByUserIdWithStages(Long userId);
+    @Query("SELECT DISTINCT p FROM Pipeline p LEFT JOIN p.sharedWithUsers u WHERE p.userId = :userId OR p.sharedWithAll = true OR u.id = :userId")
+    List<Pipeline> findAccessibleByUserIdWithStages(@Param("userId") Long userId);
 }

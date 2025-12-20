@@ -1549,3 +1549,427 @@ html.dark .notification-item.unread:hover {
 html.dark .notification-actions button {
   background: var(--color-bg-elevated);
 }
+
+/* ==================== RESPONSIVE - TABLET ==================== */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .header {
+    padding: 0 12px;
+    height: 52px;
+  }
+
+  .header-content {
+    gap: 8px;
+  }
+
+  .logo {
+    font-size: 14px;
+    margin-right: 8px;
+  }
+
+  .nav {
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-item {
+    font-size: 11px;
+    padding: 5px 6px;
+  }
+
+  .search-button,
+  .theme-toggle-button {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .search-text,
+  .search-kbd {
+    display: none;
+  }
+
+  /* Hide notification dropdown on mobile - show modal instead */
+  .notification-dropdown {
+    position: fixed;
+    top: 60px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: calc(100vh - 80px);
+  }
+
+  /* Card adjustments */
+  .card {
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .card-header {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .card-title {
+    font-size: 16px;
+  }
+
+  /* Button adjustments */
+  .btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  /* Form adjustments */
+  input, select, textarea {
+    padding: 10px 12px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  /* Topbars */
+  .contacts-topbar,
+  .sequences-topbar,
+  .tasks-topbar {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .contacts-topbar h1,
+  .sequences-topbar h1,
+  .tasks-topbar h1 {
+    font-size: 20px;
+  }
+
+  .contacts-sub,
+  .sequences-sub,
+  .tasks-sub {
+    font-size: 13px;
+  }
+
+  /* Toolbar adjustments */
+  .contacts-toolbar,
+  .sequences-toolbar,
+  .tasks-toolbar {
+    padding: 14px 16px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  /* Modal adjustments */
+  .modal-content {
+    width: 95vw !important;
+    max-width: none !important;
+    margin: 10px;
+    max-height: calc(100vh - 20px);
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .modal-footer {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Task cards */
+  .task-card {
+    padding: 14px 16px;
+  }
+
+  /* Sequence tiles */
+  .sequence-tile {
+    padding: 14px;
+  }
+
+  .sequence-tile__header h3 {
+    font-size: 14px;
+  }
+
+  /* Tasks filters - horizontal scroll */
+  .tasks-filters {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .tasks-filters button {
+    flex-shrink: 0;
+    font-size: 13px;
+    padding: 6px 12px;
+  }
+}
+
+/* ==================== RESPONSIVE - MOBILE ==================== */
+@media (max-width: 480px) {
+  .container {
+    padding: 12px;
+  }
+
+  .header {
+    height: 48px;
+    padding: 0 8px;
+  }
+
+  .logo {
+    font-size: 13px;
+    margin-right: 4px;
+  }
+
+  .nav-item {
+    font-size: 10px;
+    padding: 4px 5px;
+  }
+
+  .header-right-section {
+    gap: 4px;
+  }
+
+  .search-button,
+  .theme-toggle-button,
+  .notification-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+
+  /* User dropdown - full width on mobile */
+  .user-dropdown {
+    position: fixed;
+    top: 56px;
+    left: 8px;
+    right: 8px;
+    min-width: auto;
+  }
+
+  /* Cards */
+  .card-header {
+    padding: 12px 14px;
+  }
+
+  .card-title {
+    font-size: 15px;
+  }
+
+  /* Forms */
+  label {
+    font-size: 12px;
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-secondary {
+    width: auto;
+  }
+
+  /* Topbars */
+  .contacts-topbar,
+  .sequences-topbar,
+  .tasks-topbar {
+    padding: 12px;
+  }
+
+  .contacts-topbar h1,
+  .sequences-topbar h1,
+  .tasks-topbar h1 {
+    font-size: 18px;
+  }
+
+  /* Toolbars */
+  .contacts-toolbar,
+  .sequences-toolbar,
+  .tasks-toolbar {
+    padding: 12px;
+  }
+
+  /* Modal */
+  .modal-content {
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+    max-height: 100vh;
+  }
+
+  .modal-header {
+    padding: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .modal-body {
+    padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .modal-footer {
+    padding: 12px;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    flex-direction: column;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+  }
+
+  /* Notification dropdown - full screen */
+  .notification-dropdown {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+
+  .notification-header {
+    padding: 16px;
+    position: sticky;
+    top: 0;
+  }
+
+  .notification-list {
+    max-height: calc(100vh - 60px);
+  }
+
+  /* Task cards */
+  .task-card {
+    padding: 12px;
+  }
+
+  .task-card__info h3 {
+    font-size: 14px;
+  }
+
+  /* Sequence tiles */
+  .sequence-tile {
+    padding: 12px;
+  }
+
+  .sequence-tile p {
+    font-size: 13px;
+  }
+
+  /* Hide certain elements on very small screens */
+  .sequence-meta {
+    display: none;
+  }
+}
+
+/* ==================== TOUCH DEVICE OPTIMIZATIONS ==================== */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .btn {
+    min-height: 44px;
+  }
+
+  input, select, textarea {
+    min-height: 44px;
+  }
+
+  .nav-item {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Remove hover effects for touch */
+  .card:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-primary:hover {
+    transform: none;
+  }
+
+  .task-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .sequence-tile:hover {
+    transform: none;
+  }
+
+  /* Show actions always on touch */
+  .notification-actions {
+    opacity: 1;
+  }
+}
+
+/* ==================== EMAIL MODAL DARK MODE ==================== */
+html.dark .email-modal-overlay {
+  background-color: var(--color-bg-main);
+}
+
+html.dark .email-modal-panel {
+  background-color: var(--color-bg-surface);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .email-modal-input {
+  background-color: var(--color-bg-elevated) !important;
+  color: var(--color-text-main);
+  border-color: var(--color-border);
+}
+
+html.dark .email-modal-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+html.dark .email-modal-alert-error {
+  background-color: rgba(220, 38, 38, 0.15) !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
+  color: #fca5a5 !important;
+}
+
+html.dark .email-modal-alert-success {
+  background-color: rgba(22, 163, 74, 0.15) !important;
+  border-color: rgba(22, 163, 74, 0.3) !important;
+  color: #86efac !important;
+}
+
+html.dark .email-html-content {
+  color: var(--color-text-main);
+}
+
+html.dark .email-html-content a {
+  color: #60a5fa;
+}

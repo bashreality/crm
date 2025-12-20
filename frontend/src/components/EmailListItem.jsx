@@ -8,6 +8,7 @@ const EmailListItem = ({
   onSelect,
   onClick,
   onCreateDeal,
+  onCreateContact,
   onTag,
   onReply,
   onDelete,
@@ -122,6 +123,13 @@ const EmailListItem = ({
       <div className="email-actions-col">
         <div className="email-actions">
           <button
+            className="action-btn action-contact"
+            onClick={(e) => onCreateContact(email, e)}
+            title="Dodaj kontakt"
+          >
+            👤
+          </button>
+          <button
             className="action-btn action-task"
             onClick={(e) => onCreateDeal(email, e)}
             title="Dodaj szansę"
@@ -148,13 +156,6 @@ const EmailListItem = ({
             title="Zmień klasyfikację"
           >
             🔄
-          </button>
-          <button
-            className="action-btn action-reply"
-            onClick={(e) => onReply(email, e)}
-            title="Odpowiedz"
-          >
-            ↩️
           </button>
           <button
             className="action-btn action-delete"

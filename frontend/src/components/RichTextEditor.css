@@ -209,3 +209,68 @@
   }
 }
 
+/* ==================== DARK MODE ==================== */
+html.dark .rich-editor-container {
+  border-color: var(--color-border);
+  background: var(--color-bg-elevated);
+}
+
+html.dark .rich-editor-container:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+html.dark .rich-editor-container.disabled {
+  background: var(--color-bg-main);
+}
+
+html.dark .rich-editor-toolbar {
+  background: linear-gradient(to bottom, var(--color-bg-surface), var(--color-bg-main));
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .toolbar-group {
+  border-right-color: var(--color-border);
+}
+
+html.dark .toolbar-btn {
+  color: var(--color-text-secondary);
+}
+
+html.dark .toolbar-btn:hover:not(:disabled) {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-main);
+}
+
+html.dark .toolbar-btn:active:not(:disabled) {
+  background: var(--color-bg-main);
+}
+
+html.dark .toolbar-select {
+  border-color: var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-main);
+}
+
+html.dark .toolbar-select:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+
+html.dark .toolbar-select:focus:not(:disabled) {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+html.dark .rich-editor-content {
+  color: var(--color-text-main);
+  background: var(--color-bg-elevated);
+}
+
+html.dark .rich-editor-content:empty::before {
+  color: var(--color-text-muted);
+}
+
+html.dark .rich-editor-content a {
+  color: #60a5fa;
+}
+

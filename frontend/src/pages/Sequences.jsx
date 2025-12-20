@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { sequencesApi, contactsApi, emailAccountsApi, tagsApi, aiApi } from '../services/api';
+import { sequencesApi, contactsApi, emailAccountsApi, tagsApi, aiApi, usersApi } from '../services/api';
 import toast from 'react-hot-toast';
 import {
   Mail,
@@ -13,7 +13,10 @@ import {
   RefreshCw,
   Settings,
   Zap,
-  Target
+  Target,
+  Share2,
+  X,
+  Check
 } from 'lucide-react';
 import AttachmentUploader from '../components/AttachmentUploader';
 import RichTextEditor from '../components/RichTextEditor';
@@ -102,8 +105,25 @@ const Sequences = () => {
   const [aiWebsiteUrl, setAiWebsiteUrl] = useState('');
   const [showAIFormInBuilder, setShowAIFormInBuilder] = useState(false);
 
+  // Sharing states
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [sharedUsers, setSharedUsers] = useState([]);
+  const [sharedWithAll, setSharedWithAll] = useState(false);
+  const [sequenceToShare, setSequenceToShare] = useState(null);
+
   useEffect(() => {
     loadInitialData();
+    // Load current user
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        setCurrentUser(JSON.parse(userData));
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+    }
   }, []);
 
   // Restore state from sessionStorage if needed
@@ -163,11 +183,58 @@ const Sequences = () => {
         fetchContacts(),
         fetchEmailAccounts(),
         fetchTags(),
+        fetchAllUsers(),
       ]);
     } catch (err) {
       setError('Nie udało się pobrać danych.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const res = await usersApi.getAll();
+      setAllUsers(res.data);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    }
+  };
+
+  const handleShareSequence = async (sequence) => {
+    setSequenceToShare(sequence);
+    try {
+      const res = await sequencesApi.getSharedUsers(sequence.id);
+      setSharedUsers(res.data.sharedUsers || []);
+      setSharedWithAll(res.data.sharedWithAll || false);
+      setShowShareModal(true);
+    } catch (err) {
+      console.error('Error fetching shared users:', err);
+      toast.error('Nie udało się pobrać danych udostępniania');
+    }
+  };
+
+  const handleSaveSharing = async () => {
+    if (!sequenceToShare) return;
+    try {
+      await sequencesApi.shareSequence(sequenceToShare.id, {
+        sharedWithAll,
+        userIds: sharedUsers.map(u => u.id)
+      });
+      toast.success('Ustawienia udostępniania zostały zapisane');
+      setShowShareModal(false);
+      refreshSequences();
+    } catch (err) {
+      console.error('Error saving sharing:', err);
+      toast.error('Nie udało się zapisać ustawień udostępniania');
+    }
+  };
+
+  const toggleUserSharing = (user) => {
+    if (sharedUsers.find(u => u.id === user.id)) {
+      setSharedUsers(sharedUsers.filter(u => u.id !== user.id));
+    } else {
+      setSharedUsers([...sharedUsers, user]);
     }
   };
 
@@ -1086,9 +1153,23 @@ const Sequences = () => {
                   <div>
                     {/* Toolbar */}
                     <div className="sequences-toolbar">
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#111827' }}>
                           {selectedSequence.summary.name}
+                          {selectedSequence.summary.sharedWithAll && (
+                            <span style={{
+                              marginLeft: '10px',
+                              padding: '2px 8px',
+                              background: 'rgba(59, 130, 246, 0.1)',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              color: '#3b82f6'
+                            }}>
+                              <Users size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                              Udostępniona
+                            </span>
+                          )}
                         </h3>
                         <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '13px', color: '#6b7280' }}>
                           <span>🌍 {selectedSequence.summary.timezone}</span>
@@ -1096,7 +1177,20 @@ const Sequences = () => {
                           <span>📊 Limit: {selectedSequence.summary.dailySendingLimit}/dzień</span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '12px' }}>
+
+                      {/* Spacer */}
+                      <div style={{ flex: 1, minWidth: '60px' }} />
+
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        {currentUser && selectedSequence.summary.userId === currentUser.id && (
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => handleShareSequence(selectedSequence.summary)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <Share2 size={16} /> Udostępnij
+                          </button>
+                        )}
                         <button className="btn btn-secondary" onClick={() => openBuilder(selectedSequence)}>
                           ✏️ Edytuj
                         </button>
@@ -2507,6 +2601,113 @@ const Sequences = () => {
                 disabled={testingSequence || !testEmail}
               >
                 {testingSequence ? 'Wysyłanie...' : `Wyślij ${sequenceForm.steps?.length || 0} maili testowych`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Sequence Modal */}
+      {showShareModal && sequenceToShare && (
+        <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Share2 size={24} />
+                Udostępnij sekwencję
+              </h2>
+              <button className="modal-close" onClick={() => setShowShareModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: '20px', color: '#666' }}>
+                Udostępnij sekwencję "<strong>{sequenceToShare.name}</strong>" innym użytkownikom systemu.
+              </p>
+
+              {/* Share with all toggle */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px',
+                background: sharedWithAll ? 'rgba(59, 130, 246, 0.1)' : '#f9fafb',
+                borderRadius: '12px',
+                marginBottom: '20px',
+                border: sharedWithAll ? '1px solid #3b82f6' : '1px solid #e5e7eb'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#111827' }}>
+                    Udostępnij wszystkim użytkownikom
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                    Każdy użytkownik będzie mógł zobaczyć tę sekwencję
+                  </div>
+                </div>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={sharedWithAll}
+                    onChange={(e) => setSharedWithAll(e.target.checked)}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+
+              {/* Individual users */}
+              {!sharedWithAll && (
+                <div>
+                  <h4 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                    Lub wybierz konkretnych użytkowników:
+                  </h4>
+                  <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                    {allUsers.filter(u => u.id !== currentUser?.id).map(user => (
+                      <div
+                        key={user.id}
+                        onClick={() => toggleUserSharing(user)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          marginBottom: '8px',
+                          cursor: 'pointer',
+                          background: sharedUsers.find(u => u.id === user.id) ? 'rgba(16, 185, 129, 0.1)' : '#f9fafb',
+                          border: sharedUsers.find(u => u.id === user.id) ? '1px solid #10b981' : '1px solid #e5e7eb',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: '500', color: '#111827' }}>
+                            {user.firstName && user.lastName
+                              ? `${user.firstName} ${user.lastName}`
+                              : user.username}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                            {user.email || user.username}
+                          </div>
+                        </div>
+                        {sharedUsers.find(u => u.id === user.id) && (
+                          <Check size={20} style={{ color: '#10b981' }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowShareModal(false)}
+              >
+                Anuluj
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveSharing}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Check size={16} /> Zapisz
               </button>
             </div>
           </div>

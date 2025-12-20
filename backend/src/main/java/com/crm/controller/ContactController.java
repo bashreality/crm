@@ -51,12 +51,17 @@ public class ContactController {
     public ResponseEntity<List<ContactDto>> getAllContacts(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String company,
-            @RequestParam(required = false, defaultValue = "false") Boolean showAll) {
+            @RequestParam(required = false, defaultValue = "false") Boolean showAll,
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "100") Integer size) {
 
         Long userId = userContextService.getCurrentUserId();
         if (userId == null) {
             return ResponseEntity.ok(List.of());
         }
+
+        // Limit size to prevent memory issues
+        int limitedSize = Math.min(size, 500);
 
         List<Contact> contacts;
 
@@ -70,7 +75,15 @@ public class ContactController {
             contacts = contactService.getContactsWithEmailStatusForUser(userId, EmailStatus.POSITIVE.getValue());
         }
 
-        List<ContactDto> contactDtos = contacts.stream()
+        // Apply pagination
+        int start = page * limitedSize;
+        int end = Math.min(start + limitedSize, contacts.size());
+
+        List<Contact> pagedContacts = start < contacts.size()
+            ? contacts.subList(start, end)
+            : List.of();
+
+        List<ContactDto> contactDtos = pagedContacts.stream()
                 .map(contactMapper::toDto)
                 .collect(Collectors.toList());
 

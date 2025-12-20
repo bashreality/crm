@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 // Zawsze używaj względnej ścieżki - nginx przekaże to do backendu
 const API_URL = '/api';
@@ -9,6 +10,44 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Helper do formatowania komunikatów błędów
+const getErrorMessage = (error) => {
+  if (error.response) {
+    const { status, data } = error.response;
+
+    // Spróbuj wyciągnąć komunikat z odpowiedzi
+    const message = data?.message || data?.error || data?.detail;
+
+    switch (status) {
+      case 400:
+        return message || 'Nieprawidłowe dane żądania';
+      case 401:
+        return 'Sesja wygasła. Zaloguj się ponownie.';
+      case 403:
+        return 'Brak uprawnień do wykonania tej operacji';
+      case 404:
+        return message || 'Nie znaleziono zasobu';
+      case 409:
+        return message || 'Konflikt danych - zasób już istnieje';
+      case 422:
+        return message || 'Błąd walidacji danych';
+      case 429:
+        return 'Zbyt wiele żądań. Spróbuj ponownie za chwilę.';
+      case 500:
+        return 'Błąd serwera. Spróbuj ponownie później.';
+      case 502:
+      case 503:
+      case 504:
+        return 'Serwer jest niedostępny. Spróbuj ponownie później.';
+      default:
+        return message || `Wystąpił błąd (${status})`;
+    }
+  } else if (error.request) {
+    return 'Brak połączenia z serwerem. Sprawdź internet.';
+  }
+  return 'Wystąpił nieoczekiwany błąd';
+};
 
 // Request interceptor - dodaj token do każdego zapytania
 api.interceptors.request.use(
@@ -24,17 +63,30 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - obsługa wygasłego tokena
+// Response interceptor - obsługa błędów i wygasłego tokena
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Token wygasł lub jest nieprawidłowy
+    const status = error.response?.status;
+
+    // Nie pokazuj toasta dla 401 - użytkownik zostanie przekierowany
+    if (status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('isAuthenticated');
       window.location.href = '/login';
+      return Promise.reject(error);
     }
+
+    // Pokaż toast dla innych błędów (chyba że config wyłącza toast)
+    if (!error.config?.skipToast) {
+      const message = getErrorMessage(error);
+      toast.error(message, {
+        duration: 5000,
+        id: `error-${status || 'network'}`, // Zapobiega duplikatom
+      });
+    }
+
     return Promise.reject(error);
   }
 );
@@ -164,6 +216,11 @@ export const sequencesApi = {
   // Scheduled emails
   cancelScheduledEmail: (scheduledEmailId) => api.post(`/sequences/scheduled-emails/${scheduledEmailId}/cancel`),
   sendNow: (scheduledEmailId) => api.post(`/sequences/scheduled-emails/${scheduledEmailId}/send-now`),
+
+  // Sharing
+  getSharedUsers: (sequenceId) => api.get(`/sequences/${sequenceId}/shared-users`),
+  shareSequence: (sequenceId, data) => api.post(`/sequences/${sequenceId}/share`, data),
+  unshareSequence: (sequenceId, userId) => api.delete(`/sequences/${sequenceId}/share/${userId}`),
 };
 
 // Tasks API
@@ -254,6 +311,12 @@ export const dealsApi = {
   getAllPipelines: () => api.get('/pipelines'),
   getPipelineById: (id) => api.get(`/pipelines/${id}`),
   getStages: (pipelineId) => api.get(`/pipelines/${pipelineId}/stages`),
+};
+
+// Users API (for sharing features)
+export const usersApi = {
+  getAll: () => api.get('/users'),
+  getCurrent: () => api.get('/users/me'),
 };
 
 // Attachments API

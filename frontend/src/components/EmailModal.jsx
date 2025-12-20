@@ -105,14 +105,14 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
 
   return (
     <div
-      className="modal-overlay"
+      className="modal-overlay email-modal-overlay"
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: 'var(--color-bg-main)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -123,6 +123,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
       onClick={onClose}
     >
       <div
+        className="email-modal-container"
         style={{
           maxWidth: '1600px',
           width: '100%',
@@ -135,10 +136,10 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
         onClick={(e) => e.stopPropagation()}
       >
         {/* LEFT PANEL - Email Viewer (Clean, Flat) */}
-        <div style={{
+        <div className="email-modal-panel" style={{
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--color-bg-surface)',
           borderRadius: '16px',
           border: '1px solid var(--color-border)',
           overflow: 'hidden',
@@ -291,30 +292,50 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
             background: 'var(--color-bg-main)'
           }}>
             <div style={{
-              background: '#ffffff',
+              background: 'var(--color-bg-surface)',
               borderRadius: '12px',
               padding: '1.5rem',
               border: '1px solid var(--color-border)',
               boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
             }}>
-              <div style={{
-                lineHeight: '1.85',
-                fontSize: '0.95rem',
-                color: 'var(--color-text-main)',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word'
-              }}>
-                {email.content || email.preview || 'Brak treści wiadomości'}
-              </div>
+              {/* Sprawdź czy treść zawiera HTML */}
+              {(email.content || email.preview || '').includes('<') ? (
+                <div
+                  className="email-html-content"
+                  style={{
+                    lineHeight: '1.75',
+                    fontSize: '0.95rem',
+                    color: 'var(--color-text-main)',
+                    wordBreak: 'break-word'
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: (email.content || email.preview || 'Brak treści wiadomości')
+                      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                      .replace(/on\w+="[^"]*"/gi, '')
+                      .replace(/on\w+='[^']*'/gi, '')
+                      .replace(/javascript:/gi, '')
+                  }}
+                />
+              ) : (
+                <div style={{
+                  lineHeight: '1.85',
+                  fontSize: '0.95rem',
+                  color: 'var(--color-text-main)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}>
+                  {email.content || email.preview || 'Brak treści wiadomości'}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* RIGHT PANEL - Reply Composer (Floating Card) */}
-        <div style={{
+        <div className="email-modal-panel email-reply-panel" style={{
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--color-bg-surface)',
           borderRadius: '16px',
           border: '1px solid var(--color-border)',
           overflow: 'hidden',
@@ -393,6 +414,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                 onChange={(e) => setSubject(e.target.value)}
                 disabled={isLoading}
                 placeholder="Re: ..."
+                className="email-modal-input"
                 style={{
                   width: '100%',
                   padding: '0.875rem 1rem',
@@ -401,7 +423,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
                   fontSize: '0.95rem',
                   outline: 'none',
                   transition: 'all 0.2s',
-                  backgroundColor: isLoading ? 'var(--color-bg-main)' : '#ffffff',
+                  backgroundColor: 'var(--color-bg-elevated)',
                   color: 'var(--color-text-main)',
                   boxSizing: 'border-box'
                 }}
@@ -498,13 +520,13 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
 
             {/* Error Message */}
             {error && (
-              <div style={{
+              <div className="email-modal-alert email-modal-alert-error" style={{
                 padding: '0.875rem 1rem',
-                backgroundColor: '#fef2f2',
-                color: '#dc2626',
+                backgroundColor: 'var(--color-error-bg, #fef2f2)',
+                color: 'var(--color-error, #dc2626)',
                 borderRadius: '10px',
                 fontSize: '0.875rem',
-                border: '1px solid #fecaca',
+                border: '1px solid var(--color-error-border, #fecaca)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem'
@@ -515,13 +537,13 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
 
             {/* Success Message */}
             {success && (
-              <div style={{
+              <div className="email-modal-alert email-modal-alert-success" style={{
                 padding: '0.875rem 1rem',
-                backgroundColor: '#f0fdf4',
-                color: '#16a34a',
+                backgroundColor: 'var(--color-success-bg, #f0fdf4)',
+                color: 'var(--color-success, #16a34a)',
                 borderRadius: '10px',
                 fontSize: '0.875rem',
-                border: '1px solid #bbf7d0',
+                border: '1px solid var(--color-success-border, #bbf7d0)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem'
@@ -538,7 +560,7 @@ const EmailModal = ({ email, onClose, onEmailUpdated }) => {
             display: 'flex',
             justifyContent: 'flex-end',
             gap: '0.75rem',
-            backgroundColor: '#ffffff'
+            backgroundColor: 'var(--color-bg-surface)'
           }}>
             <button
               onClick={onClose}

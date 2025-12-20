@@ -168,12 +168,24 @@ const Deals = () => {
   }, []);
 
   // Ładuj deals dla wszystkich lejków w widoku listy (dla statystyk)
+  // Zoptymalizowane - użyj jednego endpointu jeśli dostępny, lub równoległe ładowanie
   useEffect(() => {
     if (viewMode === 'list' && pipelines.length > 0) {
-      // Ładuj deals dla wszystkich lejków równolegle
       const loadAllDeals = async () => {
         try {
-          const allDealsPromises = pipelines.map(p => 
+          // Spróbuj pobrać wszystkie deals jednym zapytaniem
+          try {
+            const res = await api.get('/deals/all');
+            if (Array.isArray(res.data)) {
+              setDeals(res.data);
+              return;
+            }
+          } catch {
+            // Endpoint nie istnieje, użyj fallback
+          }
+
+          // Fallback: ładuj równolegle dla każdego lejka
+          const allDealsPromises = pipelines.map(p =>
             api.get(`/deals/pipeline/${p.id}`).then(res => ({
               pipelineId: p.id,
               deals: Array.isArray(res.data) ? res.data : []
@@ -1217,6 +1229,14 @@ const Deals = () => {
                     deals={pipelineDeals}
                     onClick={() => handleOpenPipeline(pipeline)}
                     isDefault={pipeline.isDefault}
+                    onShare={handleSharePipeline}
+                    onSettings={() => {
+                      setShowPipelineModal(true);
+                      setExpandedPipelineId(pipeline.id);
+                      togglePipelineExpand(pipeline.id);
+                    }}
+                    currentUserId={currentUser?.id}
+                    isShared={pipeline.sharedWithAll || (pipeline.sharedWithUsers && pipeline.sharedWithUsers.length > 0)}
                   />
                 );
               })}

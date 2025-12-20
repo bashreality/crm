@@ -1,8 +1,12 @@
 package com.crm.controller;
 
 import com.crm.dto.sequence.*;
+import com.crm.model.AdminUser;
+import com.crm.model.EmailSequence;
 import com.crm.model.SequenceExecution;
 import com.crm.model.ScheduledEmail;
+import com.crm.repository.AdminUserRepository;
+import com.crm.repository.EmailSequenceRepository;
 import com.crm.service.SequenceService;
 import com.crm.service.ScheduledEmailService;
 import com.crm.service.UserContextService;
@@ -16,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/sequences")
@@ -26,6 +32,8 @@ public class SequenceController {
     private final SequenceService sequenceService;
     private final ScheduledEmailService scheduledEmailService;
     private final UserContextService userContextService;
+    private final EmailSequenceRepository emailSequenceRepository;
+    private final AdminUserRepository adminUserRepository;
 
     // ============ Sequence Management ============
 
@@ -235,5 +243,114 @@ public class SequenceController {
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    // ============ Sharing Management ============
+
+    @GetMapping("/{id}/shared-users")
+    public ResponseEntity<Map<String, Object>> getSharedUsers(@PathVariable Long id) {
+        Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        EmailSequence sequence = emailSequenceRepository.findById(id).orElse(null);
+        if (sequence == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Only owner can see shared users list
+        if (sequence.getUserId() == null || !sequence.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("sharedWithAll", sequence.getSharedWithAll() != null ? sequence.getSharedWithAll() : false);
+        result.put("sharedUsers", sequence.getSharedWithUsers().stream()
+                .map(u -> {
+                    Map<String, Object> userInfo = new HashMap<>();
+                    userInfo.put("id", u.getId());
+                    userInfo.put("username", u.getUsername());
+                    userInfo.put("email", u.getEmail());
+                    userInfo.put("firstName", u.getFirstName());
+                    userInfo.put("lastName", u.getLastName());
+                    return userInfo;
+                })
+                .collect(Collectors.toList()));
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{id}/share")
+    public ResponseEntity<Map<String, String>> shareSequence(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> request) {
+
+        Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        EmailSequence sequence = emailSequenceRepository.findById(id).orElse(null);
+        if (sequence == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Only owner can share
+        if (sequence.getUserId() == null || !sequence.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // Handle sharing with all users
+        if (request.containsKey("sharedWithAll")) {
+            Boolean sharedWithAll = (Boolean) request.get("sharedWithAll");
+            sequence.setSharedWithAll(sharedWithAll);
+        }
+
+        // Handle sharing with specific users
+        if (request.containsKey("userIds")) {
+            @SuppressWarnings("unchecked")
+            List<Integer> userIds = (List<Integer>) request.get("userIds");
+            Set<AdminUser> users = userIds.stream()
+                    .map(uid -> adminUserRepository.findById(uid.longValue()).orElse(null))
+                    .filter(u -> u != null)
+                    .collect(Collectors.toSet());
+            sequence.setSharedWithUsers(users);
+        }
+
+        emailSequenceRepository.save(sequence);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Sequence sharing updated successfully");
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/share/{targetUserId}")
+    public ResponseEntity<Map<String, String>> unshareSequence(
+            @PathVariable Long id,
+            @PathVariable Long targetUserId) {
+
+        Long userId = userContextService.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        EmailSequence sequence = emailSequenceRepository.findById(id).orElse(null);
+        if (sequence == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Only owner can unshare
+        if (sequence.getUserId() == null || !sequence.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // Remove user from shared users
+        sequence.getSharedWithUsers().removeIf(u -> u.getId().equals(targetUserId));
+        emailSequenceRepository.save(sequence);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "User removed from sequence sharing");
+        return ResponseEntity.ok(response);
     }
 }

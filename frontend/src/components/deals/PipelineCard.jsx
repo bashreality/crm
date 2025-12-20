@@ -1,7 +1,7 @@
 import React from 'react';
-import { Target, DollarSign, TrendingUp, ArrowRight, Star } from 'lucide-react';
+import { Target, DollarSign, TrendingUp, ArrowRight, Star, Share2, Settings, Users } from 'lucide-react';
 
-const PipelineCard = ({ pipeline, deals = [], onClick, isDefault = false }) => {
+const PipelineCard = ({ pipeline, deals = [], onClick, isDefault = false, onShare, onSettings, currentUserId, isShared = false }) => {
   // Oblicz statystyki dla tego lejka
   const pipelineDeals = deals.filter(d => d.pipeline?.id === pipeline.id || !d.pipeline);
   const totalValue = pipelineDeals.reduce((sum, deal) => {
@@ -236,13 +236,131 @@ const PipelineCard = ({ pipeline, deals = [], onClick, isDefault = false }) => {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Toolbar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingTop: '16px',
-        borderTop: '1px solid var(--color-border)'
+        borderTop: '1px solid var(--color-border)',
+        marginBottom: '16px'
+      }}>
+        {/* Info section */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {(pipeline.sharedWithAll || isShared) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 10px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: '600',
+              color: '#3b82f6'
+            }}>
+              <Users size={12} />
+              Udostępniony
+            </div>
+          )}
+          <span style={{
+            fontSize: '12px',
+            color: 'var(--color-text-muted)'
+          }}>
+            📊 {totalDeals} szans
+          </span>
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1, minWidth: '40px' }} />
+
+        {/* Action buttons */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          {currentUserId && pipeline.userId === currentUserId && onShare && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShare(pipeline);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                background: 'var(--color-bg-main)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                color: 'var(--color-text-secondary)',
+                fontSize: '13px',
+                fontWeight: '500',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                e.currentTarget.style.borderColor = '#3b82f6';
+                e.currentTarget.style.color = '#3b82f6';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-bg-main)';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-secondary)';
+              }}
+              title="Udostępnij lejek"
+            >
+              <Share2 size={14} />
+              Udostępnij
+            </button>
+          )}
+          {onSettings && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSettings(pipeline);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px',
+                background: 'var(--color-bg-main)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                color: 'var(--color-text-secondary)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)';
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.color = 'var(--color-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-bg-main)';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.color = 'var(--color-text-secondary)';
+              }}
+              title="Ustawienia lejka"
+            >
+              <Settings size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
       }}>
         <span style={{
           fontSize: '13px',

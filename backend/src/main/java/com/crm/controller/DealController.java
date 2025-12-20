@@ -22,6 +22,11 @@ public class DealController {
         return ResponseEntity.ok(dealService.getAllPipelines());
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<Deal>> getAllDeals() {
+        return ResponseEntity.ok(dealService.getAllDeals());
+    }
+
     @GetMapping("/pipeline/{id}")
     public ResponseEntity<List<Deal>> getDeals(@PathVariable Long id) {
         return ResponseEntity.ok(dealService.getDealsByPipeline(id));

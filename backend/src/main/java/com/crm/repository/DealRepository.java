@@ -20,7 +20,11 @@ public interface DealRepository extends JpaRepository<Deal, Long> {
     
     @EntityGraph(attributePaths = {"contact", "pipeline", "stage"})
     Optional<Deal> findWithRelationsById(Long id);
-    
+
+    @EntityGraph(attributePaths = {"contact", "pipeline", "stage"})
+    @Query("SELECT d FROM Deal d WHERE d.deletedAt IS NULL")
+    List<Deal> findAllWithRelations();
+
     List<Deal> findByPipelineId(Long pipelineId);
     List<Deal> findByStageId(Long stageId);
     List<Deal> findByContactId(Long contactId);

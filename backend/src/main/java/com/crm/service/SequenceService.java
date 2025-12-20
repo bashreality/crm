@@ -46,7 +46,7 @@ public class SequenceService {
     public List<SequenceSummaryDto> getAllSequences() {
         Long userId = userContextService.getCurrentUserId();
         log.info("getAllSequences called for userId: {}", userId);
-        return sequenceRepository.findByUserId(userId)
+        return sequenceRepository.findAccessibleByUserId(userId)
                 .stream()
                 .map(this::mapToSummary)
                 .collect(Collectors.toList());
@@ -54,7 +54,7 @@ public class SequenceService {
 
     public List<SequenceSummaryDto> getActiveSequences() {
         Long userId = userContextService.getCurrentUserId();
-        return sequenceRepository.findByUserIdAndActiveTrue(userId)
+        return sequenceRepository.findAccessibleByUserIdAndActiveTrue(userId)
                 .stream()
                 .map(this::mapToSummary)
                 .collect(Collectors.toList());
@@ -65,8 +65,13 @@ public class SequenceService {
         EmailSequence sequence = sequenceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Sequence not found"));
 
-        // Check if user owns this sequence
-        if (!userId.equals(sequence.getUserId())) {
+        // Check if user has access (owner, shared with all, or shared with user)
+        boolean isOwner = userId.equals(sequence.getUserId());
+        boolean isSharedWithAll = Boolean.TRUE.equals(sequence.getSharedWithAll());
+        boolean isSharedWithUser = sequence.getSharedWithUsers().stream()
+                .anyMatch(u -> u.getId().equals(userId));
+
+        if (!isOwner && !isSharedWithAll && !isSharedWithUser) {
             throw new RuntimeException("Access denied");
         }
 
@@ -864,6 +869,8 @@ public class SequenceService {
                 .tagName(sequence.getTag() != null ? sequence.getTag().getName() : null)
                 .emailAccountId(sequence.getEmailAccount() != null ? sequence.getEmailAccount().getId() : null)
                 .emailAccountName(sequence.getEmailAccount() != null ? sequence.getEmailAccount().getDisplayName() : null)
+                .userId(sequence.getUserId())
+                .sharedWithAll(sequence.getSharedWithAll())
                 .build();
     }
 

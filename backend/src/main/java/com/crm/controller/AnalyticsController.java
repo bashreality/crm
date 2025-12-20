@@ -44,14 +44,35 @@ public class AnalyticsController {
             return stats;
         }
 
-        // Email stats - filtered by userId
-        Long totalEmails = emailRepository.countByUserId(userId);
-        Long positiveEmails = emailRepository.countByUserIdAndStatus(userId, "positive");
-        Long neutralEmails = emailRepository.countByUserIdAndStatus(userId, "neutral");
-        Long negativeEmails = emailRepository.countByUserIdAndStatus(userId, "negative");
-        Long undeliveredEmails = emailRepository.countByUserIdAndStatus(userId, "undelivered");
-        Long maybeLaterEmails = emailRepository.countByUserIdAndStatus(userId, "maybeLater");
-        Long autoReplyEmails = emailRepository.countByUserIdAndStatus(userId, "autoReply");
+        // Email stats - Admin sees all emails, regular users see only accessible ones
+        boolean isAdmin = userContextService.isCurrentUserAdmin();
+        Long totalEmails;
+        Long positiveEmails;
+        Long neutralEmails;
+        Long negativeEmails;
+        Long undeliveredEmails;
+        Long maybeLaterEmails;
+        Long autoReplyEmails;
+
+        if (isAdmin) {
+            // Admin sees all emails from enabled accounts
+            totalEmails = emailRepository.count();
+            positiveEmails = emailRepository.countByStatus("positive");
+            neutralEmails = emailRepository.countByStatus("neutral");
+            negativeEmails = emailRepository.countByStatus("negative");
+            undeliveredEmails = emailRepository.countByStatus("undelivered");
+            maybeLaterEmails = emailRepository.countByStatus("maybeLater");
+            autoReplyEmails = emailRepository.countByStatus("autoReply");
+        } else {
+            // Regular user sees only emails from their assigned accounts
+            totalEmails = emailRepository.countAccessibleByUserId(userId);
+            positiveEmails = emailRepository.countAccessibleByUserIdAndStatus(userId, "positive");
+            neutralEmails = emailRepository.countAccessibleByUserIdAndStatus(userId, "neutral");
+            negativeEmails = emailRepository.countAccessibleByUserIdAndStatus(userId, "negative");
+            undeliveredEmails = emailRepository.countAccessibleByUserIdAndStatus(userId, "undelivered");
+            maybeLaterEmails = emailRepository.countAccessibleByUserIdAndStatus(userId, "maybeLater");
+            autoReplyEmails = emailRepository.countAccessibleByUserIdAndStatus(userId, "autoReply");
+        }
 
         Map<String, Object> emailStats = new HashMap<>();
         emailStats.put("total", totalEmails);
@@ -71,8 +92,13 @@ public class AnalyticsController {
         }
         stats.put("emails", emailStats);
 
-        // Contact stats - filtered by userId
-        Long totalContacts = contactRepository.countByUserId(userId);
+        // Contact stats - Admin sees all contacts, regular users see only accessible ones
+        Long totalContacts;
+        if (isAdmin) {
+            totalContacts = contactRepository.count();
+        } else {
+            totalContacts = contactRepository.countAccessibleByUserId(userId);
+        }
         stats.put("totalContacts", totalContacts);
 
         // Task stats - now filtered by userId
